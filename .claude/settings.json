@@ -21,8 +21,6 @@
       "PowerShell(powershell -ExecutionPolicy Bypass -File tools/smoke.ps1 *)"
     ],
     "deny": [
-      "Bash(git push *)",
-      "PowerShell(git push *)",
       "Bash(git rm *assets/*)",
       "Bash(git mv *assets/*)",
       "Bash(rm *assets/*)",
@@ -33,6 +31,10 @@
       "PowerShell(git rm *assets/*)",
       "PowerShell(git mv *assets/*)",
       "Edit(assets/**)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "PowerShell(git push *)"
     ]
   }
 }
