@@ -1,0 +1,21 @@
+# Godot 4
+.godot/
+*.import
+export_presets.cfg
+# Godot editor binaries (local, ~200 MB)
+GodotEngine/
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.idea/
+*.swp
+# Godot .NET
+.mono/
+data_*/
+mono_crash.*.json
+# OS
+Thumbs.db
+.DS_Store
