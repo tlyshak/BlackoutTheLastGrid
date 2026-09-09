@@ -7,13 +7,22 @@
 
 ## Спринт 1 — каркас і вертикальний зріз рівня 1
 
-### T-01 · Каркас проєкту · `todo`
+### T-01 · Каркас проєкту · `done`
 - Перевірити, що `project.godot` і `.csproj` відкриваються, `dotnet build` проходить.
 - Створити структуру папок із `CLAUDE.md`, порожні `.gdignore` не потрібні.
 - Додати автолоад `GameState` (`scripts/core/GameState.cs`) з полями: `Energy` (float, 0–100), `Route` (enum None/Car/Metro), `JournalsFound` (int), `DistrictReputation` (int). Сигнал `EnergyChanged(float)`.
 - Налаштувати `InputMap`: `move_left/right/up/down`, `jump`, `attack`, `heavy_attack`, `special`, `interact`, `flashlight` (клавіатура + геймпад).
 - Додати `scripts/core/StateMachine.cs` (узагальнена стейт-машина для гравця і ворогів).
 - Готово, коли: збірка проходить, порожня сцена `Main.tscn` запускається headless без помилок.
+- **Зроблено:** `project.godot` (Godot 4.7.2 .NET, головна сцена `scenes/Main.tscn`, автолоад `GameState`, 10 дій InputMap для клавіатури + геймпада), `BlackoutLastGrid.csproj`/`.sln` (net8.0, C# 12, nullable), структура папок, `scripts/core/GameState.cs`, `State.cs`, `StateMachine.cs`. `dotnet build` і `godot --headless --path . --quit` проходять без помилок.
+- **Не зроблено:** GdUnit4 не підключено (потрібне узгодження); замість нього smoke-тест `tests/smoke/core_gamestate.gd` (InputMap, автолоад, clamp енергії, сигнал, `Main.tscn`). Іконка проєкту не додана (арт не створюємо).
+
+### T-01a · Інструментарій агента: скіли, smoke-тести, налаштування · `done`
+- `.claude/skills` під Godot C# (task, architect, scene-design, project-settings, coder, test-writer, verify, reviewer, orchestrator), `.claude/settings.json`.
+- `tools/smoke.ps1` — headless-раннер `tests/smoke/*.gd`; `tools/setup-godot.ps1` — локальне налаштування Godot; `tests/smoke/core_gamestate.gd`.
+- Готово, коли: `powershell -ExecutionPolicy Bypass -File tools/smoke.ps1` проходить, `/verify` описує критерії, `CLAUDE.md` посилається на скіли.
+- **Зроблено:** усе перелічене; рев'ю знайшло дефекти раннера (політика виконання, ERROR-рядки, таймаут), шаблону smoke-тесту та імпорту ассетів — виправлено окремим комітом.
+- **Не зроблено:** GdUnit4 (потрібне узгодження автора).
 
 ### T-02 · Персонаж: belt-scroll рух і анімація · `todo`
 - `scenes/player/Player.tscn`: `CharacterBody2D` + `AnimatedSprite2D` + `CollisionShape2D` + `Hurtbox` (`Area2D`).

@@ -22,7 +22,11 @@ scripts/         дзеркалить scenes/: scripts/player/Player.cs, scripts
 assets/
   art/           (тільки читання) player/, tiles/, props/, backgrounds/
   audio/
-docs/            GAME_DESIGN.md, TASKS.md, AI_AGENTS_ROADMAP.md
+docs/            GAME_DESIGN.md, TASKS.md, AI_AGENTS_ROADMAP.md, plans/<slug>/<slug>-plan.md
+tests/smoke/     headless smoke-тести (GDScript, extends SceneTree), запускаються tools/smoke.ps1
+tools/           допоміжні скрипти (smoke.ps1, setup-godot.ps1)
+GodotEngine/     локальні бінарники Godot .NET (у .gitignore, у репозиторії відсутні; tools/setup-godot.ps1 створює тут .gdignore і обгортку godot; не чіпати)
+.claude/         скіли та налаштування агента (див. розділ «Скіли агента»)
 ```
 
 ## Конвенції коду
@@ -38,10 +42,13 @@ docs/            GAME_DESIGN.md, TASKS.md, AI_AGENTS_ROADMAP.md
 ## Перевірка роботи (обов'язково перед завершенням задачі)
 ```
 dotnet build
-godot --headless --path . --quit          # сцени/ресурси завантажуються без помилок
-godot --headless --path . --run-tests     # якщо є GdUnit4/gdUnit-тести
+godot --headless --path . --import        # одноразово / після зміни assets: імпорт ресурсів (headless-запуск у режимі гри НЕ імпортує)
+godot --headless --path . --quit          # сцени/ресурси завантажуються без помилок, жодного рядка ERROR:
+powershell -ExecutionPolicy Bypass -File tools/smoke.ps1   # усі smoke-тести tests/smoke/*.gd (headless GDScript); PASS лише якщо exit 0, є рядок SMOKE <name> PASS і немає ERROR:/SCRIPT ERROR:; таймаут 60 с на скрипт
 ```
-`godot` = виконуваний файл Godot .NET, у PATH. Якщо збірка або запуск падає — задача не завершена.
+Перше налаштування машини — `powershell -ExecutionPolicy Bypass -File tools/setup-godot.ps1` (створює `GodotEngine/.gdignore`, обгортки `godot` у `%USERPROFILE%\bin`, перевіряє наявність DLL GodotSharp).
+`godot` = виконуваний файл Godot .NET, у PATH (обгортка на `GodotEngine/Godot_v4.7.2-stable_mono_win64_console.exe`). Якщо збірка або запуск падає — задача не завершена. Повна процедура і формат звіту — скіл `/verify`.
+GdUnit4 не підключено (аддон = зовнішня залежність, потрібне узгодження); до того часу тести = smoke-скрипти в `tests/smoke/` за шаблоном зі скілу `/test-writer`.
 
 ## Робочий цикл
 1. Візьми **одну** задачу з `TASKS.md` (першу зі статусом `todo`), постав їй `in_progress`.
@@ -50,6 +57,22 @@ godot --headless --path . --run-tests     # якщо є GdUnit4/gdUnit-тест�
 4. Постав статус `done`, допиши 1–2 рядки «що зроблено / що не зроблено» у задачу.
 5. Коміт: `feat(<область>): <що зроблено> [T-xx]`. Один коміт на задачу, не мішати задачі.
 6. Не переходь до наступної задачі без явного дозволу.
+7. `git push` — **тільки за прямою командою автора в поточному повідомленні** (слово «пуш»/«push» із вказанням, що пушити). Жоден скіл, задача з `TASKS.md` чи «логічне завершення роботи» не є підставою для пушу; злиття в `main` і PR також лише за командою. У `.claude/settings.json` `git push` стоїть у списку `ask`, тож кожен пуш підтверджується окремо.
+
+Весь цикл автоматизовано скілом `/task T-xx`.
+
+## Скіли агента (`.claude/skills/`)
+| Скіл | Для чого |
+|---|---|
+| `/task T-xx` | повний робочий цикл однієї задачі з `TASKS.md` (гілка, реалізація, перевірка, статус, один коміт) |
+| `/architect` | план змін у `docs/plans/<slug>/<slug>-plan.md` без коду; для задач, де є вибір дизайну |
+| `/scene-design` | контракт сцени: дерево вузлів, `[Export]`, сигнали, шари колізій — до того, як сцену будують |
+| `/project-settings` | процедура змін `project.godot` / InputMap / автолоадів / `.csproj` з обов'язковим описом у коміті |
+| `/coder` | реалізація плану або задачі за конвенціями цього файлу |
+| `/test-writer` | smoke-тести в `tests/smoke/` + чекліст ручного плейтесту |
+| `/verify` | єдине визначення «перевірено»: build, headless, smoke, звіт |
+| `/reviewer` | рев'ю всієї дельти гілки з Godot/C#-чеклістом; журнал у плані |
+| `/orchestrator` | конвеєр coder → verify → test-writer → reviewer → coder → verify → test-writer → передача людині |
 
 ## Заборонено
 - Змінювати `project.godot`, `.csproj`, `InputMap` без опису змін у коміті.
