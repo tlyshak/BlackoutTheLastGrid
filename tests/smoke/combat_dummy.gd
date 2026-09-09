@@ -28,6 +28,8 @@ const RESTORE_CAP_MS := 1000   # wall-clock cap while waiting for hit-stop to li
 const COMBO_WINDOW_CAP := 30   # physics frames allowed for an attack's combo window to open (anim 0.30 s = 18)
 const HURT_IDLE_CAP := 60      # physics frames allowed for Hurt -> Idle after a hit (anim 0.30 s = 18)
 const HURT_RESTART_MIN := 17   # frames the second Hurt must last (18 at 60 Hz; 17 allows frame alignment)
+const SETTLE_CAP := 10         # idle frames allowed for the post-load physics catch-up to end (2-3 in practice)
+const SETTLE_DELTA := 0.05     # process delta (s) below which the loop is back to normal pacing (16.7 ms at 60 Hz)
 const DUMMY_START := Vector2(640, 450)
 const DUMMY2_START := Vector2(760, 470)
 const DIMMED := Color(0.35, 0.35, 0.4)   # Dummy.DimmedColor (KO)
@@ -56,6 +58,16 @@ func _process(_delta: float) -> bool:
 func _step(frames: int) -> void:
 	for i in frames:
 		await physics_frame
+
+# Instantiating TestRoom (~100 ms of C# instancing) makes the next iteration run 6-8 physics
+# steps back-to-back; a physics-frame countdown started right after add_child ends inside that
+# burst, and the burst's process delta (the whole stall) becomes the first step of the idle-mode
+# AnimationPlayer and of the Dummy's flash tween. Wait until the process delta is normal again.
+func _settle() -> void:
+	for i in SETTLE_CAP:
+		await process_frame
+		if root.get_process_delta_time() < SETTLE_DELTA:
+			return
 
 func _release_all() -> void:
 	for a in ACTIONS:
@@ -173,6 +185,7 @@ func _run() -> void:
 		return
 	var room: Node = scene.instantiate()
 	root.add_child(room)
+	await _settle()
 
 	var player: Node = room.get_node_or_null("Player")
 	var dummy: Node = room.get_node_or_null("Dummy")
@@ -424,6 +437,7 @@ func _run() -> void:
 	await _step(1)
 	room = scene.instantiate()
 	root.add_child(room)
+	await _settle()
 	player = room.get_node_or_null("Player")
 	dummy = room.get_node_or_null("Dummy")
 	dummy2 = room.get_node_or_null("Dummy2")

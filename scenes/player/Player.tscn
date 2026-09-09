@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=3 uid="uid://ct2db4jsifoal"]
+[gd_scene load_steps=26 format=3 uid="uid://ct2db4jsifoal"]
 
 [ext_resource type="Script" path="res://scripts/player/Player.cs" id="1_player"]
 [ext_resource type="Script" path="res://scripts/core/StateMachine.cs" id="2_sm"]
@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://scripts/player/PlayerHurt.cs" id="8_hurt"]
 [ext_resource type="Script" path="res://scripts/player/PlayerKO.cs" id="9_ko"]
 [ext_resource type="Script" path="res://scripts/player/Flashlight.cs" id="10_flashlight"]
+[ext_resource type="Script" path="res://scripts/player/PlayerInteract.cs" id="11_interact"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_foot"]
 radius = 7.0
@@ -17,6 +18,9 @@ height = 28.0
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_hurt"]
 size = Vector2(32, 64)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_interact"]
+radius = 36.0
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_hit"]
 size = Vector2(36, 40)
@@ -284,7 +288,7 @@ _data = {
 &"light_3": SubResource("Anim_light3")
 }
 
-[node name="Player" type="CharacterBody2D" node_paths=PackedStringArray("Visual", "Sprite", "PlaceholderBody", "AnimationPlayer", "Hitbox", "StateMachine", "Flashlight")]
+[node name="Player" type="CharacterBody2D" node_paths=PackedStringArray("Visual", "Sprite", "PlaceholderBody", "AnimationPlayer", "Hitbox", "StateMachine", "Flashlight", "InteractionArea")]
 collision_layer = 2
 collision_mask = 1
 motion_mode = 1
@@ -296,6 +300,7 @@ AnimationPlayer = NodePath("AnimationPlayer")
 Hitbox = NodePath("Visual/Hitbox")
 StateMachine = NodePath("StateMachine")
 Flashlight = NodePath("Flashlight")
+InteractionArea = NodePath("InteractionArea")
 
 [node name="PH_Shadow" type="Polygon2D" parent="."]
 color = Color(0, 0, 0, 0.45)
@@ -345,6 +350,15 @@ monitoring = false
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
 position = Vector2(0, -36)
 shape = SubResource("RectangleShape2D_hurt")
+
+[node name="InteractionArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 32
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractionArea"]
+position = Vector2(0, -20)
+shape = SubResource("CircleShape2D_interact")
 
 [node name="Flashlight" type="PointLight2D" parent="."]
 position = Vector2(0, -60)
@@ -406,6 +420,9 @@ Knockdown = true
 HitStopFrames = 5
 NextCombo = ""
 ComboWindowStart = 0.0
+
+[node name="Interact" type="Node" parent="StateMachine"]
+script = ExtResource("11_interact")
 
 [node name="Hurt" type="Node" parent="StateMachine"]
 script = ExtResource("8_hurt")

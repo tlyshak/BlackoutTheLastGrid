@@ -4,9 +4,11 @@ using Godot;
 namespace BlackoutLastGrid.Ui;
 
 /// <summary>
-/// On-screen energy bar bound to <see cref="GameState.Energy"/>. Event-driven: the bar and its
-/// label are updated from <see cref="GameState.EnergyChangedEventHandler"/>, never per frame.
-/// Instantiated by the level (or by <c>Main</c> once levels are loaded through it).
+/// On-screen energy bar bound to <see cref="GameState.Energy"/> and an interaction prompt at the
+/// bottom centre. Event-driven: the bar and its label are updated from
+/// <see cref="GameState.EnergyChangedEventHandler"/>, never per frame; the prompt is set by the
+/// level through <see cref="ShowPrompt"/>/<see cref="HidePrompt"/>. Instantiated by the level (or
+/// by <c>Main</c> once levels are loaded through it).
 /// </summary>
 public partial class HUD : CanvasLayer
 {
@@ -19,11 +21,17 @@ public partial class HUD : CanvasLayer
     /// <summary>Format of <see cref="EnergyLabel"/>; {0} is the energy rounded to a whole unit (an <c>int</c>).</summary>
     [Export] public string LabelFormat { get; set; } = "ЕНЕРГІЯ {0}";
 
+    /// <summary>Interaction prompt at the bottom centre; hidden until <see cref="ShowPrompt"/>.</summary>
+    [Export] public Label? Prompt { get; set; }
+
     private GameState? _state;
     private int _shownRounded = int.MinValue;
 
     /// <summary>The value currently displayed by the bar.</summary>
     public float DisplayedEnergy => (float)EnergyBar.Value;
+
+    /// <summary>Text of the prompt while it is visible, else an empty string.</summary>
+    public string PromptText => Prompt is { Visible: true } ? Prompt.Text : string.Empty;
 
     /// <inheritdoc/>
     public override void _Ready() => Bind(GameState.Instance);
@@ -63,6 +71,28 @@ public partial class HUD : CanvasLayer
 
         _state.EnergyChanged -= OnEnergyChanged;
         _state = null;
+    }
+
+    /// <summary>Shows the interaction prompt with <paramref name="text"/>.</summary>
+    /// <param name="text">Prompt text, e.g. "E: Зарядити".</param>
+    public void ShowPrompt(string text)
+    {
+        if (Prompt is null)
+        {
+            return;
+        }
+
+        Prompt.Text = text;
+        Prompt.Visible = true;
+    }
+
+    /// <summary>Hides the interaction prompt.</summary>
+    public void HidePrompt()
+    {
+        if (Prompt is not null)
+        {
+            Prompt.Visible = false;
+        }
     }
 
     private void OnEnergyChanged(float energy)
