@@ -1,0 +1,12 @@
+<Project Sdk="Godot.NET.Sdk/4.7.2">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Nullable>enable</Nullable>
+    <LangVersion>12</LangVersion>
+    <RootNamespace>BlackoutLastGrid</RootNamespace>
+    <AssemblyName>BlackoutLastGrid</AssemblyName>
+    <!-- Local Godot editor binaries live inside the repo; never compile/copy anything from there. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);GodotEngine/**;.godot/**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>
