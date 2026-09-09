@@ -92,7 +92,8 @@ connects. Cross-scene state goes through `GameState` only.
   body-tall rectangle above it.
 - **Depth = Y.** y-sort orders by the root's global Y, which is why the origin must be the feet.
   Depth comparisons for hits use `Mathf.Abs(attacker.GlobalPosition.Y - target.GlobalPosition.Y)
-  <= DepthTolerance` on the owners, never on the areas (their Y includes the body height).
+  <= DepthTolerance` on the owners (inclusive — equal is a hit), never on the areas (their Y
+  includes the body height).
 - **Floor bounds.** `[Export] FloorTop` / `FloorBottom` (px, world Y) clamped in
   `_PhysicsProcess`, or an `Area2D` zone the level exports to the player. Horizontal limits come
   from `1 World` `StaticBody2D` walls or the camera limits.

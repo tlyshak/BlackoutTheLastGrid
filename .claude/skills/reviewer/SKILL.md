@@ -142,7 +142,7 @@ also verify.
    the plan.
 8. Do **not** edit code (`scripts/**`, `scenes/**`, `tests/**`, `project.godot`, `.csproj`,
    `docs/TASKS.md`). The plan journal plus the chat summary only. You may run `dotnet build`,
-   `godot --headless --path . --quit` and `powershell -File tools/smoke.ps1` to confirm what
+   `godot --headless --path . --quit` and `powershell -ExecutionPolicy Bypass -File tools/smoke.ps1` to confirm what
    the author claims; a red result is a Blocker with the output quoted.
 
 ## Evidence rules — every finding must earn its place

@@ -29,11 +29,12 @@ the change in the commit; this skill is how that description is earned. `/task`,
    ```
    godot --headless --path . --quit
    ```
-   must exit 0 with no `ERROR:` line (a malformed `Object(...)` prints `ERROR: Parse error` and
-   silently drops the action). Then add or extend a smoke script that asserts the new setting
+   must pass by `/verify`'s headless-load rules (a malformed `Object(...)` prints
+   `ERROR: Parse error` and silently drops the action). Then add or extend a smoke script that
+   asserts the new setting
    exists — `InputMap.has_action("dash")`, `root.has_node("AudioBus")`,
    `ProjectSettings.get_setting("layer_names/2d_physics/layer_2") == "Player"` — and run
-   `powershell -File tools/smoke.ps1`. Finish with `dotnet build` if `.csproj` changed.
+   `powershell -ExecutionPolicy Bypass -File tools/smoke.ps1`. Finish with `dotnet build` if `.csproj` changed.
 5. **Update every caller** for behavior-changing or breaking edits: grep the action or autoload
    name as a string across `scripts/` and `tests/` (`"move_left"`, `"GameState"`) and fix each.
 6. **Write the commit-body paragraph** (mandatory, verbatim shape):

@@ -24,8 +24,8 @@ assets/
   audio/
 docs/            GAME_DESIGN.md, TASKS.md, AI_AGENTS_ROADMAP.md, plans/<slug>/<slug>-plan.md
 tests/smoke/     headless smoke-тести (GDScript, extends SceneTree), запускаються tools/smoke.ps1
-tools/           допоміжні скрипти (smoke.ps1)
-GodotEngine/     локальні бінарники Godot .NET (у .gitignore, має .gdignore; не чіпати)
+tools/           допоміжні скрипти (smoke.ps1, setup-godot.ps1)
+GodotEngine/     локальні бінарники Godot .NET (у .gitignore, у репозиторії відсутні; tools/setup-godot.ps1 створює тут .gdignore і обгортку godot; не чіпати)
 .claude/         скіли та налаштування агента (див. розділ «Скіли агента»)
 ```
 
@@ -42,9 +42,11 @@ GodotEngine/     локальні бінарники Godot .NET (у .gitignore, 
 ## Перевірка роботи (обов'язково перед завершенням задачі)
 ```
 dotnet build
+godot --headless --path . --import        # одноразово / після зміни assets: імпорт ресурсів (headless-запуск у режимі гри НЕ імпортує)
 godot --headless --path . --quit          # сцени/ресурси завантажуються без помилок, жодного рядка ERROR:
-powershell -File tools/smoke.ps1          # усі smoke-тести tests/smoke/*.gd (headless GDScript), кожен друкує SMOKE <name> PASS|FAIL
+powershell -ExecutionPolicy Bypass -File tools/smoke.ps1   # усі smoke-тести tests/smoke/*.gd (headless GDScript); PASS лише якщо exit 0, є рядок SMOKE <name> PASS і немає ERROR:/SCRIPT ERROR:; таймаут 60 с на скрипт
 ```
+Перше налаштування машини — `powershell -ExecutionPolicy Bypass -File tools/setup-godot.ps1` (створює `GodotEngine/.gdignore`, обгортки `godot` у `%USERPROFILE%\bin`, перевіряє наявність DLL GodotSharp).
 `godot` = виконуваний файл Godot .NET, у PATH (обгортка на `GodotEngine/Godot_v4.7.2-stable_mono_win64_console.exe`). Якщо збірка або запуск падає — задача не завершена. Повна процедура і формат звіту — скіл `/verify`.
 GdUnit4 не підключено (аддон = зовнішня залежність, потрібне узгодження); до того часу тести = smoke-скрипти в `tests/smoke/` за шаблоном зі скілу `/test-writer`.
 

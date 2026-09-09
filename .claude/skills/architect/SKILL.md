@@ -57,7 +57,7 @@ document disagree, the document wins; when a document is ambiguous, you ask — 
      Run the `scene-design` skill and record its output here: the node tree (types and names,
      `PH_` prefix on placeholder visuals), the script attached (`scripts/<mirror>/<Name>.cs`,
      `partial class <Name> : <Base>`), every `[Export]` with default value and unit
-     (`MoveSpeed = 180 px/s`, `DepthTolerance = 12 px`, `FlashlightDrain = 1.0 energy/s`),
+     (`MoveSpeed = 220 px/s`, `DepthTolerance = 12 px`, `FlashlightDrain = 1.0 energy/s`),
      every signal with parameter types (`[Signal] delegate void ActivatedEventHandler();`,
      `EnergyChanged(float)`), collision layers/masks per `CollisionShape2D`/`Area2D`, the
      `Hitbox`/`Hurtbox` `Area2D`s (exact names) and their shapes, and **who connects to what**
@@ -81,7 +81,8 @@ document disagree, the document wins; when a document is ambiguous, you ask — 
      - "given the player at y=200 and a `PH_` crate at y=212, the player renders behind the
        crate; at y=230 in front";
      - "given `Hitbox` active and the Dummy's `Hurtbox` at |Δy| = 13 px, no damage is applied;
-       at |Δy| = 11 px, `Dummy.Hp` drops by `LightDamage`";
+       at |Δy| = 12 px (equal to `DepthTolerance` — inclusive), `Dummy.Hp` drops by
+       `LightDamage`";
      - "given `GameState.Energy = 100` and the flashlight on for 10 s, `Energy` reads 90 ± 0.5
        and `EnergyChanged` was emitted at least once";
      - "given `Engine.TimeScale` was set to 0 for hit-stop, it is back to 1.0 within 5 frames
@@ -266,7 +267,8 @@ When choosing the Recommended approach, weigh these — and record the outcome i
   `special`, `interact`, `flashlight`); a plan that reads `Key.Space` is wrong.
 - Belt-scroll rules are non-negotiable: `CharacterBody2D` on the floor plane, depth = Y,
   `y_sort_enabled` on the level parent, `Hitbox`/`Hurtbox` `Area2D` children with those exact
-  names, hit checks against `[Export] DepthTolerance` (default 12 px), jump as a separate
+  names, a hit when `abs(dy) <= DepthTolerance` (`[Export]`, default 12 px, inclusive), jump
+  as a separate
   `_z` height offset on the sprite with the shadow left on the floor.
 - Combos, enemy behavior and player states are `StateMachine`/`State` nodes
   (`scripts/core/StateMachine.cs`, `scripts/core/State.cs`), never boolean flags or if-chains.

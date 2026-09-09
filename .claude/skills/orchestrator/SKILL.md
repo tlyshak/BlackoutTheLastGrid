@@ -30,8 +30,9 @@ Track progress in a TodoWrite list (or a scratch file) across the pipeline steps
   `tests/smoke/`, `docs/`, `project.godot`/`.csproj`).
 - Plan **Acceptance criteria** → met / unmet / unknown.
 - **Review findings** from the review step (Code / Tests) and whether the fix pass closed them.
-- Verification result you ran yourself after each coder step: build (passed / failed),
-  headless load (passed / failed), smoke run (passed / failed / unknown).
+- Verification result you ran yourself after each coder step, per `/verify`: build
+  (passed / failed), import (passed / skipped / failed), headless load (passed / failed),
+  smoke run (passed / failed / unknown).
 - Whether the branch touched `project.godot`, InputMap, or `.csproj`, and whether the plan
   sanctioned it (this must appear in the commit body the human writes).
 
@@ -52,26 +53,24 @@ Steps in order:
 
 1. **Implement** — run `/coder` on the whole plan.
 2. **Verify yourself** — do **not** trust the coder's self-report, even though `/coder` runs
-   `/verify` on its own. Run these with Bash from the repo root and read the output:
+   `/verify` on its own. Run `/verify` yourself — its exact commands, with Bash from the repo
+   root — and read the output. Pass/fail criteria are defined in `/verify`; do not re-derive
+   them here. The commands:
    ```
    dotnet build
+   godot --headless --path . --import      # only once per machine or when assets/ changed — see /verify
    godot --headless --path . --quit
-   powershell -File tools/smoke.ps1
+   powershell -ExecutionPolicy Bypass -File tools/smoke.ps1
    ```
-   - `dotnet build` must end with `0 Error(s)`.
-   - The headless run must exit 0 with **no `ERROR:` lines** (warnings are recorded, not
-     fatal, unless the plan says otherwise).
-   - The smoke runner must print `SMOKE <name> PASS` for every script under `tests/smoke/`
-     and exit 0. If `tests/smoke/` is empty at this point, record smoke as *unknown*, not
-     passing.
+   - If `tests/smoke/` is empty at this point, record smoke as *unknown*, not passing.
    - If the plan names a scene, also load it once:
      `godot --headless --path . res://scenes/<path>.tscn --quit`.
-   - If anything is red, capture the exact error lines and feed them to the coder as part of
-     the fix pass (step 5) rather than proceeding on a red build.
+   - If the verdict is anything but `verified`, capture the exact lines `/verify` quotes and
+     feed them to the coder as part of the fix pass (step 5) rather than proceeding.
 3. **Test** — run `/test-writer` to cover what changed per the plan's **Test strategy**: smoke
    scripts under `tests/smoke/` plus the Playtest checklist. Capture pass/fail from the actual
-   `powershell -File tools/smoke.ps1` output (or the single-script form
-   `godot --headless --path . -s tests/smoke/<file>.gd`), not the role's summary alone. If the
+   `powershell -ExecutionPolicy Bypass -File tools/smoke.ps1` output (or a subset via
+   `-Filter <name or glob>`), judged by `/verify`'s rules, not the role's summary alone. If the
    smoke runner could not run at all (Godot not on PATH, build red), record that as *unknown*,
    never as passing. GdUnit4 is not available — if the role recommends it, note it as an open
    item for the author, do not install it.
@@ -85,8 +84,7 @@ Steps in order:
    criteria + any red result from step 2 + the plan's **Review findings → Code** block (the
    coder reads the journal from the plan, not only from your context).
 6. **Verify yourself again** — re-run the exact commands from step 2 and record the result.
-   Never report success on a red build, a headless run with `ERROR:` lines, or a failing smoke
-   script.
+   Never report success on a `/verify` verdict other than `verified`.
 7. **Fix pass — test** — run `/test-writer` on the **Review findings → Tests** block plus any
    newly changed code; it also refreshes the Playtest checklist if the behavior moved. Capture
    pass/fail from real smoke output.
@@ -108,9 +106,9 @@ Steps in order:
 - A **conflict between the task text and `docs/GAME_DESIGN.md`** discovered during
   implementation or review that the plan did not resolve. The document wins and the human
   decides — never let the coder pick.
-- A **red build, a headless run with `ERROR:` lines, or a failing smoke script** that the fix
-  pass (steps 5–7) cannot make green — stop and hand the open items to the human. Do **not**
-  invent extra cycles to chase it.
+- A **`/verify` verdict of *not verified*** (red build, failed headless load, failing or
+  not-run smoke) that the fix pass (steps 5–7) cannot turn green — stop and hand the open
+  items to the human. Do **not** invent extra cycles to chase it.
 - A stuck `Engine.TimeScale` (game frozen after hit-stop) or an `Area2D` with no
   layers/masks found by the reviewer and not closed by the fix pass — these are gameplay
   blockers, never "nits" to hand off silently.
@@ -135,8 +133,10 @@ unavailable, invoke those same role skills inline via the Skill tool (by name: `
 - Never commit, push, merge, or open a PR — even on `Ship: yes`. The developer commits after
   their own review, one commit per task (`feat(<area>): <what> [T-xx]`), and adds the
   `project.godot`/InputMap/`.csproj` note to the commit body if the branch touched them.
-- Never change a `docs/TASKS.md` status yourself — report the status the human should set
-  (`done`, or `in_progress`/`blocked` with the reason) and the 1–2 line "done / not done" note.
+- Never change a `docs/TASKS.md` status yourself, and do not expect `/coder` to — `/coder`
+  never touches a status or the done-note; only `/task` does. You **report** the status the
+  human should set (`done`, or `in_progress`/`blocked` with the reason) and the 1–2 line
+  "done / not done" note taken from the coder's report.
 - Honor the same repo constraints as the roles: scope is the TASKS.md task; out-of-scope ideas
   become `backlog` lines in `docs/TASKS.md`, not code.
 

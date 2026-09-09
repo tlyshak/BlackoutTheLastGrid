@@ -26,7 +26,9 @@ delegate the specialised parts to `/architect`, `/coder`, `/verify`, `/test-writ
    `<short-name>` is 2–3 ASCII words from the title, e.g. `task/t-02-player-movement`,
    `task/t-02b-basic-combat`, `task/t-05-outlet-power-panel`.
 3. **Set `in_progress`** — edit only the trailing status on the heading line
-   (`### T-02 · … · \`todo\`` → `\`in_progress\``). Do not reflow the rest of the file.
+   (`### T-02 · … · \`todo\`` → `\`in_progress\``). Do not reflow the rest of the file. `/task`
+   is the **only** skill that edits a TASKS.md status or done-note: `/coder` never does, and
+   `/orchestrator` only reports the status to set.
 4. **Plan or proceed** — run `/architect` with slug `t02-player-movement` (id without the dash,
    plus the short name) when the task touches more than ~3 files, adds a new scene, or has a
    design choice (which node handles `interact`, how `_z` height is represented, where a spawner
@@ -37,16 +39,19 @@ delegate the specialised parts to `/architect`, `/coder`, `/verify`, `/test-writ
    instead of art, `StateMachine` + `State` children for behaviour. Any edit to
    `project.godot`, InputMap, autoloads, layer names or `.csproj` goes through
    `/project-settings` first. Out-of-scope findings become `backlog` entries in `docs/TASKS.md`,
-   not code.
-6. **Verify** with `/verify`. On a red result, fix and re-run — at most **3** loops. If the third
-   run is still red, stop, leave the branch as is, and report what is failing; do not mark the
-   task `done` and do not commit a red state.
+   not code. `/coder` hands back the Зроблено / Не зроблено text in its report — keep it for
+   step 8; it does not write it into TASKS.md itself.
+6. **Verify** with `/verify` — pass/fail criteria are defined there, not here. On any verdict
+   other than `verified`, fix and re-run — at most **3** loops. If the third run is still not
+   `verified`, stop, leave the branch as is, and report what is failing; do not mark the task
+   `done` and do not commit an unverified state.
 7. **Tests + playtest** — run `/test-writer` for the smoke scripts implied by the "Готово, коли:"
    line (and the plan's Test strategy) plus the numbered playtest checklist. Re-run
-   `powershell -File tools/smoke.ps1` after they land; a failing new script counts as red in
-   step 6's budget.
+   `powershell -ExecutionPolicy Bypass -File tools/smoke.ps1` after they land (judged by
+   `/verify`'s rules); a failing new script counts as a failed run in step 6's budget.
 8. **Set `done` and write the note** — change the heading status to `done` and append under
-   the task's bullets, in the same shape T-01 uses (Ukrainian is fine here):
+   the task's bullets, in the same shape T-01 uses (Ukrainian is fine here; the Зроблено /
+   Не зроблено lines come from the coder's report, the playtest from `/test-writer`):
    ```
    - **Зроблено:** <1–2 lines: files/scenes/scripts, what works, how it was verified>
    - **Не зроблено:** <what was deferred and why, or "—">

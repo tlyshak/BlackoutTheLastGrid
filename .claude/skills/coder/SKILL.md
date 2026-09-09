@@ -35,17 +35,18 @@ tells you how to apply it while writing code. The design source of truth is
 4. Quality: clear names, short methods, XML doc comments on public members (the style of
    `scripts/core/*.cs`), no dead or commented-out code; the diff is indistinguishable in style
    from the surrounding code.
-5. After edits run `/verify` (or the exact commands below) and **read the output**:
+5. After edits run `/verify` and **read its output**. Pass/fail criteria are defined in
+   `/verify` — do not re-derive them here. The exact commands it runs, from the repo root:
    ```
    dotnet build
-   godot --headless --path . --quit               # exit 0, no "ERROR:" lines
-   powershell -File tools/smoke.ps1               # every tests/smoke/*.gd prints SMOKE <name> PASS
+   godot --headless --path . --import      # only once per machine or when assets/ changed — see /verify
+   godot --headless --path . --quit
+   powershell -ExecutionPolicy Bypass -File tools/smoke.ps1
    ```
    To load one scene for a frame: `godot --headless --path . res://scenes/levels/TestRoom.tscn --quit`.
    - Fix every new warning you introduced. Treat `CS86xx` nullable warnings as errors. Do not
      chase pre-existing warnings.
-   - A red build, an `ERROR:` line in the headless run, or a `SMOKE ... FAIL` means the task is
-     not done.
+   - Any `/verify` verdict other than `verified` means the task is not done.
 6. Tests: write or extend `tests/smoke/<area>_<what>.gd` for everything the plan's Test strategy
    lists (or the task's "done when" line implies). If the tests are more than a few assertions,
    hand off to `/test-writer` and say so in the report. GdUnit4 is not installed — do not add it;
@@ -57,10 +58,14 @@ tells you how to apply it while writing code. The design source of truth is
    the task's bullets) — every item is closed, nothing extra was added, every Acceptance
    criteria item is achievable with the current code. Report divergences instead of staying
    silent.
-9. TASKS.md bookkeeping when working from a task id: set the task to `in_progress` at the start;
-   at the end set `done` and add 1–2 lines "**Зроблено:** … / **Не зроблено:** …" under the task
-   (Ukrainian, like the existing T-01 entry). That note is the human-readable hand-off. The
-   coder does **not** commit — `/task` owns the branch, the commit and the stop after one task.
+9. TASKS.md bookkeeping: `/coder` **never changes a task's status and never writes the
+   done-note**. Only `/task` edits the heading status (`in_progress` at the start, `done` at
+   the end) and the "**Зроблено:** … / **Не зроблено:** …" note; `/orchestrator` only reports
+   the status the human should set. Your job is to hand `/task` the material: put the 1–2
+   line Зроблено / Не зроблено text (Ukrainian, like the existing T-01 entry) in your report.
+   The only `docs/TASKS.md` edit you make is a new `backlog` line for an out-of-scope finding
+   (step 2). The coder does **not** commit — `/task` owns the branch, the commit and the
+   stop after one task.
 10. Report at the end using the block under *What to hand off*.
 
 ## Implementation rules
@@ -116,8 +121,8 @@ tells you how to apply it while writing code. The design source of truth is
   handled in `_UnhandledInput` / state `HandleInput`.
 - **Belt-scroll depth:** characters are `CharacterBody2D` on the floor plane, depth = Y; jump is
   a separate height value offsetting the sprite, the collision shape stays on the floor. Every
-  hit check compares `Mathf.Abs(attacker.GlobalPosition.Y - target.GlobalPosition.Y)` against
-  `[Export] DepthTolerance` before applying damage.
+  hit check requires `Mathf.Abs(attacker.GlobalPosition.Y - target.GlobalPosition.Y)
+  <= DepthTolerance` (`[Export]`, inclusive — equal is a hit) before applying damage.
 - **GameState:** mutate `GameState.Instance.Energy` / `AddEnergy` only from the mechanic that
   owns the change (flashlight drain, outlet, enemy damage); the clamped `Energy` setter is the
   only write path so `EnergyChanged` always fires. Read-only consumers (HUD) subscribe to the
@@ -165,8 +170,8 @@ tells you how to apply it while writing code. The design source of truth is
 
 - The diff maps 1:1 to the plan's file-level change list (or to the task bullets if no plan).
 - No unrelated edits; found problems are `backlog` lines in `docs/TASKS.md`.
-- `dotnet build` is green with no new warnings, the headless load has no `ERROR:` lines, every
-  smoke test prints `PASS`.
+- `/verify` reports `verified` (its rules, not a restatement of them) with no new build
+  warnings.
 - Scenes open in the editor without "missing resource" or script mismatch warnings.
 - Every tunable is an `[Export]`, every behavior branch is a `State`, every hit respects
   `DepthTolerance`, every `Engine.TimeScale` change has a restore path.
@@ -178,9 +183,8 @@ tells you how to apply it while writing code. The design source of truth is
 End with a short block:
 ```
 Changed: <n> files (<path — one-line intent>, ...)
-Build: <passed|failed>
-Headless: <clean | ERROR lines: ...>
-Smoke: <n passed / n failed | n/a>
+Verify: <verdict from the /verify block: verified | not verified — step and why>
+TASKS.md note (for /task to paste): Зроблено: … / Не зроблено: …
 Project settings touched: <none | file + what, to be noted in the commit body>
 Acceptance criteria met: <all|partial — what is not>
 Playtest checklist: <where it was written | n/a>
