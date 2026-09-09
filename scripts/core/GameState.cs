@@ -78,6 +78,13 @@ public partial class GameState : Node
     public int DistrictReputation { get; set; }
 
     /// <summary>
+    /// <c>res://</c> path of the level the run is in, set by <c>Main</c> when it loads the start
+    /// level and by <c>LevelBase.GoToLevel</c> on every level change. Plain data for now: save/load
+    /// (T-09) persists it and resumes the run from it.
+    /// </summary>
+    public string CurrentScenePath { get; set; } = string.Empty;
+
+    /// <summary>
     /// Registers the singleton and keeps processing while the tree is paused; <see cref="_Ready"/>
     /// starts a run with a full reserve (<see cref="MaxEnergy"/>), save/load (T-09) overwrites it.
     /// </summary>

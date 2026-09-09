@@ -1,0 +1,680 @@
+[gd_scene load_steps=27 format=3 uid="uid://d3d1177b7jpkm"]
+
+[ext_resource type="Script" path="res://scripts/levels/Level00_Prologue.cs" id="1_level"]
+[ext_resource type="PackedScene" uid="uid://ct2db4jsifoal" path="res://scenes/player/Player.tscn" id="2_player"]
+[ext_resource type="PackedScene" uid="uid://2adcecasbtv6" path="res://scenes/ui/HUD.tscn" id="3_hud"]
+[ext_resource type="PackedScene" uid="uid://bl4rdh3hy5v37" path="res://scenes/core/WaveSpawner.tscn" id="4_spawner"]
+[ext_resource type="Script" path="res://scripts/core/EnemyDirector.cs" id="5_director"]
+[ext_resource type="Script" path="res://scripts/props/LitZone.cs" id="6_litzone"]
+[ext_resource type="PackedScene" uid="uid://bhku23d0vfuqb" path="res://scenes/props/Outlet.tscn" id="7_outlet"]
+[ext_resource type="PackedScene" uid="uid://dmtttbck25go3" path="res://scenes/props/PowerPanel.tscn" id="8_panel"]
+[ext_resource type="Script" path="res://scripts/levels/RoomBounds.cs" id="9_room"]
+[ext_resource type="Script" path="res://scripts/levels/Door.cs" id="10_door"]
+[ext_resource type="Script" path="res://scripts/props/TutorialPrompt.cs" id="11_prompt"]
+[ext_resource type="Script" path="res://scripts/props/JumpableObstacle.cs" id="12_obstacle"]
+[ext_resource type="PackedScene" uid="uid://4hbuflsw3m5e" path="res://scenes/ui/Cutscene.tscn" id="13_cutscene"]
+[ext_resource type="PackedScene" uid="uid://g0gjms1b3i3p" path="res://scenes/levels/Level01_District.tscn" id="14_next"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
+size = Vector2(40, 400)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_door"]
+size = Vector2(40, 300)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_crate"]
+size = Vector2(44, 300)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_prompt_move"]
+size = Vector2(300, 300)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_prompt_jump"]
+size = Vector2(180, 300)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_prompt_flash"]
+size = Vector2(240, 300)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_prompt_panel"]
+size = Vector2(280, 300)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_prompt_sneak"]
+size = Vector2(240, 300)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_zone"]
+size = Vector2(500, 190)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_exit"]
+size = Vector2(80, 300)
+
+[sub_resource type="Gradient" id="Gradient_lamp"]
+offsets = PackedFloat32Array(0, 0.35, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.55, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_lamp"]
+gradient = SubResource("Gradient_lamp")
+width = 256
+height = 256
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[node name="Level00_Prologue" type="Node2D" node_paths=PackedStringArray("Player", "Camera", "StartRoom", "DebugLabel", "Hud", "Cutscene", "Darkness", "Tutorial", "DanFigure", "Door1", "Door2", "FlashlightPrompt", "FanPanel", "AlarmLights", "GuardSpawner", "Exit")]
+y_sort_enabled = true
+script = ExtResource("1_level")
+IntroLines = PackedStringArray("Шахта-звалище «Зміна». Кінець зміни. Рей і Дан розбирають старі акумулятори для заводу банди.", "Дан: — Ще пару таких змін — і дадуть подвійну норму. Якщо працювати, дадуть більше, Рею.", "Рей: — Побачимо. Я нагору, до вентиляційної. Не засиджуйся внизу.")
+NoPowerLines = PackedStringArray("Немає живлення. Панель обезструмлена згори.", "З диспетчерської: «Нижні не платять — нижнім не світимо». Вентиляцію нижніх горизонтів вимкнено.")
+DanLines = PackedStringArray("Дан лишився внизу. Спуск уже перекрито — Рей не встигає його витягнути.", "Згори чутно кроки: охорона зачищає горизонт. Треба вибиратися.")
+ForemanLines = PackedStringArray("Бригадир: — Дан… Записую: втрата по недбалості. Штраф зміні.", "Енергію зміни урізано. Це все, що бригадир має сказати про Дана.")
+EndLines = PackedStringArray("Рей повертається в район. У вікні майстерні — мертва районна електростанція.", "Якби район мав своє світло — банда не мала б важеля.", "Рішення: запустити її.")
+NextLevel = ExtResource("14_next")
+StartRoom = NodePath("Rooms/Room_Zaboi")
+DebugLabel = NodePath("UI/DebugLabel")
+Hud = NodePath("HUD")
+Cutscene = NodePath("Cutscene")
+Darkness = NodePath("Darkness")
+Tutorial = NodePath("Tutorial")
+DanFigure = NodePath("PH_Dan")
+Door1 = NodePath("Door_1")
+Door2 = NodePath("Door_2")
+FlashlightPrompt = NodePath("Tutorial/FlashlightPrompt")
+FanPanel = NodePath("FanPanel")
+AlarmLights = NodePath("AlarmLights")
+GuardSpawner = NodePath("GuardSpawner")
+Exit = NodePath("Exit")
+Player = NodePath("Player")
+Camera = NodePath("Camera2D")
+
+[node name="Darkness" type="CanvasModulate" parent="."]
+color = Color(0.0392157, 0.0509804, 0.0784314, 1)
+
+[node name="Rooms" type="Node2D" parent="."]
+
+[node name="Room_Zaboi" type="Node2D" parent="Rooms"]
+script = ExtResource("9_room")
+Rect = Rect2(0, 0, 1920, 1080)
+FloorTop = 300.0
+FloorBottom = 600.0
+
+[node name="Room_Vent" type="Node2D" parent="Rooms"]
+script = ExtResource("9_room")
+Rect = Rect2(1920, 0, 1920, 1080)
+FloorTop = 300.0
+FloorBottom = 600.0
+
+[node name="Room_Exit" type="Node2D" parent="Rooms"]
+script = ExtResource("9_room")
+Rect = Rect2(3840, 0, 1920, 1080)
+FloorTop = 300.0
+FloorBottom = 600.0
+
+[node name="PH_Wall_1" type="ColorRect" parent="."]
+offset_right = 1920.0
+offset_bottom = 300.0
+color = Color(0.11, 0.095, 0.08, 1)
+
+[node name="PH_Wall_2" type="ColorRect" parent="."]
+offset_left = 1920.0
+offset_right = 3840.0
+offset_bottom = 300.0
+color = Color(0.09, 0.1, 0.115, 1)
+
+[node name="PH_Wall_3" type="ColorRect" parent="."]
+offset_left = 3840.0
+offset_right = 5760.0
+offset_bottom = 300.0
+color = Color(0.115, 0.105, 0.09, 1)
+
+[node name="PH_Ceiling" type="ColorRect" parent="."]
+offset_right = 5760.0
+offset_bottom = 36.0
+color = Color(0.06, 0.055, 0.05, 1)
+
+[node name="PH_Floor_1" type="ColorRect" parent="."]
+offset_top = 300.0
+offset_right = 1920.0
+offset_bottom = 640.0
+color = Color(0.21, 0.19, 0.16, 1)
+
+[node name="PH_Floor_2" type="ColorRect" parent="."]
+offset_left = 1920.0
+offset_top = 300.0
+offset_right = 3840.0
+offset_bottom = 640.0
+color = Color(0.18, 0.2, 0.23, 1)
+
+[node name="PH_Floor_3" type="ColorRect" parent="."]
+offset_left = 3840.0
+offset_top = 300.0
+offset_right = 5760.0
+offset_bottom = 640.0
+color = Color(0.22, 0.2, 0.17, 1)
+
+[node name="PH_Decals" type="Node2D" parent="."]
+position = Vector2(0, 300)
+
+[node name="PH_LitFloor_1" type="Polygon2D" parent="PH_Decals"]
+position = Vector2(4550, 205)
+color = Color(0.3, 0.28, 0.22, 1)
+polygon = PackedVector2Array(-250, -95, 250, -95, 250, 95, -250, 95)
+
+[node name="PH_LitFloor_2" type="Polygon2D" parent="PH_Decals"]
+position = Vector2(5050, 205)
+color = Color(0.3, 0.28, 0.22, 1)
+polygon = PackedVector2Array(-250, -95, 250, -95, 250, 95, -250, 95)
+
+[node name="PH_FloorEdge" type="ColorRect" parent="."]
+offset_top = 600.0
+offset_right = 5760.0
+offset_bottom = 604.0
+color = Color(0.36, 0.34, 0.3, 1)
+
+[node name="PH_Support_1" type="Polygon2D" parent="."]
+position = Vector2(480, 300)
+color = Color(0.3, 0.22, 0.14, 1)
+polygon = PackedVector2Array(-12, -264, 12, -264, 12, 0, -12, 0)
+
+[node name="PH_Support_2" type="Polygon2D" parent="."]
+position = Vector2(960, 300)
+color = Color(0.3, 0.22, 0.14, 1)
+polygon = PackedVector2Array(-12, -264, 12, -264, 12, 0, -12, 0)
+
+[node name="PH_Support_3" type="Polygon2D" parent="."]
+position = Vector2(1440, 300)
+color = Color(0.3, 0.22, 0.14, 1)
+polygon = PackedVector2Array(-12, -264, 12, -264, 12, 0, -12, 0)
+
+[node name="PH_Support_4" type="Polygon2D" parent="."]
+position = Vector2(2400, 300)
+color = Color(0.3, 0.22, 0.14, 1)
+polygon = PackedVector2Array(-12, -264, 12, -264, 12, 0, -12, 0)
+
+[node name="PH_Support_5" type="Polygon2D" parent="."]
+position = Vector2(3300, 300)
+color = Color(0.3, 0.22, 0.14, 1)
+polygon = PackedVector2Array(-12, -264, 12, -264, 12, 0, -12, 0)
+
+[node name="PH_Support_6" type="Polygon2D" parent="."]
+position = Vector2(4300, 300)
+color = Color(0.3, 0.22, 0.14, 1)
+polygon = PackedVector2Array(-12, -264, 12, -264, 12, 0, -12, 0)
+
+[node name="PH_Support_7" type="Polygon2D" parent="."]
+position = Vector2(5000, 300)
+color = Color(0.3, 0.22, 0.14, 1)
+polygon = PackedVector2Array(-12, -264, 12, -264, 12, 0, -12, 0)
+
+[node name="PH_Conveyor" type="ColorRect" parent="."]
+offset_left = 380.0
+offset_top = 306.0
+offset_right = 1500.0
+offset_bottom = 346.0
+color = Color(0.27, 0.27, 0.29, 1)
+
+[node name="PH_ConveyorEdge" type="ColorRect" parent="."]
+offset_left = 380.0
+offset_top = 346.0
+offset_right = 1500.0
+offset_bottom = 352.0
+color = Color(0.4, 0.4, 0.42, 1)
+
+[node name="PH_Battery_1" type="Polygon2D" parent="."]
+position = Vector2(600, 346)
+color = Color(0.36, 0.36, 0.2, 1)
+polygon = PackedVector2Array(-20, -24, 20, -24, 20, 0, -20, 0)
+
+[node name="PH_Battery_2" type="Polygon2D" parent="."]
+position = Vector2(900, 346)
+color = Color(0.36, 0.36, 0.2, 1)
+polygon = PackedVector2Array(-20, -24, 20, -24, 20, 0, -20, 0)
+
+[node name="PH_Battery_3" type="Polygon2D" parent="."]
+position = Vector2(1200, 346)
+color = Color(0.36, 0.36, 0.2, 1)
+polygon = PackedVector2Array(-20, -24, 20, -24, 20, 0, -20, 0)
+
+[node name="PH_Hatch" type="Polygon2D" parent="."]
+position = Vector2(330, 590)
+color = Color(0.03, 0.03, 0.04, 1)
+polygon = PackedVector2Array(-56, -34, 56, -34, 56, 0, -56, 0)
+
+[node name="PH_HatchRim" type="Polygon2D" parent="."]
+position = Vector2(330, 591)
+color = Color(0.4, 0.36, 0.3, 1)
+polygon = PackedVector2Array(-60, -4, 60, -4, 60, 0, -60, 0)
+
+[node name="PH_Dan" type="Polygon2D" parent="."]
+position = Vector2(330, 520)
+color = Color(0.25, 0.45, 0.85, 1)
+polygon = PackedVector2Array(-16, -68, 16, -68, 16, 0, -16, 0)
+
+[node name="PH_Face" type="Polygon2D" parent="PH_Dan"]
+color = Color(1, 0.9, 0.6, 1)
+polygon = PackedVector2Array(-12, -62, 0, -62, 0, -50, -12, -50)
+
+[node name="PH_WorkLamp_1" type="PointLight2D" parent="."]
+position = Vector2(480, 250)
+color = Color(1, 0.87, 0.62, 1)
+energy = 1.1
+shadow_enabled = false
+texture = SubResource("GradientTexture2D_lamp")
+texture_scale = 2.6
+
+[node name="PH_WorkLampBody_1" type="Polygon2D" parent="."]
+position = Vector2(480, 250)
+color = Color(0.6, 0.58, 0.45, 1)
+polygon = PackedVector2Array(-16, -12, 16, -12, 12, 0, -12, 0)
+
+[node name="PH_WallLeft" type="StaticBody2D" parent="."]
+position = Vector2(40, 450)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PH_WallLeft"]
+shape = SubResource("RectangleShape2D_wall")
+
+[node name="PH_WallRight" type="StaticBody2D" parent="."]
+position = Vector2(5720, 450)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PH_WallRight"]
+shape = SubResource("RectangleShape2D_wall")
+
+[node name="PH_Crate_1" type="Polygon2D" parent="."]
+position = Vector2(720, 400)
+color = Color(0.45, 0.32, 0.18, 1)
+polygon = PackedVector2Array(-22, -96, 22, -96, 22, 0, -22, 0)
+
+[node name="PH_Lid" type="Polygon2D" parent="PH_Crate_1"]
+color = Color(0.55, 0.4, 0.24, 1)
+polygon = PackedVector2Array(-22, -96, 22, -96, 22, -84, -22, -84)
+
+[node name="PH_Crate_2" type="Polygon2D" parent="."]
+position = Vector2(720, 500)
+color = Color(0.45, 0.32, 0.18, 1)
+polygon = PackedVector2Array(-22, -96, 22, -96, 22, 0, -22, 0)
+
+[node name="PH_Lid" type="Polygon2D" parent="PH_Crate_2"]
+color = Color(0.55, 0.4, 0.24, 1)
+polygon = PackedVector2Array(-22, -96, 22, -96, 22, -84, -22, -84)
+
+[node name="PH_Crate_3" type="Polygon2D" parent="."]
+position = Vector2(720, 600)
+color = Color(0.45, 0.32, 0.18, 1)
+polygon = PackedVector2Array(-22, -96, 22, -96, 22, 0, -22, 0)
+
+[node name="PH_Lid" type="Polygon2D" parent="PH_Crate_3"]
+color = Color(0.55, 0.4, 0.24, 1)
+polygon = PackedVector2Array(-22, -96, 22, -96, 22, -84, -22, -84)
+
+[node name="Crate" type="StaticBody2D" parent="." node_paths=PackedStringArray("Player", "Shape")]
+position = Vector2(720, 450)
+collision_layer = 1
+collision_mask = 0
+script = ExtResource("12_obstacle")
+Player = NodePath("../Player")
+Shape = NodePath("CollisionShape2D")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Crate"]
+shape = SubResource("RectangleShape2D_crate")
+
+[node name="Outlet_1" parent="." instance=ExtResource("7_outlet")]
+position = Vector2(1300, 560)
+
+[node name="Door_1" type="Area2D" parent="." node_paths=PackedStringArray("TargetRoom", "BlockerShape", "Gate")]
+position = Vector2(1920, 450)
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+script = ExtResource("10_door")
+TargetRoom = NodePath("../Rooms/Room_Vent")
+Locked = true
+BlockerShape = NodePath("Blocker/CollisionShape2D")
+Gate = NodePath("PH_Gate")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Door_1"]
+shape = SubResource("RectangleShape2D_door")
+
+[node name="Blocker" type="StaticBody2D" parent="Door_1"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Door_1/Blocker"]
+shape = SubResource("RectangleShape2D_door")
+
+[node name="PH_FramePostL" type="Polygon2D" parent="Door_1"]
+position = Vector2(-26, 0)
+color = Color(0.3, 0.22, 0.14, 1)
+polygon = PackedVector2Array(-8, -414, 8, -414, 8, -150, -8, -150)
+
+[node name="PH_FramePostR" type="Polygon2D" parent="Door_1"]
+position = Vector2(26, 0)
+color = Color(0.3, 0.22, 0.14, 1)
+polygon = PackedVector2Array(-8, -414, 8, -414, 8, -150, -8, -150)
+
+[node name="PH_Gate" type="Polygon2D" parent="Door_1"]
+color = Color(0.55, 0.12, 0.1, 1)
+polygon = PackedVector2Array(-10, -300, 10, -300, 10, 150, -10, 150)
+
+[node name="Door_2" type="Area2D" parent="." node_paths=PackedStringArray("TargetRoom", "BlockerShape", "Gate")]
+position = Vector2(3840, 450)
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+script = ExtResource("10_door")
+TargetRoom = NodePath("../Rooms/Room_Exit")
+Locked = true
+BlockerShape = NodePath("Blocker/CollisionShape2D")
+Gate = NodePath("PH_Gate")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Door_2"]
+shape = SubResource("RectangleShape2D_door")
+
+[node name="Blocker" type="StaticBody2D" parent="Door_2"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Door_2/Blocker"]
+shape = SubResource("RectangleShape2D_door")
+
+[node name="PH_FramePostL" type="Polygon2D" parent="Door_2"]
+position = Vector2(-26, 0)
+color = Color(0.3, 0.22, 0.14, 1)
+polygon = PackedVector2Array(-8, -414, 8, -414, 8, -150, -8, -150)
+
+[node name="PH_FramePostR" type="Polygon2D" parent="Door_2"]
+position = Vector2(26, 0)
+color = Color(0.3, 0.22, 0.14, 1)
+polygon = PackedVector2Array(-8, -414, 8, -414, 8, -150, -8, -150)
+
+[node name="PH_Gate" type="Polygon2D" parent="Door_2"]
+color = Color(0.55, 0.12, 0.1, 1)
+polygon = PackedVector2Array(-10, -300, 10, -300, 10, 150, -10, 150)
+
+[node name="PH_Pipe" type="ColorRect" parent="."]
+offset_left = 1960.0
+offset_top = 80.0
+offset_right = 3800.0
+offset_bottom = 100.0
+color = Color(0.22, 0.2, 0.2, 1)
+
+[node name="PH_FanDuct" type="ColorRect" parent="."]
+offset_left = 2780.0
+offset_top = 36.0
+offset_right = 3020.0
+offset_bottom = 300.0
+color = Color(0.19, 0.19, 0.21, 1)
+
+[node name="PH_Fan" type="Polygon2D" parent="."]
+position = Vector2(2900, 180)
+color = Color(0.1, 0.1, 0.11, 1)
+polygon = PackedVector2Array(110.0, 0.0, 106.3, 28.5, 95.3, 55.0, 77.8, 77.8, 55.0, 95.3, 28.5, 106.3, 0.0, 110.0, -28.5, 106.3, -55.0, 95.3, -77.8, 77.8, -95.3, 55.0, -106.3, 28.5, -110.0, 0.0, -106.3, -28.5, -95.3, -55.0, -77.8, -77.8, -55.0, -95.3, -28.5, -106.3, -0.0, -110.0, 28.5, -106.3, 55.0, -95.3, 77.8, -77.8, 95.3, -55.0, 106.3, -28.5)
+
+[node name="PH_FanBlade_1" type="Polygon2D" parent="PH_Fan"]
+color = Color(0.3, 0.3, 0.33, 1)
+polygon = PackedVector2Array(-100, -9, 100, -9, 100, 9, -100, 9)
+
+[node name="PH_FanBlade_2" type="Polygon2D" parent="PH_Fan"]
+rotation = 1.5708
+color = Color(0.3, 0.3, 0.33, 1)
+polygon = PackedVector2Array(-100, -9, 100, -9, 100, 9, -100, 9)
+
+[node name="PH_FanHub" type="Polygon2D" parent="PH_Fan"]
+color = Color(0.45, 0.45, 0.48, 1)
+polygon = PackedVector2Array(18.0, 0.0, 15.6, 9.0, 9.0, 15.6, 0.0, 18.0, -9.0, 15.6, -15.6, 9.0, -18.0, 0.0, -15.6, -9.0, -9.0, -15.6, -0.0, -18.0, 9.0, -15.6, 15.6, -9.0)
+
+[node name="PH_Cable" type="ColorRect" parent="."]
+offset_left = 2700.0
+offset_top = 296.0
+offset_right = 2900.0
+offset_bottom = 302.0
+color = Color(0.35, 0.3, 0.15, 1)
+
+[node name="PH_WorkLamp_2" type="PointLight2D" parent="."]
+position = Vector2(2700, 250)
+color = Color(1, 0.87, 0.62, 1)
+energy = 1.1
+shadow_enabled = false
+texture = SubResource("GradientTexture2D_lamp")
+texture_scale = 2.4
+
+[node name="PH_WorkLampBody_2" type="Polygon2D" parent="."]
+position = Vector2(2700, 250)
+color = Color(0.6, 0.58, 0.45, 1)
+polygon = PackedVector2Array(-16, -12, 16, -12, 12, 0, -12, 0)
+
+[node name="FanPanel" parent="." instance=ExtResource("8_panel")]
+position = Vector2(2700, 430)
+PromptText = "Запустити вентилятор"
+Powered = false
+
+[node name="AlarmLights" type="Node2D" parent="."]
+
+[node name="PH_AlarmLight1" type="PointLight2D" parent="AlarmLights"]
+position = Vector2(2200, 250)
+enabled = false
+color = Color(1, 0.15, 0.1, 1)
+energy = 0.0
+shadow_enabled = false
+texture = SubResource("GradientTexture2D_lamp")
+texture_scale = 2.2
+
+[node name="PH_AlarmBody1" type="Polygon2D" parent="AlarmLights"]
+position = Vector2(2200, 250)
+color = Color(0.5, 0.1, 0.1, 1)
+polygon = PackedVector2Array(-12, -10, 12, -10, 12, 10, -12, 10)
+
+[node name="PH_AlarmLight2" type="PointLight2D" parent="AlarmLights"]
+position = Vector2(3500, 250)
+enabled = false
+color = Color(1, 0.15, 0.1, 1)
+energy = 0.0
+shadow_enabled = false
+texture = SubResource("GradientTexture2D_lamp")
+texture_scale = 2.2
+
+[node name="PH_AlarmBody2" type="Polygon2D" parent="AlarmLights"]
+position = Vector2(3500, 250)
+color = Color(0.5, 0.1, 0.1, 1)
+polygon = PackedVector2Array(-12, -10, 12, -10, 12, 10, -12, 10)
+
+[node name="PH_AlarmLight3" type="PointLight2D" parent="AlarmLights"]
+position = Vector2(4200, 250)
+enabled = false
+color = Color(1, 0.15, 0.1, 1)
+energy = 0.0
+shadow_enabled = false
+texture = SubResource("GradientTexture2D_lamp")
+texture_scale = 2.2
+
+[node name="PH_AlarmBody3" type="Polygon2D" parent="AlarmLights"]
+position = Vector2(4200, 250)
+color = Color(0.5, 0.1, 0.1, 1)
+polygon = PackedVector2Array(-12, -10, 12, -10, 12, 10, -12, 10)
+
+[node name="LitZone_1" type="Area2D" parent="."]
+position = Vector2(4550, 505)
+collision_layer = 64
+collision_mask = 0
+monitoring = false
+script = ExtResource("6_litzone")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LitZone_1"]
+shape = SubResource("RectangleShape2D_zone")
+
+[node name="PH_ZoneLamp" type="PointLight2D" parent="LitZone_1"]
+position = Vector2(0, -205)
+color = Color(1, 0.9, 0.7, 1)
+energy = 1.3
+shadow_enabled = false
+texture = SubResource("GradientTexture2D_lamp")
+texture_scale = 2.4
+
+[node name="PH_LampBody" type="Polygon2D" parent="LitZone_1"]
+position = Vector2(0, -205)
+color = Color(0.6, 0.58, 0.45, 1)
+polygon = PackedVector2Array(-16, -12, 16, -12, 12, 0, -12, 0)
+
+[node name="LitZone_2" type="Area2D" parent="."]
+position = Vector2(5050, 505)
+collision_layer = 64
+collision_mask = 0
+monitoring = false
+script = ExtResource("6_litzone")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LitZone_2"]
+shape = SubResource("RectangleShape2D_zone")
+
+[node name="PH_ZoneLamp" type="PointLight2D" parent="LitZone_2"]
+position = Vector2(0, -205)
+color = Color(1, 0.9, 0.7, 1)
+energy = 1.3
+shadow_enabled = false
+texture = SubResource("GradientTexture2D_lamp")
+texture_scale = 2.4
+
+[node name="PH_LampBody" type="Polygon2D" parent="LitZone_2"]
+position = Vector2(0, -205)
+color = Color(0.6, 0.58, 0.45, 1)
+polygon = PackedVector2Array(-16, -12, 16, -12, 12, 0, -12, 0)
+
+[node name="PH_LiftCable" type="ColorRect" parent="."]
+offset_left = 5616.0
+offset_top = 36.0
+offset_right = 5624.0
+offset_bottom = 300.0
+color = Color(0.3, 0.3, 0.32, 1)
+
+[node name="PH_LiftCage" type="Polygon2D" parent="."]
+position = Vector2(5620, 600)
+color = Color(0.27, 0.26, 0.24, 1)
+polygon = PackedVector2Array(-64, -300, 64, -300, 64, 0, -64, 0)
+
+[node name="PH_LiftDoor" type="Polygon2D" parent="PH_LiftCage"]
+color = Color(0.07, 0.07, 0.08, 1)
+polygon = PackedVector2Array(-48, -284, 48, -284, 48, 0, -48, 0)
+
+[node name="PH_LiftSign" type="Polygon2D" parent="PH_LiftCage"]
+color = Color(0.85, 0.7, 0.2, 1)
+polygon = PackedVector2Array(-20, -330, 20, -330, 20, -308, -20, -308)
+
+[node name="Exit" type="Area2D" parent="."]
+position = Vector2(5600, 450)
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Exit"]
+shape = SubResource("RectangleShape2D_exit")
+
+[node name="Tutorial" type="Node2D" parent="."]
+
+[node name="MovePrompt" type="Area2D" parent="Tutorial"]
+position = Vector2(330, 450)
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+script = ExtResource("11_prompt")
+Text = "WASD — рух"
+CompletesOnAction = "move_right"
+Timeout = 0.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Tutorial/MovePrompt"]
+shape = SubResource("RectangleShape2D_prompt_move")
+
+[node name="JumpPrompt" type="Area2D" parent="Tutorial"]
+position = Vector2(600, 450)
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+script = ExtResource("11_prompt")
+Text = "Space — стрибок через ящики"
+CompletesOnAction = "jump"
+Timeout = 0.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Tutorial/JumpPrompt"]
+shape = SubResource("RectangleShape2D_prompt_jump")
+
+[node name="FlashlightPrompt" type="Area2D" parent="Tutorial"]
+position = Vector2(1000, 450)
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+script = ExtResource("11_prompt")
+Text = "F — ліхтар (тут темно)"
+CompletesOnAction = "flashlight"
+Timeout = 6.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Tutorial/FlashlightPrompt"]
+shape = SubResource("RectangleShape2D_prompt_flash")
+
+[node name="PanelPrompt" type="Area2D" parent="Tutorial"]
+position = Vector2(2560, 450)
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+script = ExtResource("11_prompt")
+Text = "E — панель вентилятора"
+CompletesOnAction = "interact"
+Timeout = 6.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Tutorial/PanelPrompt"]
+shape = SubResource("RectangleShape2D_prompt_panel")
+
+[node name="SneakPrompt" type="Area2D" parent="Tutorial"]
+position = Vector2(4000, 450)
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+script = ExtResource("11_prompt")
+Text = "Вимкни ліхтар (F) і пройди тінню під стіною — або бийся"
+CompletesOnAction = ""
+Timeout = 8.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Tutorial/SneakPrompt"]
+shape = SubResource("RectangleShape2D_prompt_sneak")
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+position = Vector2(200, 480)
+
+[node name="EnemyDirector" type="Node" parent="."]
+script = ExtResource("5_director")
+
+[node name="GuardSpawner" parent="." node_paths=PackedStringArray("Player", "Director") instance=ExtResource("4_spawner")]
+position = Vector2(4300, 450)
+Count = 2
+SpawnAware = false
+Player = NodePath("../Player")
+Director = NodePath("../EnemyDirector")
+
+[node name="CollisionShape2D" parent="GuardSpawner" index="0"]
+disabled = true
+
+[node name="Marker1" parent="GuardSpawner/SpawnPoints" index="0"]
+position = Vector2(250, 130)
+
+[node name="Marker2" parent="GuardSpawner/SpawnPoints" index="1"]
+position = Vector2(750, 130)
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(960, 540)
+limit_left = 0
+limit_top = 0
+limit_right = 1920
+limit_bottom = 1080
+limit_smoothed = true
+position_smoothing_enabled = true
+
+[node name="HUD" parent="." instance=ExtResource("3_hud")]
+
+[node name="Cutscene" parent="." instance=ExtResource("13_cutscene")]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="DebugLabel" type="Label" parent="UI"]
+offset_left = 16.0
+offset_top = 76.0
+offset_right = 600.0
+offset_bottom = 104.0
+text = "Stage: -  State: -  z: 0"
+
+[editable path="GuardSpawner"]

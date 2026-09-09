@@ -6,9 +6,12 @@ namespace BlackoutLastGrid.Levels;
 
 /// <summary>
 /// Common behaviour of a playable level: the camera follows the hero along X (clamped by the
-/// camera's own limits, which a <see cref="WaveSpawner"/> may tighten while a wave is locked),
-/// and the hero's KO restarts the level after <see cref="RestartDelay"/> — hit-stop cancelled,
-/// run state reset, current scene reloaded. Concrete levels derive from it and add their props.
+/// camera's own limits, which a <see cref="WaveSpawner"/> may tighten while a wave is locked, or
+/// which <see cref="ApplyRoomBounds"/> moves from room to room), the hero's KO restarts the level
+/// after <see cref="RestartDelay"/> — hit-stop cancelled, run state reset, current scene reloaded
+/// (with <c>Main</c> as the current scene that re-instantiates the level) — and
+/// <see cref="GoToLevel"/> hands the run over to the next level. Concrete levels derive from it
+/// and add their props.
 /// </summary>
 public partial class LevelBase : Node2D
 {
@@ -65,6 +68,41 @@ public partial class LevelBase : Node2D
         }
 
         tree.ReloadCurrentScene();
+    }
+
+    /// <summary>
+    /// Leaves this level for <paramref name="next"/>: lifts any hit-stop, records the destination
+    /// in <see cref="GameState.CurrentScenePath"/> and swaps the current scene at the end of the
+    /// frame (deferred, so it is safe from signal handlers and physics callbacks).
+    /// </summary>
+    /// <param name="next">The level scene to load.</param>
+    public void GoToLevel(PackedScene next)
+    {
+        HitStop.Cancel();
+        GameState.Instance.CurrentScenePath = next.ResourcePath;
+        GetTree().CallDeferred(SceneTree.MethodName.ChangeSceneToPacked, next);
+    }
+
+    /// <summary>
+    /// Makes <paramref name="room"/> the playable area: the camera limits become its
+    /// <see cref="RoomBounds.Rect"/> and the hero's floor band its floor bounds. Called by the
+    /// level at start and on every door transition.
+    /// </summary>
+    /// <param name="room">The room to confine the camera and the hero to.</param>
+    public void ApplyRoomBounds(RoomBounds room)
+    {
+        Player.FloorTop = room.FloorTop;
+        Player.FloorBottom = room.FloorBottom;
+        if (Camera is null)
+        {
+            return;
+        }
+
+        Rect2 rect = room.Rect;
+        Camera.LimitLeft = Mathf.RoundToInt(rect.Position.X);
+        Camera.LimitTop = Mathf.RoundToInt(rect.Position.Y);
+        Camera.LimitRight = Mathf.RoundToInt(rect.End.X);
+        Camera.LimitBottom = Mathf.RoundToInt(rect.End.Y);
     }
 
     private void FollowPlayer()
