@@ -23,8 +23,8 @@ public enum RouteType
 /// </summary>
 public partial class GameState : Node
 {
-    /// <summary>Default energy used until <see cref="MaxEnergy"/> is applied in <see cref="_Ready"/>.</summary>
-    private const float DefaultEnergy = 100f;
+    /// <summary>Default upper bound of the energy reserve; also the pre-<see cref="_Ready"/> value of <see cref="Energy"/>.</summary>
+    private const float DefaultMaxEnergy = 100f;
 
     /// <summary>Globally accessible instance, assigned when the autoload enters the tree.</summary>
     public static GameState Instance { get; private set; } = null!;
@@ -35,21 +35,19 @@ public partial class GameState : Node
 
     /// <summary>Upper bound of the energy reserve.</summary>
     [Export]
-    public float MaxEnergy { get; set; } = DefaultEnergy;
+    public float MaxEnergy { get; set; } = DefaultMaxEnergy;
 
     /// <summary>Lower bound of the energy reserve.</summary>
     [Export]
     public float MinEnergy { get; set; } = 0f;
 
-    /// <summary>
-    /// Backing field for <see cref="Energy"/>. Starts at <see cref="DefaultEnergy"/> so the value is
-    /// sane even before <see cref="_Ready"/>; <see cref="_Ready"/> aligns it with <see cref="MaxEnergy"/>.
-    /// </summary>
-    private float _energy = DefaultEnergy;
+    /// <summary>Backing field for <see cref="Energy"/>; <see cref="_Ready"/> sets it to <see cref="MaxEnergy"/>.</summary>
+    private float _energy = DefaultMaxEnergy;
 
     /// <summary>
-    /// Current flashlight/energy reserve. Setting it clamps to [<see cref="MinEnergy"/>, <see cref="MaxEnergy"/>]
-    /// and emits <see cref="EnergyChangedEventHandler"/> only when the clamped value differs from the old one.
+    /// Current flashlight/energy reserve. Setting it clamps to [<see cref="MinEnergy"/>, <see cref="MaxEnergy"/>].
+    /// The clamped value is always stored (tiny drains accumulate); <see cref="EnergyChangedEventHandler"/>
+    /// is emitted only when the stored value differs from the previous one.
     /// </summary>
     public float Energy
     {
@@ -57,13 +55,12 @@ public partial class GameState : Node
         set
         {
             float clamped = Mathf.Clamp(value, MinEnergy, MaxEnergy);
-            if (Mathf.IsEqualApprox(clamped, _energy))
-            {
-                return;
-            }
-
+            bool changed = clamped != _energy;
             _energy = clamped;
-            EmitSignal(SignalName.EnergyChanged, _energy);
+            if (changed)
+            {
+                EmitSignalEnergyChanged(_energy);
+            }
         }
     }
 
@@ -77,19 +74,14 @@ public partial class GameState : Node
     public int DistrictReputation { get; set; }
 
     /// <summary>
-    /// Registers the singleton, keeps processing while the tree is paused and syncs the
-    /// initial energy with the exported <see cref="MaxEnergy"/>.
+    /// Registers the singleton, keeps processing while the tree is paused and starts a run with a
+    /// full reserve (<see cref="MaxEnergy"/>). Save/load (T-09) will overwrite this after ready.
     /// </summary>
     public override void _Ready()
     {
         Instance = this;
         ProcessMode = ProcessModeEnum.Always;
-
-        // If the exported MaxEnergy differs from the compile-time default, start with a full reserve.
-        if (Mathf.IsEqualApprox(_energy, DefaultEnergy))
-        {
-            _energy = Mathf.Clamp(MaxEnergy, MinEnergy, MaxEnergy);
-        }
+        _energy = MaxEnergy;
     }
 
     /// <summary>Adds (or subtracts, for negative values) energy, respecting the clamp and signal rules.</summary>

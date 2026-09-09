@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://blackout_main_scene"]
+[gd_scene format=3 uid="uid://daxl3pdeadvpe"]
 
 [node name="Main" type="Node2D"]
 y_sort_enabled = true

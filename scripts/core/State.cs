@@ -1,26 +1,38 @@
+using System;
 using Godot;
 
 namespace BlackoutLastGrid.Core;
 
 /// <summary>
 /// Base class for a single state of a <see cref="StateMachine"/>.
-/// States are child nodes of a <see cref="StateMachine"/>; the node's <c>Name</c> is the state key
-/// used by <see cref="StateMachine.TransitionTo"/>. Override the virtual hooks as needed;
-/// all of them are no-ops by default.
+/// States are direct child nodes of a <see cref="StateMachine"/>; the node's <c>Name</c> is the
+/// state key used by <see cref="StateMachine.TransitionTo"/>. Override the virtual hooks as
+/// needed; all of them are no-ops by default.
 /// </summary>
 public abstract partial class State : Node
 {
-    /// <summary>The state machine that owns this state. Assigned by the machine on ready.</summary>
-    public StateMachine Machine { get; internal set; } = null!;
+    private StateMachine? _machine;
 
-    /// <summary>Called when the machine switches into this state.</summary>
+    /// <summary>
+    /// The state machine that owns this state. Assigned by the machine in its <c>_EnterTree</c>;
+    /// if read earlier, resolves to the parent node, which must be a <see cref="StateMachine"/>.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The parent is not a <see cref="StateMachine"/>.</exception>
+    public StateMachine Machine
+    {
+        get => _machine ??= GetParentOrNull<StateMachine>()
+            ?? throw new InvalidOperationException($"State '{Name}' must be a direct child of a StateMachine.");
+        internal set => _machine = value;
+    }
+
+    /// <summary>Called when the machine switches into this state. Requesting another transition from here is allowed.</summary>
     /// <param name="previous">The state being left, or <c>null</c> for the initial state.</param>
     public virtual void Enter(State? previous)
     {
     }
 
-    /// <summary>Called when the machine switches out of this state.</summary>
-    /// <param name="next">The state being entered, or <c>null</c> if none.</param>
+    /// <summary>Called when the machine switches out of this state. Transitions requested from here are ignored.</summary>
+    /// <param name="next">The state being entered.</param>
     public virtual void Exit(State? next)
     {
     }
