@@ -1,4 +1,4 @@
-[gd_scene load_steps=27 format=3 uid="uid://d3d1177b7jpkm"]
+[gd_scene load_steps=28 format=3 uid="uid://d3d1177b7jpkm"]
 
 [ext_resource type="Script" path="res://scripts/levels/Level00_Prologue.cs" id="1_level"]
 [ext_resource type="PackedScene" uid="uid://ct2db4jsifoal" path="res://scenes/player/Player.tscn" id="2_player"]
@@ -14,6 +14,7 @@
 [ext_resource type="Script" path="res://scripts/props/JumpableObstacle.cs" id="12_obstacle"]
 [ext_resource type="PackedScene" uid="uid://4hbuflsw3m5e" path="res://scenes/ui/Cutscene.tscn" id="13_cutscene"]
 [ext_resource type="PackedScene" uid="uid://g0gjms1b3i3p" path="res://scenes/levels/Level01_District.tscn" id="14_next"]
+[ext_resource type="PackedScene" uid="uid://b01co21wm8ogb" path="res://scenes/ui/PauseMenu.tscn" id="15_pause"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
 size = Vector2(40, 400)
@@ -57,7 +58,7 @@ fill = 1
 fill_from = Vector2(0.5, 0.5)
 fill_to = Vector2(1, 0.5)
 
-[node name="Level00_Prologue" type="Node2D" node_paths=PackedStringArray("Player", "Camera", "StartRoom", "DebugLabel", "Hud", "Cutscene", "Darkness", "Tutorial", "DanFigure", "Door1", "Door2", "FlashlightPrompt", "FanPanel", "AlarmLights", "GuardSpawner", "Exit")]
+[node name="Level00_Prologue" type="Node2D" node_paths=PackedStringArray("Player", "Camera", "Pause", "StartRoom", "DebugLabel", "Hud", "Cutscene", "Darkness", "Tutorial", "DanFigure", "Door1", "Door2", "FlashlightPrompt", "FanPanel", "AlarmLights", "GuardSpawner", "Exit")]
 y_sort_enabled = true
 script = ExtResource("1_level")
 IntroLines = PackedStringArray("Шахта-звалище «Зміна». Кінець зміни. Рей і Дан розбирають старі акумулятори для заводу банди.", "Дан: — Ще пару таких змін — і дадуть подвійну норму. Якщо працювати, дадуть більше, Рею.", "Рей: — Побачимо. Я нагору, до вентиляційної. Не засиджуйся внизу.")
@@ -82,6 +83,7 @@ GuardSpawner = NodePath("GuardSpawner")
 Exit = NodePath("Exit")
 Player = NodePath("Player")
 Camera = NodePath("Camera2D")
+Pause = NodePath("PauseMenu")
 
 [node name="Darkness" type="CanvasModulate" parent="."]
 color = Color(0.0392157, 0.0509804, 0.0784314, 1)
@@ -676,5 +678,7 @@ offset_top = 76.0
 offset_right = 600.0
 offset_bottom = 104.0
 text = "Stage: -  State: -  z: 0"
+
+[node name="PauseMenu" parent="." instance=ExtResource("15_pause")]
 
 [editable path="GuardSpawner"]

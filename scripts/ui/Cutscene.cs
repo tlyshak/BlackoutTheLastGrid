@@ -10,7 +10,8 @@ namespace BlackoutLastGrid.Ui;
 /// cutscene plays; the overlay itself runs with <see cref="Node.ProcessModeEnum.Always"/> and
 /// polls input in <c>_PhysicsProcess</c>, so the press that advances a line is consumed in a
 /// physics frame the paused hero skips and never doubles as an attack or an interaction when the
-/// hero resumes (the level resumes it deferred, after this frame's physics).
+/// hero resumes (the level resumes it deferred, after this frame's physics). While the tree is
+/// paused the overlay freezes: no line advances and no <see cref="LineDuration"/> accumulates.
 /// </summary>
 public partial class Cutscene : CanvasLayer
 {
@@ -71,6 +72,11 @@ public partial class Cutscene : CanvasLayer
     /// <inheritdoc/>
     public override void _PhysicsProcess(double delta)
     {
+        if (GetTree().Paused)
+        {
+            return;   // a paused game must neither advance a line nor accumulate LineDuration
+        }
+
         if (Skippable && (Input.IsActionJustPressed(ActionInteract) || Input.IsActionJustPressed(ActionAttack)))
         {
             Advance();

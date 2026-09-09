@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://c5as8u6w2way2"]
+[gd_scene load_steps=16 format=3 uid="uid://c5as8u6w2way2"]
 
 [ext_resource type="Script" path="res://scripts/levels/TestRoom.cs" id="1_room"]
 [ext_resource type="PackedScene" uid="uid://ct2db4jsifoal" path="res://scenes/player/Player.tscn" id="2_player"]
@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://scripts/props/LitZone.cs" id="8_litzone"]
 [ext_resource type="PackedScene" uid="uid://bhku23d0vfuqb" path="res://scenes/props/Outlet.tscn" id="5_outlet"]
 [ext_resource type="PackedScene" uid="uid://dmtttbck25go3" path="res://scenes/props/PowerPanel.tscn" id="6_panel"]
+[ext_resource type="PackedScene" uid="uid://b01co21wm8ogb" path="res://scenes/ui/PauseMenu.tscn" id="9_pause"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
 size = Vector2(40, 400)
@@ -29,11 +30,12 @@ fill = 1
 fill_from = Vector2(0.5, 0.5)
 fill_to = Vector2(1, 0.5)
 
-[node name="TestRoom" type="Node2D" node_paths=PackedStringArray("Player", "Camera", "DebugLabel", "Director", "StandingGuard", "Hud", "Panel", "Lamp", "LampBody")]
+[node name="TestRoom" type="Node2D" node_paths=PackedStringArray("Player", "Camera", "Pause", "DebugLabel", "Director", "StandingGuard", "Hud", "Panel", "Lamp", "LampBody")]
 y_sort_enabled = true
 script = ExtResource("1_room")
 Player = NodePath("Player")
 Camera = NodePath("Camera2D")
+Pause = NodePath("PauseMenu")
 DebugLabel = NodePath("UI/DebugLabel")
 Director = NodePath("EnemyDirector")
 StandingGuard = NodePath("Guard")
@@ -166,3 +168,5 @@ offset_top = 76.0
 offset_right = 400.0
 offset_bottom = 104.0
 text = "State: -  z: 0"
+
+[node name="PauseMenu" parent="." instance=ExtResource("9_pause")]

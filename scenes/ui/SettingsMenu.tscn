@@ -1,0 +1,117 @@
+[gd_scene load_steps=3 format=3 uid="uid://b83od2cmmg2g2"]
+
+[ext_resource type="Script" path="res://scripts/ui/SettingsMenu.cs" id="1_settings"]
+[ext_resource type="Theme" uid="uid://4i2jy3f0qvhf" path="res://scenes/ui/HudTheme.tres" id="2_theme"]
+
+[node name="SettingsMenu" type="CanvasLayer" node_paths=PackedStringArray("Root", "FullscreenCheck", "VolumeSlider", "VolumeValue", "BackButton")]
+process_mode = 3
+layer = 30
+script = ExtResource("1_settings")
+Root = NodePath("Root")
+FullscreenCheck = NodePath("Root/Panel/Margin/VBox/FullscreenRow/FullscreenCheck")
+VolumeSlider = NodePath("Root/Panel/Margin/VBox/VolumeRow/VolumeSlider")
+VolumeValue = NodePath("Root/Panel/Margin/VBox/VolumeRow/VolumeValue")
+BackButton = NodePath("Root/Panel/Margin/VBox/BackButton")
+
+[node name="Root" type="Control" parent="."]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+
+[node name="PH_Dim" type="ColorRect" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.039216, 0.05098, 0.078431, 0.85)
+
+[node name="Panel" type="PanelContainer" parent="Root"]
+custom_minimum_size = Vector2(760, 440)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -380.0
+offset_top = -220.0
+offset_right = 380.0
+offset_bottom = 220.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="Root/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 32
+
+[node name="VBox" type="VBoxContainer" parent="Root/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Title" type="Label" parent="Root/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.941176, 0.639216, 0.14902, 1)
+theme_override_font_sizes/font_size = 40
+text = "НАЛАШТУВАННЯ"
+horizontal_alignment = 1
+
+[node name="FullscreenRow" type="HBoxContainer" parent="Root/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Label" type="Label" parent="Root/Panel/Margin/VBox/FullscreenRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+text = "Повний екран"
+
+[node name="FullscreenCheck" type="CheckBox" parent="Root/Panel/Margin/VBox/FullscreenRow"]
+layout_mode = 2
+size_flags_vertical = 4
+
+[node name="VolumeRow" type="HBoxContainer" parent="Root/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Label" type="Label" parent="Root/Panel/Margin/VBox/VolumeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+text = "Гучність"
+
+[node name="VolumeSlider" type="HSlider" parent="Root/Panel/Margin/VBox/VolumeRow"]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+size_flags_vertical = 4
+max_value = 1.0
+step = 0.05
+value = 0.8
+
+[node name="VolumeValue" type="Label" parent="Root/Panel/Margin/VBox/VolumeRow"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+size_flags_vertical = 1
+text = "80 %"
+horizontal_alignment = 2
+
+[node name="AudioNote" type="Label" parent="Root/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.301961, 0.345098, 0.4, 1)
+theme_override_font_sizes/font_size = 16
+text = "Звуку в грі ще немає — гучність застосується, коли з'явиться"
+autowrap_mode = 3
+
+[node name="BackButton" type="Button" parent="Root/Panel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 8
+text = "Назад"

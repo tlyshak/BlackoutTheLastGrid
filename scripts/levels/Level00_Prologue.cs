@@ -315,7 +315,7 @@ public partial class Level00_Prologue : LevelBase
         StartAlarmLights();
         GuardSpawner.StartWave();
 
-        _danTimer = GetTree().CreateTimer(AlarmToDanDelay, processAlways: true, processInPhysics: false, ignoreTimeScale: true);
+        _danTimer = GetTree().CreateTimer(AlarmToDanDelay, processAlways: false, processInPhysics: false, ignoreTimeScale: true);
         _danTimer.Timeout += OnDanTimerTimeout;
     }
 
