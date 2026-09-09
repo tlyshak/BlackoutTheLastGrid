@@ -32,44 +32,27 @@ same fixed pipeline `/orchestrator` runs
    (`### T-02 · … · \`todo\`` → `\`in_progress\``). Do not reflow the rest of the file. `/task`
    is the **only** skill that edits a TASKS.md status or done-note: `/coder` never does, and
    `/orchestrator` only reports the status to set.
-4. **Plan or proceed** — run `/architect` with slug `t02-player-movement` (id without the dash,
-   plus the short name) when the task touches more than ~3 files, adds a new scene, or has a
-   design choice (which node handles `interact`, how `_z` height is represented, where a spawner
-   lives). Its **Scene & signal contract** section comes from `/scene-design`. Otherwise go
-   straight to implementation. Never write a plan just to have one.
-5. **Implement** following `/coder`: one script per scene with the same name, signals and
-   `[Export]` for wiring, `_PhysicsProcess` for movement and hit checks, `PH_*` placeholders
-   instead of art, `StateMachine` + `State` children for behaviour. Any edit to
-   `project.godot`, InputMap, autoloads, layer names or `.csproj` goes through
-   `/project-settings` first. Out-of-scope findings become `backlog` entries in `docs/TASKS.md`,
-   not code. `/coder` hands back the Зроблено / Не зроблено text in its report — keep it for
-   step 12; it does not write it into TASKS.md itself.
-6. **Verify** with `/verify` — pass/fail criteria are defined there, not here. On any verdict
-   other than `verified`, fix and re-run — at most **3** loops. If the third run is still not
-   `verified`, stop, leave the branch as is, and report what is failing; do not mark the task
-   `done` and do not commit an unverified state.
-7. **Tests + playtest** — run `/test-writer` for the smoke scripts implied by the "Готово, коли:"
-   line (and the plan's Test strategy) plus the numbered playtest checklist. Re-run
-   `powershell -ExecutionPolicy Bypass -File tools/smoke.ps1` after they land (judged by
-   `/verify`'s rules); a failing new script counts as a failed run in step 6's budget.
-8. **Review** — run `/reviewer` on the branch delta (`main...HEAD` plus the working tree). It
-   appends `### Round 1 — Ship: <yes|no>` to the plan's `## Review findings` section (when
-   there is no plan it reports the same structure in chat — that chat review is then the
-   journal for steps 9–10). Record the blocker count, the should-fix count and the verdict in
-   the run ledger (the same TodoWrite/scratch list that holds the acceptance criteria from
-   step 1). You fix nothing yourself at this step.
-9. **Fix pass — code** — run `/coder` on exactly the journal's `#### Code` block (every
-   Blocker and Should-fix; Nits optional) plus any red `/verify` result still open. `/coder`
-   ticks each closed item `[x]`. Anything the author must decide — a design question, a
-   conflict with `docs/GAME_DESIGN.md`, an addon or NuGet request — is **not** fixed: leave it
-   unticked and list it for the final report and the done-note.
-10. **Fix pass — tests** — run `/test-writer` on the journal's `#### Tests` block plus a
-    regression smoke check (or playtest step) for every Blocker / Should-fix closed in step 9.
-    It ticks the Tests items `[x]` and refreshes the playtest checklist if behaviour moved.
-11. **Verify again** — run `/verify`; the verdict must be `verified`. Step 6's retry budget
-    (**3** loops in total across the run) applies here too: if it is exhausted, stop, leave
-    the branch as is and report what is failing — no `done`, no commit.
-12. **Set `done` and write the note** — `done` only after the post-fix `/verify` (step 11) is
+4. **Plan — always** — run `/architect` with slug `t02-player-movement` (id without the dash,
+   plus the short name) for every task. A small task gets a short plan (Goal, Scope, Design-doc
+   conformance, Scene & signal contract when a scene is touched — from `/scene-design` —,
+   File-level change list, Acceptance criteria, Test strategy, Playtest, empty Review findings);
+   a large one gets the full template. The plan is what `/orchestrator` drives and what
+   `/reviewer` judges against, so there is no "proceed without a plan" path.
+5. **Run `/orchestrator <slug>` — for every task, no exceptions.** It executes the fixed
+   pipeline `coder → verify → test-writer → reviewer → coder → test-writer → verify` against the
+   plan and hands back its final report (per-step outcomes, the `/verify` block, the review
+   verdict with blocker/should-fix counts, the Playtest checklist, the TASKS.md status to set,
+   open items). `/task` does not re-implement any of those steps: the retry budget, the
+   escalation rules and the "exactly one review + one fix pass" rule are the orchestrator's.
+   Reminders that still apply inside the run: `/coder` follows CLAUDE.md conventions (one script
+   per scene, signals + `[Export]`, `_PhysicsProcess` for movement/hits, `PH_*` placeholders,
+   `StateMachine` + `State` children), any `project.godot`/InputMap/autoload/`.csproj` edit goes
+   through `/project-settings`, and out-of-scope findings become `backlog` entries in
+   `docs/TASKS.md`, not code. If the orchestrator **escalates** (needed addon/NuGet, an
+   unsanctioned project-settings change, an asset that would need creating, a task-vs-
+   GAME_DESIGN.md conflict, a `/verify` that stays red), stop here: no `done`, no commit —
+   report the escalation to the author.
+6. **Set `done` and write the note** — `done` only after the post-fix `/verify` (inside step 5) is
     green **and** the Round 1 verdict is `Ship: yes` — or `Ship: no` where every open item is
     one the author explicitly deferred (those go under Не зроблено). Otherwise leave
     `in_progress` and report. Change the heading status to `done` and append under the task's
@@ -82,7 +65,7 @@ same fixed pipeline `/orchestrator` runs
     - **Рев'ю:** Round 1 — Ship: <yes|no>, закрито <n> Blockers / <n> Should-fix, відкрито: <…|—>
     - **Плейтест:** 1) відкрити scenes/levels/TestRoom.tscn як головну (F6) … 2) …
     ```
-13. **One commit** — the fix pass is part of this same task commit: never commit before steps
+7. **One commit** — the fix pass is part of this same task commit: never commit before steps
     8–11 have run. Stage the task's files only (`git add -A`, then read `git status` and
     unstage anything unrelated; `.godot/`, `bin/`, `obj/` never appear). Message:
     ```
@@ -100,19 +83,35 @@ same fixed pipeline `/orchestrator` runs
     Legacy exception: if the task was already committed before the review (a branch started
     under the old rules), a second commit `fix(<area>): review round 1 fixes [T-xx]` is
     allowed — the only case where a task has two commits.
-14. **Stop.** Never push, never merge, never open a PR, never start the next task — the author
-    reviews and pushes. Final report = commit hash, branch, the `/verify` block, the review
-    line, the playtest checklist, open items.
+8. **Push + PR — only on the author's command.** Authorised when the message that started
+   this task (or a later one) says «пуш» / «push» / «PR» (e.g. «зроби T-03 і відкрий PR»).
+   Then, and only then:
+   ```
+   git push -u origin task/<id>-<short-name>
+   gh pr create --base <main | the stacked base branch> --head task/<id>-<short-name> \
+     --title "T-xx: <title>" --body-file <scratch file>
+   ```
+   PR body: `## Summary` (the Зроблено / Не зроблено lines), `## Verification` (the `/verify`
+   block as a code block), `## Review` (Round 1 line), `## Playtest` (the numbered checklist),
+   then the standard footer. Never merge the PR; the author does. Without the authorisation,
+   skip this step and state in the report that the branch is committed locally and the push +
+   PR await the author's command.
+9. **Stop.** Never merge, never start the next task. Final report = commit hash, branch, PR url
+   (or "awaiting «пуш»"), the `/verify` block, the review line, the playtest checklist, open
+   items.
 
-Steps 8–11 run **exactly once**: one review, one fix pass. A second round (`### Round 2`) only
-on the author's explicit request — the same rule as `/orchestrator`.
+The review and the fix pass inside `/orchestrator` run **exactly once**. A second round
+(`### Round 2`) only on the author's explicit request.
 
 ## Constraints specific to this repo
 
-- One task, one branch, one commit — the review fix pass is inside that commit. If the task
-  turns out to need two commits, that is a sign it should be split — ask instead of committing
-  twice. The only exception is the legacy case in step 13 (task committed before the review →
-  `fix(<area>): review round 1 fixes [T-xx]`).
+- Every feature/task lives in its own feature branch off `main` (or off the branch of a not-yet-
+  merged PR it depends on — then the PR targets that branch) and is delivered as a PR; nothing is
+  committed on `main` directly.
+- One task, one branch, one commit, one PR — the review fix pass is inside that commit. If the
+  task turns out to need two commits, that is a sign it should be split — ask instead of
+  committing twice. The only exception is the legacy case in step 7 (task committed before the
+  review → `fix(<area>): review round 1 fixes [T-xx]`).
 - `docs/TASKS.md` edits in this run: the heading status and the done-note only. Backlog entries
   found along the way go under `## Backlog` as `### T-xx · <title> · \`backlog\`` (next free id).
 - Never create or modify anything under `assets/`. Missing art means a `PH_*` placeholder and a
@@ -141,7 +140,8 @@ End with:
 Task: T-xx · <title>  → done
 Branch: task/t-xx-<short-name>
 Commit: <hash> feat(<area>): <what> [T-xx]
-Plan: docs/plans/<slug>/<slug>-plan.md | none
+PR: <url> | not pushed — awaiting the author's «пуш»
+Plan: docs/plans/<slug>/<slug>-plan.md
 Verify:
   Build:    <…>
   Headless: <…>
@@ -152,5 +152,5 @@ Review: Round 1 — Ship: <yes|no>, <n> blockers, <n> should-fix (closed <n>)
 Playtest (manual QA):
 1. …
 Open items: <deferred work, backlog entries added, questions for the author | none>
-Next: author reviews and pushes; do not run /task again without permission
+Next: author reviews (and merges the PR); do not run /task again without permission
 ```

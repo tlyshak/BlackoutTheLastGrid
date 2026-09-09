@@ -18,7 +18,9 @@
       "PowerShell(git log *)",
       "PowerShell(dotnet build *)",
       "PowerShell(godot --headless *)",
-      "PowerShell(powershell -ExecutionPolicy Bypass -File tools/smoke.ps1 *)"
+      "PowerShell(powershell -ExecutionPolicy Bypass -File tools/smoke.ps1 *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr list *)"
     ],
     "deny": [
       "Bash(git rm *assets/*)",
@@ -34,7 +36,9 @@
     ],
     "ask": [
       "Bash(git push *)",
-      "PowerShell(git push *)"
+      "PowerShell(git push *)",
+      "Bash(gh pr create *)",
+      "PowerShell(gh pr create *)"
     ]
   }
 }
