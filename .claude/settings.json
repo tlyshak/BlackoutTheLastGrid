@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git branch *)",
+      "Bash(dotnet build *)",
+      "Bash(dotnet restore *)",
+      "Bash(dotnet format *)",
+      "Bash(godot --headless *)",
+      "Bash(godot --version *)",
+      "Bash(powershell -File tools/smoke.ps1 *)",
+      "PowerShell(git status *)",
+      "PowerShell(git diff *)",
+      "PowerShell(git log *)",
+      "PowerShell(dotnet build *)",
+      "PowerShell(godot --headless *)",
+      "PowerShell(powershell -File tools/smoke.ps1 *)"
+    ],
+    "deny": [
+      "Bash(git push *)",
+      "PowerShell(git push *)",
+      "Bash(rm -rf assets *)",
+      "Edit(assets/**)",
+      "Write(assets/**)"
+    ]
+  }
+}
