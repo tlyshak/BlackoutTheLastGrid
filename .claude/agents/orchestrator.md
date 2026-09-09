@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: Subagent that drives a planned change to done via the fixed coder → verify → test-writer → reviewer → coder → verify → test-writer pipeline. Coordinates roles and verifies the Godot build itself; never edits code, scenes, or assets. Use for direct dispatch or non-interactive runs of a plan under docs/plans/.
+description: Subagent that drives a planned change to done via the fixed coder → verify → test-writer → reviewer → coder → test-writer → verify pipeline. Coordinates roles and verifies the Godot build itself; never edits code, scenes, or assets. Use for direct dispatch or non-interactive runs of a plan under docs/plans/.
 tools: Read, Grep, Glob, Bash, PowerShell, TodoWrite, Skill
 ---
 

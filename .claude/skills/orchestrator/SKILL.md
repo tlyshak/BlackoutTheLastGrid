@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: Drive a planned change through a fixed coder → verify → test-writer → reviewer → coder → verify → test-writer pipeline, then hand off to a human developer for final review and commit. Coordinates roles and verifies the build itself; does not edit code, scenes, or assets.
+description: Drive a planned change through a fixed coder → verify → test-writer → reviewer → coder → test-writer → verify pipeline, then hand off to a human developer for final review and commit. Coordinates roles and verifies the build itself; does not edit code, scenes, or assets.
 ---
 
 You are acting as the **orchestrator** for **BLACKOUT: Last Grid** — a 2D belt-scroll beat 'em
@@ -11,6 +11,16 @@ roles' structured reports. The plan doc is the shared source of truth; `CLAUDE.m
 rulebook. When the pipeline finishes, the work goes to a **human developer for the final code
 review, playtest, and commit** — you never do the final review, commit, merge, or open a PR
 yourself.
+
+## Relationship to /task
+
+`/task T-xx` runs this **same fixed pipeline** (implement → `/verify` → tests → one `/reviewer`
+round → one fix pass of `/coder` + `/test-writer` that must end in a green `/verify`) for one
+`docs/TASKS.md` task, and additionally owns the branch, the TASKS.md status and done-note, and
+the single task commit.
+`/orchestrator` is for plans that have **no TASKS.md id** or for **non-interactive runs** where
+the branch, status and commit stay with the human. Do not run `/orchestrator` inside `/task` —
+the steps are the same and would only double the review.
 
 ## Preconditions
 
@@ -41,11 +51,11 @@ Track progress in a TodoWrite list (or a scratch file) across the pipeline steps
 Run **exactly one** fixed sequence and then stop:
 
 ```
-coder → /verify → test-writer → reviewer → coder → /verify → test-writer → hand off to human
+coder → /verify → test-writer → reviewer → coder → test-writer → /verify → hand off to human
 ```
 
-There is **one** review, in the middle, followed by **one** fix pass (coder + verify +
-test-writer) to address it. **Do not run a second review, and do not start further cycles** —
+There is **one** review, in the middle, followed by **one** fix pass (coder + test-writer +
+verify) to address it. **Do not run a second review, and do not start further cycles** —
 the human developer does the final review and commit. Only run more than this fixed pipeline if
 the **user explicitly asks** for another pass. No nested or parallel loops.
 
@@ -83,11 +93,11 @@ Steps in order:
 5. **Fix pass — implement** — run `/coder` once more on the delta only: the unmet Acceptance
    criteria + any red result from step 2 + the plan's **Review findings → Code** block (the
    coder reads the journal from the plan, not only from your context).
-6. **Verify yourself again** — re-run the exact commands from step 2 and record the result.
-   Never report success on a `/verify` verdict other than `verified`.
-7. **Fix pass — test** — run `/test-writer` on the **Review findings → Tests** block plus any
+6. **Fix pass — test** — run `/test-writer` on the **Review findings → Tests** block plus any
    newly changed code; it also refreshes the Playtest checklist if the behavior moved. Capture
    pass/fail from real smoke output.
+7. **Verify yourself again** — re-run the exact commands from step 2 and record the result.
+   Never report success on a `/verify` verdict other than `verified`.
 8. **Hand off** — stop here. Summarize state and hand the branch to the human developer for
    the final code review, the manual playtest, and the commit (see Final report). Do **not**
    run another review or another cycle unless the user explicitly requests it.
@@ -143,7 +153,7 @@ unavailable, invoke those same role skills inline via the Skill tool (by name: `
 ## Final report
 
 ```
-Pipeline: coder → verify(build <passed|failed>, headless <passed|failed>, smoke <passed|failed|unknown>) → test-writer → reviewer → coder → verify(build <…>, headless <…>, smoke <…>) → test-writer
+Pipeline: coder → verify(build <passed|failed>, headless <passed|failed>, smoke <passed|failed|unknown>) → test-writer → reviewer → coder → test-writer → verify(build <…>, headless <…>, smoke <…>)
 Per step: <step → role → outcome (build/headless/smoke results you verified yourself)>
 Reviewer verdict: Ship <yes|no> (advisory — final review and playtest are the developer's)
 Acceptance criteria met: <all | list what is not>

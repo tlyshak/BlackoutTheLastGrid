@@ -1,0 +1,389 @@
+[gd_scene load_steps=21 format=3 uid="uid://ct2db4jsifoal"]
+
+[ext_resource type="Script" path="res://scripts/player/Player.cs" id="1_player"]
+[ext_resource type="Script" path="res://scripts/core/StateMachine.cs" id="2_sm"]
+[ext_resource type="Script" path="res://scripts/player/PlayerIdle.cs" id="3_idle"]
+[ext_resource type="Script" path="res://scripts/player/PlayerMove.cs" id="4_move"]
+[ext_resource type="Script" path="res://scripts/player/PlayerJump.cs" id="5_jump"]
+[ext_resource type="Script" path="res://scripts/core/Hitbox.cs" id="6_hitbox"]
+[ext_resource type="Script" path="res://scripts/player/PlayerAttack.cs" id="7_attack"]
+[ext_resource type="Script" path="res://scripts/player/PlayerHurt.cs" id="8_hurt"]
+[ext_resource type="Script" path="res://scripts/player/PlayerKO.cs" id="9_ko"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_foot"]
+radius = 7.0
+height = 28.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hurt"]
+size = Vector2(32, 64)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hit"]
+size = Vector2(36, 40)
+
+[sub_resource type="Animation" id="Anim_light1"]
+resource_name = "light_1"
+length = 0.3
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Visual/PH_Fist:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.08, 0.18, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(14, -10), Vector2(34, -10), Vector2(34, -10), Vector2(14, -10)]
+}
+tracks/1/type = "method"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0.08, 0.18),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"HitboxOn"
+}, {
+"args": [],
+"method": &"HitboxOff"
+}]
+}
+
+[sub_resource type="Animation" id="Anim_light2"]
+resource_name = "light_2"
+length = 0.3
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Visual/PH_Fist:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.08, 0.18, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(14, -10), Vector2(36, -10), Vector2(36, -10), Vector2(14, -10)]
+}
+tracks/1/type = "method"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0.08, 0.18),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"HitboxOn"
+}, {
+"args": [],
+"method": &"HitboxOff"
+}]
+}
+
+[sub_resource type="Animation" id="Anim_light3"]
+resource_name = "light_3"
+length = 0.4
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Visual/PH_Fist:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.12, 0.24, 0.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(14, -10), Vector2(42, -10), Vector2(42, -10), Vector2(14, -10)]
+}
+tracks/1/type = "method"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0.12, 0.24),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"HitboxOn"
+}, {
+"args": [],
+"method": &"HitboxOff"
+}]
+}
+
+[sub_resource type="Animation" id="Anim_heavy"]
+resource_name = "heavy"
+length = 0.55
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Visual/PH_Fist:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.22, 0.36, 0.55),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(14, -10), Vector2(48, -10), Vector2(48, -10), Vector2(14, -10)]
+}
+tracks/1/type = "method"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0.22, 0.36),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"HitboxOn"
+}, {
+"args": [],
+"method": &"HitboxOff"
+}]
+}
+
+[sub_resource type="Animation" id="Anim_hurt"]
+resource_name = "hurt"
+length = 0.3
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Visual:modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.05, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Color(1, 1, 1, 1), Color(1, 0.35, 0.35, 1), Color(1, 1, 1, 1)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Visual/PH_Body:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0.0, -0.25, 0.0]
+}
+
+[sub_resource type="Animation" id="Anim_ko"]
+resource_name = "ko"
+length = 0.6
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Visual:rotation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.6),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0.0, 1.5708]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Visual:modulate")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.6),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Color(1, 1, 1, 1), Color(0.5, 0.5, 0.5, 1)]
+}
+
+[sub_resource type="Animation" id="Anim_RESET"]
+resource_name = "RESET"
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Visual/PH_Fist:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(14, -10)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Visual:modulate")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 1, 1, 1)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Visual:rotation")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Visual/PH_Body:rotation")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_player"]
+_data = {
+&"RESET": SubResource("Anim_RESET"),
+&"heavy": SubResource("Anim_heavy"),
+&"hurt": SubResource("Anim_hurt"),
+&"ko": SubResource("Anim_ko"),
+&"light_1": SubResource("Anim_light1"),
+&"light_2": SubResource("Anim_light2"),
+&"light_3": SubResource("Anim_light3")
+}
+
+[node name="Player" type="CharacterBody2D" node_paths=PackedStringArray("Visual", "Sprite", "PlaceholderBody", "AnimationPlayer", "Hitbox", "StateMachine")]
+collision_layer = 2
+collision_mask = 1
+motion_mode = 1
+script = ExtResource("1_player")
+Visual = NodePath("Visual")
+Sprite = NodePath("Visual/Sprite")
+PlaceholderBody = NodePath("Visual/PH_Body")
+AnimationPlayer = NodePath("AnimationPlayer")
+Hitbox = NodePath("Visual/Hitbox")
+StateMachine = NodePath("StateMachine")
+
+[node name="PH_Shadow" type="Polygon2D" parent="."]
+color = Color(0, 0, 0, 0.45)
+polygon = PackedVector2Array(18.0, 0.0, 16.6, 2.7, 12.7, 4.9, 6.9, 6.5, 0.0, 7.0, -6.9, 6.5, -12.7, 4.9, -16.6, 2.7, -18.0, 0.0, -16.6, -2.7, -12.7, -4.9, -6.9, -6.5, -0.0, -7.0, 6.9, -6.5, 12.7, -4.9, 16.6, -2.7)
+
+[node name="Visual" type="Node2D" parent="."]
+position = Vector2(0, -36)
+
+[node name="PH_Body" type="Polygon2D" parent="Visual"]
+color = Color(0.93, 0.55, 0.15, 1)
+polygon = PackedVector2Array(-18, -36, 18, -36, 18, 36, -18, 36)
+
+[node name="PH_Face" type="Polygon2D" parent="Visual"]
+color = Color(1, 0.9, 0.6, 1)
+polygon = PackedVector2Array(6, -30, 18, -30, 18, -18, 6, -18)
+
+[node name="PH_Fist" type="Polygon2D" parent="Visual"]
+position = Vector2(14, -10)
+color = Color(1, 0.85, 0.55, 1)
+polygon = PackedVector2Array(-6, -6, 6, -6, 6, 6, -6, 6)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Visual"]
+
+[node name="Hitbox" type="Area2D" parent="Visual"]
+collision_layer = 8
+collision_mask = 4
+script = ExtResource("6_hitbox")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Visual/Hitbox"]
+position = Vector2(30, 0)
+shape = SubResource("RectangleShape2D_hit")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_player")
+}
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+rotation = 1.5708
+shape = SubResource("CapsuleShape2D_foot")
+
+[node name="Hurtbox" type="Area2D" parent="."]
+collision_layer = 2
+collision_mask = 0
+monitoring = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
+position = Vector2(0, -36)
+shape = SubResource("RectangleShape2D_hurt")
+
+[node name="StateMachine" type="Node" parent="." node_paths=PackedStringArray("InitialState")]
+script = ExtResource("2_sm")
+InitialState = NodePath("Idle")
+
+[node name="Idle" type="Node" parent="StateMachine"]
+script = ExtResource("3_idle")
+
+[node name="Move" type="Node" parent="StateMachine"]
+script = ExtResource("4_move")
+
+[node name="Jump" type="Node" parent="StateMachine"]
+script = ExtResource("5_jump")
+
+[node name="LightAttack1" type="Node" parent="StateMachine"]
+script = ExtResource("7_attack")
+AnimationName = &"light_1"
+Damage = 5.0
+Knockback = 60.0
+HitStopFrames = 4
+NextCombo = "LightAttack2"
+ComboWindowStart = 0.06
+
+[node name="LightAttack2" type="Node" parent="StateMachine"]
+script = ExtResource("7_attack")
+AnimationName = &"light_2"
+Damage = 5.0
+Knockback = 60.0
+HitStopFrames = 4
+NextCombo = "LightAttack3"
+ComboWindowStart = 0.06
+
+[node name="LightAttack3" type="Node" parent="StateMachine"]
+script = ExtResource("7_attack")
+AnimationName = &"light_3"
+Damage = 8.0
+Knockback = 160.0
+HitStopFrames = 5
+NextCombo = ""
+ComboWindowStart = 0.0
+
+[node name="HeavyAttack" type="Node" parent="StateMachine"]
+script = ExtResource("7_attack")
+AnimationName = &"heavy"
+Damage = 12.0
+Knockback = 200.0
+Knockdown = true
+HitStopFrames = 5
+NextCombo = ""
+ComboWindowStart = 0.0
+
+[node name="Hurt" type="Node" parent="StateMachine"]
+script = ExtResource("8_hurt")
+
+[node name="KO" type="Node" parent="StateMachine"]
+script = ExtResource("9_ko")

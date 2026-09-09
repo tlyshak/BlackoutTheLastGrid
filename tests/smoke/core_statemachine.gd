@@ -1,6 +1,7 @@
 extends SceneTree
 # Smoke: scripts/core/StateMachine.cs + State.cs — registration in _EnterTree, initial state,
-# signal order for a nested transition from Enter(), IsIn/HasState.
+# signal order for a nested transition from Enter(), IsIn/HasState, TransitionToOrRestart/Restart
+# re-entering the current state without a StateChanged event (T-02b review S3).
 # Run: godot --headless --path . -s tests/smoke/core_statemachine.gd
 
 const NAME := "core_statemachine"
@@ -56,6 +57,29 @@ func _process(_delta: float) -> bool:
 
 	sm.TransitionTo("Hurt")
 	_check(sm.IsIn("Hurt") and events == ["Idle>Hurt"], "plain transition failed: %s" % [events])
+
+	# Restart (T-02b review S3): TransitionToOrRestart on the current state and Restart() re-enter
+	# it (Exit + Enter, counts +1/+1) without a StateChanged event; the current state is unchanged.
+	sm.TransitionTo("Idle")
+	_check(sm.IsIn("Idle") and events == ["Idle>Hurt", "Hurt>Idle"], "return to Idle failed: %s" % [events])
+	var idle_enter0: int = idle.EnterCount
+	var idle_exit0: int = idle.ExitCount
+	events.clear()
+	sm.TransitionToOrRestart("Idle")
+	_check(sm.IsIn("Idle"), "TransitionToOrRestart(Idle) left Idle")
+	_check(idle.EnterCount == idle_enter0 + 1 and idle.ExitCount == idle_exit0 + 1,
+		"TransitionToOrRestart(current) Idle Enter/Exit counts %d/%d, expected %d/%d" % [idle.EnterCount, idle.ExitCount, idle_enter0 + 1, idle_exit0 + 1])
+	_check(events.is_empty(), "TransitionToOrRestart(current) must not emit StateChanged, got %s" % [events])
+	sm.Restart()
+	_check(sm.IsIn("Idle"), "Restart() left Idle")
+	_check(idle.EnterCount == idle_enter0 + 2 and idle.ExitCount == idle_exit0 + 2,
+		"Restart() Idle Enter/Exit counts %d/%d, expected %d/%d" % [idle.EnterCount, idle.ExitCount, idle_enter0 + 2, idle_exit0 + 2])
+	_check(events.is_empty(), "Restart() must not emit StateChanged, got %s" % [events])
+	_check(hurt.EnterCount == 1 and hurt.ExitCount == 1, "Hurt Enter/Exit counts %d/%d after restarts, expected 1/1 (untouched)" % [hurt.EnterCount, hurt.ExitCount])
+	events.clear()
+	sm.TransitionToOrRestart("Hurt")   # not current -> a plain transition with its event
+	_check(sm.IsIn("Hurt") and events == ["Idle>Hurt"] and hurt.EnterCount == 2,
+		"TransitionToOrRestart(other) expected a normal transition, got %s (Hurt EnterCount %d)" % [events, hurt.EnterCount])
 
 	sm.queue_free()
 
