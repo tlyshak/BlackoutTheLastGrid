@@ -24,12 +24,15 @@
 - **Зроблено:** усе перелічене; рев'ю знайшло дефекти раннера (політика виконання, ERROR-рядки, таймаут), шаблону smoke-тесту та імпорту ассетів — виправлено окремим комітом.
 - **Не зроблено:** GdUnit4 (потрібне узгодження автора).
 
-### T-02 · Персонаж: belt-scroll рух і анімація · `todo`
+### T-02 · Персонаж: belt-scroll рух і анімація · `done`
 - `scenes/player/Player.tscn`: `CharacterBody2D` + `AnimatedSprite2D` + `CollisionShape2D` + `Hurtbox` (`Area2D`).
 - Рух у 8 напрямках по площині підлоги (без гравітації по Y; стрибок — окрема «висота» `_z`, що зміщує спрайт вгору, тінь лишається на підлозі). Межі підлоги — `[Export]` верхня/нижня межа або `Area2D`-зона.
 - Підключити спрайтшит ходьби з `assets/art/player/` (idle, walk; решта — плейсхолдер з кадру idle).
 - Y-сортування, фліп спрайта, усі параметри — `[Export]`.
 - Готово, коли: у `scenes/levels/TestRoom.tscn` (підлога і 2 пропси з `PH_`) персонаж ходить у 8 напрямках, правильно перекриває/перекривається пропсами по глибині, стрибає.
+- **Зроблено:** `scenes/player/Player.tscn` + `scripts/player/Player.cs` (CharacterBody2D, motion_mode Floating, рух у 8 напрямках, clamp по FloorTop/FloorBottom, стрибок по осі `_z` зі зміщенням `Visual`, тінь на підлозі, фліп), стани Idle/Move/Jump на `StateMachine`, `scenes/levels/TestRoom.tscn` + `TestRoom.cs` (підлога, PH_Crate/PH_Post, стіни, debug-label), назви шарів колізій у `project.godot`, план `docs/plans/t02-player-movement/`, smoke `tests/smoke/player_movement.gd`.
+- **Не зроблено:** у `assets/art/player/` немає спрайтшиту — герой на `PH_`-полігонах; `AnimatedSprite2D` `Visual/Sprite` порожній, після додавання `SpriteFrames` з анімаціями `idle`/`walk` (опційно `jump`) плейсхолдер ховається автоматично.
+- **Плейтест:** 1) відкрити `scenes/levels/TestRoom.tscn` (F6) — темна підлога, помаранчевий герой, ящик вище, стовп нижче, напис `State: Idle  z: 0`; 2) D/→ — іде праворуч, `Move`; A/← — розвертається; 3) W/S — рух до верхнього/нижнього краю підлоги, не далі; W+D — діагональ; 4) вище за основу ящика — ящик перекриває героя, нижче — навпаки; 5) Space — стрибок, тінь лишається, `Jump`, `z > 0`, приземлення ~0.8 с; Space під час ходьби не зупиняє рух; 6) край кімнати — стіна зупиняє.
 
 ### T-02b · Базовий бій · `todo`
 - Стейт-машина гравця: Idle, Move, Jump, LightAttack1-3 (комбо), HeavyAttack, Hurt, KO.
