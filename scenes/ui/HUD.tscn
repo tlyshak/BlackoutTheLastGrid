@@ -1,0 +1,46 @@
+[gd_scene load_steps=3 format=3 uid="uid://2adcecasbtv6"]
+
+[ext_resource type="Script" path="res://scripts/ui/HUD.cs" id="1_hud"]
+[ext_resource type="Theme" uid="uid://4i2jy3f0qvhf" path="res://scenes/ui/HudTheme.tres" id="2_theme"]
+
+[node name="HUD" type="CanvasLayer" node_paths=PackedStringArray("EnergyBar", "EnergyLabel")]
+layer = 10
+script = ExtResource("1_hud")
+EnergyBar = NodePath("Root/EnergyPanel/VBox/EnergyBar")
+EnergyLabel = NodePath("Root/EnergyPanel/VBox/EnergyLabel")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme = ExtResource("2_theme")
+
+[node name="EnergyPanel" type="MarginContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 0
+offset_right = 292.0
+offset_bottom = 72.0
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="Root/EnergyPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="EnergyLabel" type="Label" parent="Root/EnergyPanel/VBox"]
+layout_mode = 2
+text = "ЕНЕРГІЯ 100"
+
+[node name="EnergyBar" type="ProgressBar" parent="Root/EnergyPanel/VBox"]
+custom_minimum_size = Vector2(260, 18)
+layout_mode = 2
+max_value = 100.0
+step = 0.0
+value = 100.0
+show_percentage = false
