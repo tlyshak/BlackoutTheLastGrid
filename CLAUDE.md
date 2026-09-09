@@ -5,7 +5,7 @@
 ## Проєкт
 - 2D beat 'em up (belt-scroll) у дусі Streets of Rage 4, **Godot 4.x (.NET-збірка), C#**, Windows.
 - Референс по бою і візуалу — Streets of Rage 4: принципи (belt-scroll, комбо, hit-stop, мальована анімація), а не запозичення ассетів чи персонажів.
-- Джерела істини: `GAME_DESIGN.md` (сюжет, рівні, механіки, арт), `TASKS.md` (беклог), `AI_AGENTS_ROADMAP.md` (пайплайн агентів). Якщо код і документ розходяться — правильний документ; якщо документ неоднозначний — спитай, не вигадуй.
+- Джерела істини: `GAME_DESIGN.md` (сюжет, рівні, механіки, арт), `TASKS.md` (беклог), `AI_AGENTS_ROADMAP.md` (пайплайн агентів). Контекст попередньої роботи — останній файл у `docs/sessions/`. Якщо код і документ розходяться — правильний документ; якщо документ неоднозначний — спитай, не вигадуй.
 - Стиль графіки hand-painted 2D. **Арт-ассети не створювати і не змінювати** — тільки підключати готові з `assets/`. Для тестів використовуй кольорові плейсхолдери (`ColorRect`/`Polygon2D`) з префіксом `PH_`.
 
 ## Структура репозиторію
@@ -22,7 +22,8 @@ scripts/         дзеркалить scenes/: scripts/player/Player.cs, scripts
 assets/
   art/           (тільки читання) player/, tiles/, props/, backgrounds/
   audio/
-docs/            GAME_DESIGN.md, TASKS.md, AI_AGENTS_ROADMAP.md, plans/<slug>/<slug>-plan.md
+docs/            GAME_DESIGN.md, TASKS.md, AI_AGENTS_ROADMAP.md, plans/<slug>/<slug>-plan.md,
+                 reviews/ (загальні рев'ю коду), sessions/ (звіти сесій — прочитай останній перед першою дією)
 tests/smoke/     headless smoke-тести (GDScript, extends SceneTree), запускаються tools/smoke.ps1
 tools/           допоміжні скрипти (smoke.ps1, setup-godot.ps1)
 GodotEngine/     локальні бінарники Godot .NET (у .gitignore, у репозиторії відсутні; tools/setup-godot.ps1 створює тут .gdignore і обгортку godot; не чіпати)
