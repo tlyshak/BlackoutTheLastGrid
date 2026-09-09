@@ -125,17 +125,12 @@ public partial class Player : CharacterBody2D, IHittable
         }
 
         Hitbox.Attacker = this;
-        Hitbox.Hit += OnHitboxHit;
         StateMachine.StateChanged += OnStateChanged;
         UpdateVisual();
     }
 
     /// <inheritdoc/>
-    public override void _ExitTree()
-    {
-        Hitbox.Hit -= OnHitboxHit;
-        StateMachine.StateChanged -= OnStateChanged;
-    }
+    public override void _ExitTree() => StateMachine.StateChanged -= OnStateChanged;
 
     /// <summary>
     /// Moves along the floor plane for one physics step, clamps depth to the floor bounds and
@@ -174,14 +169,6 @@ public partial class Player : CharacterBody2D, IHittable
         UpdateVisual();
     }
 
-    /// <summary>Puts the hero back on the floor immediately (height and vertical speed reset).</summary>
-    public void Land()
-    {
-        _z = 0f;
-        _zVelocity = 0f;
-        UpdateVisual();
-    }
-
     /// <summary>Integrates the jump for one physics step; lands when the height returns to 0.</summary>
     /// <param name="delta">Physics step in seconds.</param>
     public void IntegrateJump(double delta)
@@ -208,7 +195,10 @@ public partial class Player : CharacterBody2D, IHittable
     {
         if (AnimationPlayer.HasAnimation(animation))
         {
+            // Play() on the animation that is already playing keeps its position; a re-entered
+            // reaction (second hit while in Hurt) must restart, so always rewind and apply frame 0.
             AnimationPlayer.Play(animation);
+            AnimationPlayer.Seek(0.0, update: true);
             return;
         }
 
@@ -228,12 +218,17 @@ public partial class Player : CharacterBody2D, IHittable
         }
     }
 
-    /// <summary>Returns the <see cref="AnimationPlayer"/> to its rest pose (fist, tint, rotation) after an interrupted animation.</summary>
+    /// <summary>
+    /// Returns the <see cref="AnimationPlayer"/> to its rest pose (fist, tint, rotation) after an
+    /// interrupted animation. The RESET keys are applied immediately so the next animation played
+    /// in the same frame starts from the rest pose.
+    /// </summary>
     public void ResetPose()
     {
         if (AnimationPlayer.HasAnimation(ResetAnimation))
         {
             AnimationPlayer.Play(ResetAnimation);
+            AnimationPlayer.Seek(0.0, update: true);
         }
     }
 
@@ -241,8 +236,8 @@ public partial class Player : CharacterBody2D, IHittable
     public bool IsAnimationPlaying(StringName animation) =>
         AnimationPlayer.IsPlaying() && AnimationPlayer.CurrentAnimation == animation;
 
-    /// <summary>Seconds elapsed in the current <see cref="AnimationPlayer"/> animation.</summary>
-    public double AnimationTime => AnimationPlayer.CurrentAnimationPosition;
+    /// <summary>Seconds elapsed in the current <see cref="AnimationPlayer"/> animation, or 0 when none is playing.</summary>
+    public double AnimationTime => AnimationPlayer.IsPlaying() ? AnimationPlayer.CurrentAnimationPosition : 0.0;
 
     /// <summary>Opens the attack window with <see cref="CurrentAttack"/>. Called from animation method tracks.</summary>
     public void HitboxOn() => Hitbox.Activate(CurrentAttack);
@@ -285,8 +280,6 @@ public partial class Player : CharacterBody2D, IHittable
     /// </summary>
     public bool TakeDamage(float damage, float knockback, bool knockdown, int hitStopFrames) =>
         TakeHit(new HitInfo(damage, knockback, knockdown, hitStopFrames, DepthTolerance, GlobalPosition.Y));
-
-    private void OnHitboxHit(Node2D target) => HitStop.Trigger(CurrentAttack.HitStopFrames);
 
     private void OnStateChanged(string from, string to) => EmitSignalStateChanged(from, to);
 

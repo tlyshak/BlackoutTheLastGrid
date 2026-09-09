@@ -8,7 +8,9 @@ namespace BlackoutLastGrid.Core;
 /// by <see cref="Activate"/>/<see cref="Deactivate"/> (called from animation method tracks), so
 /// targets that already overlap when the active window opens are hit too. A target is hit at most
 /// once per activation, and only when the attacker and the target stand within
-/// <see cref="HitInfo.DepthTolerance"/> of each other on the depth (Y) axis.
+/// <see cref="HitInfo.DepthTolerance"/> of each other on the depth (Y) axis. A connected hit
+/// triggers the global <see cref="HitStop"/> with the hit's <see cref="HitInfo.HitStopFrames"/>,
+/// so every attacker (hero or enemy) gets the same feedback without extra wiring.
 /// </summary>
 /// <remarks>
 /// Scene contract: node name <c>Hitbox</c>; targets are <c>Area2D</c> nodes named <c>Hurtbox</c>
@@ -19,7 +21,7 @@ public partial class Hitbox : Area2D
 {
     private static readonly StringName HurtboxName = "Hurtbox";
 
-    /// <summary>Emitted once per target that was actually hit during the current activation.</summary>
+    /// <summary>Emitted once per target that was actually hit during the current activation (for effects; hit-stop is already applied).</summary>
     [Signal]
     public delegate void HitEventHandler(Node2D target);
 
@@ -83,6 +85,11 @@ public partial class Hitbox : Area2D
         }
 
         Node target = area.GetParent();
+        if (ReferenceEquals(target, Attacker))
+        {
+            return;   // never hit the owner's own Hurtbox, whatever the masks say
+        }
+
         if (target is not IHittable hittable || target is not Node2D targetNode || _alreadyHit.Contains(target))
         {
             return;
@@ -97,6 +104,7 @@ public partial class Hitbox : Area2D
         _alreadyHit.Add(target);
         if (hittable.TakeHit(_info with { SourceY = sourceY }))
         {
+            HitStop.Trigger(_info.HitStopFrames);
             EmitSignalHit(targetNode);
         }
     }

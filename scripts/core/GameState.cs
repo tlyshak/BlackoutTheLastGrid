@@ -8,11 +8,11 @@ namespace BlackoutLastGrid.Core;
 public enum RouteType
 {
     /// <summary>No route chosen yet.</summary>
-    None,
+    None = 0,
     /// <summary>Route through the car tunnel.</summary>
-    Car,
+    Car = 1,
     /// <summary>Route through the metro.</summary>
-    Metro,
+    Metro = 2,
 }
 
 /// <summary>
@@ -33,11 +33,15 @@ public partial class GameState : Node
     [Signal]
     public delegate void EnergyChangedEventHandler(float energy);
 
-    /// <summary>Upper bound of the energy reserve.</summary>
+    /// <summary>
+    /// Upper bound of the energy reserve. The autoload is a script without a scene, so these
+    /// exports are not editable in the inspector; change them in the Remote tree at runtime or
+    /// give the autoload a scene later.
+    /// </summary>
     [Export]
     public float MaxEnergy { get; set; } = DefaultMaxEnergy;
 
-    /// <summary>Lower bound of the energy reserve.</summary>
+    /// <summary>Lower bound of the energy reserve (see <see cref="MaxEnergy"/> about editing).</summary>
     [Export]
     public float MinEnergy { get; set; } = 0f;
 
@@ -74,15 +78,26 @@ public partial class GameState : Node
     public int DistrictReputation { get; set; }
 
     /// <summary>
-    /// Registers the singleton, keeps processing while the tree is paused and starts a run with a
-    /// full reserve (<see cref="MaxEnergy"/>). Save/load (T-09) will overwrite this after ready.
+    /// Registers the singleton and keeps processing while the tree is paused; <see cref="_Ready"/>
+    /// starts a run with a full reserve (<see cref="MaxEnergy"/>), save/load (T-09) overwrites it.
     /// </summary>
-    public override void _Ready()
+    public override void _EnterTree()
     {
         Instance = this;
         ProcessMode = ProcessModeEnum.Always;
-        _energy = MaxEnergy;
     }
+
+    /// <inheritdoc/>
+    public override void _ExitTree()
+    {
+        if (ReferenceEquals(Instance, this))
+        {
+            Instance = null!;
+        }
+    }
+
+    /// <inheritdoc/>
+    public override void _Ready() => _energy = MaxEnergy;
 
     /// <summary>Adds (or subtracts, for negative values) energy, respecting the clamp and signal rules.</summary>
     /// <param name="amount">Delta to apply; negative values drain energy.</param>

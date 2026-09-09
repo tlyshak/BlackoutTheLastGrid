@@ -9,4 +9,9 @@
     <!-- Local Godot editor binaries live inside the repo; never compile/copy anything from there. -->
     <DefaultItemExcludes>$(DefaultItemExcludes);GodotEngine/**;.godot/**</DefaultItemExcludes>
   </PropertyGroup>
+  <!-- Smoke-test support scripts (tests/smoke/support) are only needed by the editor and the
+       headless smoke runs, which load the Debug build; keep them out of export builds. -->
+  <ItemGroup Condition="'$(Configuration)' != 'Debug'">
+    <Compile Remove="tests/**" />
+  </ItemGroup>
 </Project>

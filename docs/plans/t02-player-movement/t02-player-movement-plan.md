@@ -47,6 +47,7 @@ Player (CharacterBody2D, motion_mode = Floating)  → scripts/player/Player.cs  
 ├── PH_Shadow (Polygon2D, dark ellipse)            stays at (0,0) on the floor
 ├── Visual (Node2D)                                position (0, -SpriteFeetOffset - _z); Scale.X = ±1
 │   ├── PH_Body (Polygon2D, 36×72 rectangle, orange) hidden automatically when Sprite has frames
+│   ├── PH_Face (Polygon2D, small light square on the facing side)
 │   └── Sprite (AnimatedSprite2D, no SpriteFrames yet) plays "walk"/"idle" if such animations exist
 ├── CollisionShape2D (CapsuleShape2D 28×14, rotated flat)  footprint on the floor
 ├── Hurtbox (Area2D, layer 2 / mask none, monitoring off)  present for T-02b, no logic
