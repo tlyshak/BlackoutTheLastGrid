@@ -11,6 +11,9 @@ namespace BlackoutLastGrid.Props;
 /// tracked actions itself in <c>_PhysicsProcess</c> and shows the progress through the prompt
 /// ("↑ [J] ↓ ␣"); a wrong action or a step timeout fails the attempt. Once activated it emits
 /// <see cref="ActivatedEventHandler"/> (the level switches its lights on) and refuses further use.
+/// A panel with <see cref="Powered"/> off accepts the sequence but cannot activate: it emits
+/// <see cref="FailedNoPowerEventHandler"/> instead, flashes red and from then on refuses further
+/// use, showing <see cref="NoPowerPromptText"/> — the player has been told it is dead.
 /// </summary>
 public partial class PowerPanel : Interactable
 {
@@ -45,6 +48,13 @@ public partial class PowerPanel : Interactable
     [Signal]
     public delegate void SequenceFailedEventHandler();
 
+    /// <summary>Emitted when the whole sequence was entered correctly but <see cref="Powered"/> is off; the attempt ends with <c>Finished(false)</c>.</summary>
+    [Signal]
+    public delegate void FailedNoPowerEventHandler();
+
+    /// <summary><c>false</c> for a panel cut off upstream: the sequence completes but the panel cannot switch on.</summary>
+    [Export] public bool Powered { get; set; } = true;
+
     /// <summary>InputMap actions to press in order.</summary>
     [Export] public string[] Sequence { get; set; } = { "move_up", "attack", "move_down", "jump" };
 
@@ -56,6 +66,9 @@ public partial class PowerPanel : Interactable
 
     /// <summary>Prompt shown once the panel is activated.</summary>
     [Export] public string ActivatedPromptText { get; set; } = "Працює";
+
+    /// <summary>Prompt shown once an unpowered panel has failed with <see cref="FailedNoPowerEventHandler"/>.</summary>
+    [Export] public string NoPowerPromptText { get; set; } = "Обезструмлена";
 
     /// <summary>Colour of <see cref="Screen"/> while dead.</summary>
     [Export] public Color DeadColor { get; set; } = new(0.6f, 0.1f, 0.1f);
@@ -76,6 +89,7 @@ public partial class PowerPanel : Interactable
     private float _stepTime;
     private bool _failing;
     private float _failTime;
+    private bool _deadNoPower;
 
     /// <summary><c>true</c> once the sequence was completed; the panel stays on.</summary>
     public bool IsActivated { get; private set; }
@@ -84,7 +98,7 @@ public partial class PowerPanel : Interactable
     public int CurrentStep => _step;
 
     /// <inheritdoc/>
-    public override bool CanInteract => !IsActivated;
+    public override bool CanInteract => !IsActivated && !_deadNoPower;
 
     private static bool IsTracked(string action)
     {
@@ -102,6 +116,7 @@ public partial class PowerPanel : Interactable
     /// <inheritdoc/>
     public override string CurrentPrompt =>
         IsActivated ? ActivatedPromptText
+        : _deadNoPower ? NoPowerPromptText
         : IsActive && !_failing ? BuildSequencePrompt()
         : PromptText;
 
@@ -211,6 +226,14 @@ public partial class PowerPanel : Interactable
 
     private void Complete()
     {
+        if (!Powered)
+        {
+            _deadNoPower = true;
+            EmitSignalFailedNoPower();
+            StartFailFlash();
+            return;
+        }
+
         IsActivated = true;
         SetPhysicsProcess(false);
         SetScreen(ActiveColor);
@@ -222,7 +245,14 @@ public partial class PowerPanel : Interactable
     private void Fail()
     {
         EmitSignalSequenceFailed();
+        StartFailFlash();
+    }
+
+    /// <summary>Shows <see cref="FailColor"/> for <see cref="FailResetDelay"/>, then aborts the attempt (at once without a delay).</summary>
+    private void StartFailFlash()
+    {
         SetScreen(FailColor);
+        NotifyPromptChanged();
         if (FailResetDelay <= 0f)
         {
             AbortAttempt();
