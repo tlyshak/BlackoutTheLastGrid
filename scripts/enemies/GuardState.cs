@@ -13,6 +13,12 @@ public abstract partial class GuardState : State
     protected static readonly StringName AnimAttack = "attack";
 
     /// <inheritdoc cref="AnimAttack"/>
+    protected static readonly StringName AnimIdle = "idle";
+
+    /// <inheritdoc cref="AnimAttack"/>
+    protected static readonly StringName AnimWalk = "walk";
+
+    /// <inheritdoc cref="AnimAttack"/>
     protected static readonly StringName AnimHurt = "hurt";
 
     /// <inheritdoc cref="AnimAttack"/>

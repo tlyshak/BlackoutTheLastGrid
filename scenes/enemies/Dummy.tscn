@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://cx22u1thref1a"]
+[gd_scene load_steps=10 format=3 uid="uid://cx22u1thref1a"]
 
 [ext_resource type="Script" path="res://scripts/enemies/Dummy.cs" id="1_dummy"]
 [ext_resource type="Script" path="res://scripts/core/StateMachine.cs" id="2_sm"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/enemies/DummyHurt.cs" id="4_hurt"]
 [ext_resource type="Script" path="res://scripts/enemies/DummyDown.cs" id="5_down"]
 [ext_resource type="Script" path="res://scripts/enemies/DummyKO.cs" id="6_ko"]
+[ext_resource type="PackedScene" uid="uid://xgieoj27djpn" path="res://scenes/actors/CharacterRig.tscn" id="7_rig"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_foot"]
 radius = 7.0
@@ -30,13 +31,12 @@ polygon = PackedVector2Array(18.0, 0.0, 16.6, 2.7, 12.7, 4.9, 6.9, 6.5, 0.0, 7.0
 [node name="Visual" type="Node2D" parent="."]
 position = Vector2(0, -36)
 
-[node name="PH_Body" type="Polygon2D" parent="Visual"]
-color = Color(0.55, 0.58, 0.62, 1)
-polygon = PackedVector2Array(-18, -36, 18, -36, 18, 36, -18, 36)
+[node name="Rig" parent="Visual" instance=ExtResource("7_rig")]
+SuitColor = Color(0.2235294118, 0.2588235294, 0.3098039216, 1)
+SkinColor = Color(0.3019607843, 0.3450980392, 0.4, 1)
+ShowFace = false
 
-[node name="PH_Face" type="Polygon2D" parent="Visual"]
-color = Color(0.8, 0.82, 0.85, 1)
-polygon = PackedVector2Array(-6, -30, 6, -30, 6, -18, -6, -18)
+[node name="Sprite" type="AnimatedSprite2D" parent="Visual"]
 
 [node name="Hurtbox" type="Area2D" parent="Visual"]
 collision_layer = 4

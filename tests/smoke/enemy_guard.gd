@@ -17,6 +17,10 @@ extends SceneTree
 #     it, one at 540 px does not; outside the zone IsLit is false again;
 # (7) Energy 5 -> one punch KOs the hero and LevelBase reloads the current scene ~1 s later with
 #     Energy == MaxEnergy and Engine.time_scale == 1.
+# T-07i-b: the guard carries a Visual/Rig CharacterRig instead of PH_Body/PH_Fist, its
+# AnimationPlayer gained looping idle/walk that never key Visual:modulate/rotation, RESET covers
+# every property anything else writes, and a guard floored while walking stops animating for the
+# whole DownDuration (5b) and picks its gait back up after getting up.
 # Run: godot --headless --path . -s tests/smoke/enemy_guard.gd
 #
 # Hit-stop sets Engine.time_scale = 0, so hits are observed on idle frames (`process_frame`) under
@@ -67,6 +71,24 @@ var _failures: Array[String] = []
 func _check(cond: bool, msg: String) -> void:
 	if not cond:
 		_failures.append(msg)
+
+# Time of the first key of `method` on any method track of `anim`, or -1 when it is not called.
+func _method_time(anim: Animation, method: String) -> float:
+	for t in anim.get_track_count():
+		if anim.track_get_type(t) != Animation.TYPE_METHOD:
+			continue
+		for k in anim.track_get_key_count(t):
+			if String(anim.method_track_get_name(t, k)) == method:
+				return anim.track_get_key_time(t, k)
+	return -1.0
+
+# Every "<node path>:<property>" a value track of `anim` writes.
+func _value_paths(anim: Animation) -> Array:
+	var paths: Array = []
+	for t in anim.get_track_count():
+		if anim.track_get_type(t) == Animation.TYPE_VALUE:
+			paths.append(String(anim.track_get_path(t)))
+	return paths
 
 func _process(_delta: float) -> bool:
 	# First frame: start the coroutine (no await here). Returning false keeps the main loop
@@ -216,6 +238,9 @@ func _run() -> void:
 		_check(g is CharacterBody2D, "Guard root is %s, expected CharacterBody2D" % g.get_class())
 		_check(g.collision_layer == 4 and g.collision_mask == 1, "Guard body layer/mask = %d/%d, expected 4/1 (Enemy / World)" % [g.collision_layer, g.collision_mask])
 		_check(g.motion_mode == 1, "Guard motion_mode=%d, expected 1 (Floating)" % g.motion_mode)
+		var rig: Node = g.get_node_or_null("Visual/Rig")
+		_check(rig != null and str(rig.get_script().resource_path).ends_with("CharacterRig.cs"), "Guard has no 'Visual/Rig' CharacterRig (T-07i-b)")
+		_check(g.get_node_or_null("Visual/PH_Body") == null and g.get_node_or_null("Visual/PH_Fist") == null, "Guard still carries the old PH_Body / PH_Fist rectangles")
 		var hurt: Node = g.get_node_or_null("Visual/Hurtbox")
 		var hit: Node = g.get_node_or_null("Visual/Hitbox")
 		_check(hurt != null and hurt is Area2D, "Guard has no 'Visual/Hurtbox' Area2D (under Visual so it rises/rotates with it)")
@@ -244,10 +269,33 @@ func _run() -> void:
 		var ap: AnimationPlayer = g.get_node_or_null("AnimationPlayer")
 		_check(ap != null, "Guard has no AnimationPlayer")
 		if ap != null:
-			for anim in ["attack", "hurt", "ko", "RESET"]:
+			for anim in ["attack", "hurt", "ko", "RESET", "idle", "walk"]:
 				_check(ap.has_animation(anim), "Guard AnimationPlayer lacks '%s'" % anim)
 			if ap.has_animation("attack"):
 				_check(is_equal_approx(ap.get_animation("attack").length, 0.55), "Guard 'attack' length %.2f, expected 0.55" % ap.get_animation("attack").length)
+			# Balance is frozen: the punch still opens at TelegraphTime and closes 0.1 s later.
+			if ap.has_animation("attack"):
+				var atk: Animation = ap.get_animation("attack")
+				_check(is_equal_approx(_method_time(atk, "HitboxOn"), 0.3) and is_equal_approx(_method_time(atk, "HitboxOff"), 0.4),
+					"Guard 'attack' HitboxOn/HitboxOff at %.3f/%.3f, expected 0.30/0.40 (balance is frozen)" % [_method_time(atk, "HitboxOn"), _method_time(atk, "HitboxOff")])
+			if ap.has_animation("hurt") and ap.has_animation("ko"):
+				_check(is_equal_approx(ap.get_animation("hurt").length, 0.25), "Guard 'hurt' length %.2f, expected 0.25" % ap.get_animation("hurt").length)
+				_check(is_equal_approx(ap.get_animation("ko").length, 0.6), "Guard 'ko' length %.2f, expected 0.60" % ap.get_animation("ko").length)
+			# The looping gait animations must not touch what SetDown() / the flash tween own.
+			for anim in ["idle", "walk"]:
+				if not ap.has_animation(anim):
+					continue
+				_check(ap.get_animation(anim).loop_mode != Animation.LOOP_NONE, "Guard '%s' must loop" % anim)
+				for path in _value_paths(ap.get_animation(anim)):
+					_check(path != "Visual:modulate" and path != "Visual:rotation",
+						"Guard '%s' keys '%s'; Visual:modulate/rotation belong to hurt/ko, SetDown() and the flash tween" % [anim, path])
+			if ap.has_animation("RESET"):
+				var reset_paths: Array = _value_paths(ap.get_animation("RESET"))
+				for anim in ap.get_animation_list():
+					if String(anim) == "RESET":
+						continue
+					for path in _value_paths(ap.get_animation(anim)):
+						_check(path in reset_paths, "Guard RESET does not key '%s', written by '%s'" % [path, anim])
 		await _step(2)
 		_check(is_equal_approx(g.Hp, 30.0), "standalone Guard.Hp=%s, expected 30" % g.Hp)
 		_check(g.CurrentStateName == "Idle", "standalone Guard state '%s', expected 'Idle'" % g.CurrentStateName)
@@ -604,9 +652,13 @@ func _run() -> void:
 		var rot_idle: float = gvisual5.rotation
 		_check(is_equal_approx(rot_idle, PI / 2.0), "S1: Visual.rotation=%.3f two idle frames after a knockdown out of Attack, expected PI/2 (RESET clobbered the Down pose)" % rot_idle)
 		var rot_min: float = rot_idle
+		var played_while_down := false
 		for i in DOWN_HOLD_FRAMES:
 			await physics_frame
 			rot_min = minf(rot_min, gvisual5.rotation)
+			if gap5.is_playing():
+				played_while_down = true
+		_check(not played_while_down, "S1: the AnimationPlayer ran during Down; a looping walk/idle must be stopped by GuardDown.Enter or the floored guard keeps stepping")
 		_check(guard.CurrentStateName == "Down", "down-mid-attack: guard state '%s' %d physics frames after the knockdown, expected still 'Down' (DownDuration %s s)" % [guard.CurrentStateName, DOWN_HOLD_FRAMES, guard.DownDuration])
 		_check(is_equal_approx(gvisual5.rotation, PI / 2.0), "S1: Visual.rotation=%.3f %d physics frames after the knockdown while still Down, expected PI/2" % [gvisual5.rotation, DOWN_HOLD_FRAMES])
 		_check(is_equal_approx(rot_min, PI / 2.0), "S1: Visual.rotation dipped to %.3f during %d Down frames, expected PI/2 throughout" % [rot_min, DOWN_HOLD_FRAMES])
@@ -620,6 +672,9 @@ func _run() -> void:
 			await physics_frame
 		_check(stood_after >= 0, "down-mid-attack: guard still '%s' %d frames later, expected to get up" % [guard.CurrentStateName, DOWN_HOLD_FRAMES + GETUP_CAP])
 		_check(is_equal_approx(gvisual5.rotation, 0.0), "down-mid-attack: Visual.rotation=%.3f after getting up, expected 0" % gvisual5.rotation)
+		# Approach re-decides the gait on its first tick, one physics frame after Down released.
+		await _step(2)
+		_check(gap5.is_playing() and gap5.current_animation in ["walk", "idle", "attack"], "down-mid-attack: AnimationPlayer playing=%s '%s' after getting up, expected the gait (walk/idle) or a new attack" % [gap5.is_playing(), gap5.current_animation])
 		_check(guard.CurrentStateName in ["Approach", "Attack"], "down-mid-attack: guard state '%s' after getting up, expected Approach/Attack (aware, hero in reach)" % guard.CurrentStateName)
 		print("enemy_guard: down-mid-attack — Attack after %d frames, floored at Hp %s, rotation %.3f after 2 idle frames, min %.3f over %d Down frames, up after %d more frames in '%s'" % [mid_attack, guard.Hp, rot_idle, rot_min, DOWN_HOLD_FRAMES, stood_after, guard.CurrentStateName])
 	await _close_room(r, gs)

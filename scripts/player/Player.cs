@@ -75,8 +75,8 @@ public partial class Player : CharacterBody2D, IHittable
     /// <summary>Animated sprite; may have no <c>SpriteFrames</c> until art is wired.</summary>
     [Export] public AnimatedSprite2D Sprite { get; set; } = null!;
 
-    /// <summary>Placeholder body shown while <see cref="Sprite"/> has no frames.</summary>
-    [Export] public Node2D? PlaceholderBody { get; set; }
+    /// <summary>Procedural silhouette shown while <see cref="Sprite"/> has no frames.</summary>
+    [Export] public CharacterRig? Rig { get; set; }
 
     /// <summary>Attack, hurt and KO animations; their method tracks call <see cref="HitboxOn"/>/<see cref="HitboxOff"/>.</summary>
     [Export] public AnimationPlayer AnimationPlayer { get; set; } = null!;
@@ -144,9 +144,9 @@ public partial class Player : CharacterBody2D, IHittable
     /// <inheritdoc/>
     public override void _Ready()
     {
-        if (PlaceholderBody is not null && Sprite.SpriteFrames is not null)
+        if (Rig is not null && Sprite.SpriteFrames is not null)
         {
-            PlaceholderBody.Visible = false;
+            Rig.Visible = false;
         }
 
         Hitbox.Attacker = this;

@@ -12,6 +12,15 @@ namespace BlackoutLastGrid.Enemies;
 /// </summary>
 public partial class GuardApproach : GuardState
 {
+    /// <summary>Speed above which the guard plays <c>walk</c> instead of <c>idle</c>, in px/s.</summary>
+    [Export] public float WalkAnimationMinSpeed { get; set; } = 8f;
+
+    /// <summary><c>null</c> until the first gait decision of this visit, so it always starts an animation once.</summary>
+    private bool? _walking;
+
+    /// <inheritdoc/>
+    public override void Enter(State? previous) => _walking = null;
+
     /// <inheritdoc/>
     public override void PhysicsUpdate(double delta)
     {
@@ -32,7 +41,9 @@ public partial class GuardApproach : GuardState
         if (!Guard.CanTakeAttackSlot)
         {
             Vector2 holdPoint = new(targetPosition.X - side * Guard.HoldDistance, targetPosition.Y);
-            Guard.Move(Guard.VelocityTowards(holdPoint, delta));
+            Vector2 holdVelocity = Guard.VelocityTowards(holdPoint, delta);
+            UpdateGait(holdVelocity, delta);
+            Guard.Move(holdVelocity);
             return;
         }
 
@@ -47,6 +58,31 @@ public partial class GuardApproach : GuardState
         // Full speed along X until in range (a step past the threshold is fine), exact on Y.
         Vector2 velocity = Guard.VelocityTowards(targetPosition, delta);
         velocity.X = absDx > Guard.AttackRange ? side * Guard.MoveSpeed : 0f;
+        UpdateGait(velocity, delta);
         Guard.Move(velocity);
+    }
+
+    /// <summary>
+    /// Switches between the looping <c>walk</c> and <c>idle</c> animations, and only on a change
+    /// of gait — a guard holding its distance must not moonwalk, and restarting an animation
+    /// every tick would reset it to frame 0 forever.
+    /// </summary>
+    /// <param name="velocity">Velocity the guard is about to move with, in px/s.</param>
+    /// <param name="delta">Physics step in seconds; 0 during hit-stop, when nothing moves anyway.</param>
+    private void UpdateGait(Vector2 velocity, double delta)
+    {
+        if (delta <= 0.0)
+        {
+            return;   // hit-stop: the animation player is frozen and every velocity reads as zero
+        }
+
+        bool walking = velocity.LengthSquared() >= WalkAnimationMinSpeed * WalkAnimationMinSpeed;
+        if (_walking == walking)
+        {
+            return;
+        }
+
+        _walking = walking;
+        Guard.PlayAnimation(walking ? AnimWalk : AnimIdle);
     }
 }
