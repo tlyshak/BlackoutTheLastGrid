@@ -90,6 +90,9 @@ public partial class Player : CharacterBody2D, IHittable
     /// <summary>Head lamp; positioned by <see cref="UpdateVisual"/> so it turns with facing and rises with the jump.</summary>
     [Export] public Flashlight Flashlight { get; set; } = null!;
 
+    /// <summary>Small area at the feet that masks the <c>LightDark</c> layer (bit 64); counts the lit zones the hero stands in.</summary>
+    [Export] public Area2D LightSensor { get; set; } = null!;
+
     /// <summary>Area (mask = Interactable layer) that collects the props in reach.</summary>
     [Export] public Area2D InteractionArea { get; set; } = null!;
 
@@ -97,6 +100,7 @@ public partial class Player : CharacterBody2D, IHittable
     private float _z;
     private float _zVelocity;
     private bool _knockedOut;
+    private int _litZones;
 
     /// <summary>Current height above the floor along the jump axis, in px (0 when grounded).</summary>
     public float Height => _z;
@@ -134,6 +138,9 @@ public partial class Player : CharacterBody2D, IHittable
     /// <summary><c>true</c> once the hero has been knocked out.</summary>
     public bool IsKnockedOut => _knockedOut;
 
+    /// <summary><c>true</c> while enemies can see the hero at full range: the head lamp is on or the hero stands in a lit zone.</summary>
+    public bool IsLit => Flashlight.IsOn || _litZones > 0;
+
     /// <inheritdoc/>
     public override void _Ready()
     {
@@ -144,6 +151,9 @@ public partial class Player : CharacterBody2D, IHittable
 
         Hitbox.Attacker = this;
         StateMachine.StateChanged += OnStateChanged;
+        LightSensor.AreaEntered += OnLitZoneEntered;
+        LightSensor.AreaExited += OnLitZoneExited;
+
         InteractionArea.AreaEntered += OnInteractionAreaEntered;
         InteractionArea.AreaExited += OnInteractionAreaExited;
         UpdateVisual();
@@ -153,6 +163,9 @@ public partial class Player : CharacterBody2D, IHittable
     public override void _ExitTree()
     {
         StateMachine.StateChanged -= OnStateChanged;
+        LightSensor.AreaEntered -= OnLitZoneEntered;
+        LightSensor.AreaExited -= OnLitZoneExited;
+
         InteractionArea.AreaEntered -= OnInteractionAreaEntered;
         InteractionArea.AreaExited -= OnInteractionAreaExited;
     }
@@ -285,7 +298,9 @@ public partial class Player : CharacterBody2D, IHittable
         UpdateVisual();
         EmitSignalHurt(hit.Damage);
 
-        if (state.Energy <= state.MinEnergy)
+        // Only a hit that actually drains energy can knock the hero out: a 0-damage hit at
+        // MinEnergy is a flinch, not a KO.
+        if (hit.Damage > 0f && state.Energy <= state.MinEnergy)
         {
             _knockedOut = true;
             StateMachine.TransitionToOrRestart(PlayerState.StateKO);
@@ -307,6 +322,10 @@ public partial class Player : CharacterBody2D, IHittable
         TakeHit(new HitInfo(damage, knockback, knockdown, hitStopFrames, DepthTolerance, GlobalPosition.Y));
 
     private void OnStateChanged(string from, string to) => EmitSignalStateChanged(from, to);
+
+    private void OnLitZoneEntered(Area2D area) => _litZones++;
+
+    private void OnLitZoneExited(Area2D area) => _litZones = Mathf.Max(0, _litZones - 1);
 
     private void OnInteractionAreaEntered(Area2D area)
     {

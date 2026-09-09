@@ -1,3 +1,6 @@
+using BlackoutLastGrid.Core;
+using BlackoutLastGrid.Enemies;
+
 using BlackoutLastGrid.Actors;
 using BlackoutLastGrid.Props;
 using BlackoutLastGrid.Ui;
@@ -7,18 +10,22 @@ namespace BlackoutLastGrid.Levels;
 
 /// <summary>
 /// Placeholder room for movement/combat/interaction tasks: a floor band, two <c>PH_</c> props at
-/// different depths, dummies, an outlet, a power panel with a lamp it switches on, side walls and
-/// a debug label. Owns the <see cref="Player"/> instance and reads only its public API: the
-/// <c>StateChanged</c> / <c>InteractableChanged</c> signals and <c>Height</c>; forwards the current
-/// interactable's prompt to the <see cref="HUD"/>.
+/// different depths, dummies, an outlet, a power panel with a lamp it switches on, a standing
+/// guard, a wave spawner, a lit zone, side walls and a debug label. Owns the hero, the camera and
+/// the restart rule through <see cref="LevelBase"/>; reads only the hero's public API (the
+/// <c>StateChanged</c> / <c>InteractableChanged</c> signals and <c>Height</c>) and forwards the
+/// current interactable's prompt to the <see cref="HUD"/>.
 /// </summary>
-public partial class TestRoom : Node2D
+public partial class TestRoom : LevelBase
 {
-    /// <summary>The hero instance placed in this room.</summary>
-    [Export] public Player Player { get; set; } = null!;
-
     /// <summary>On-screen label showing the current state and jump height.</summary>
     [Export] public Label DebugLabel { get; set; } = null!;
+
+    /// <summary>Attack-slot director shared by every enemy in the room.</summary>
+    [Export] public EnemyDirector Director { get; set; } = null!;
+
+    /// <summary>The guard placed in the scene (not spawned by a wave); it gets the hero as target here.</summary>
+    [Export] public Guard? StandingGuard { get; set; }
 
     /// <summary>HUD showing the energy bar and the interaction prompt.</summary>
     [Export] public HUD Hud { get; set; } = null!;
@@ -45,6 +52,8 @@ public partial class TestRoom : Node2D
     /// <inheritdoc/>
     public override void _Ready()
     {
+        base._Ready();
+        StandingGuard?.SetTarget(Player, Director);
         Player.StateChanged += OnPlayerStateChanged;
         Player.InteractableChanged += OnInteractableChanged;
         Panel.Activated += OnPanelActivated;
@@ -55,6 +64,7 @@ public partial class TestRoom : Node2D
     /// <inheritdoc/>
     public override void _ExitTree()
     {
+        base._ExitTree();
         Player.StateChanged -= OnPlayerStateChanged;
         Player.InteractableChanged -= OnInteractableChanged;
         Panel.Activated -= OnPanelActivated;
@@ -64,6 +74,7 @@ public partial class TestRoom : Node2D
     /// <inheritdoc/>
     public override void _Process(double delta)
     {
+        base._Process(delta);
         int height = Mathf.RoundToInt(Player.Height);
         if (height != _height)
         {

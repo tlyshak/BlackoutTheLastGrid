@@ -1,4 +1,4 @@
-[gd_scene load_steps=26 format=3 uid="uid://ct2db4jsifoal"]
+[gd_scene load_steps=27 format=3 uid="uid://ct2db4jsifoal"]
 
 [ext_resource type="Script" path="res://scripts/player/Player.cs" id="1_player"]
 [ext_resource type="Script" path="res://scripts/core/StateMachine.cs" id="2_sm"]
@@ -24,6 +24,9 @@ radius = 36.0
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_hit"]
 size = Vector2(36, 40)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_sensor"]
+radius = 8.0
 
 [sub_resource type="Gradient" id="Gradient_beam"]
 offsets = PackedFloat32Array(0, 0.35, 1)
@@ -288,7 +291,7 @@ _data = {
 &"light_3": SubResource("Anim_light3")
 }
 
-[node name="Player" type="CharacterBody2D" node_paths=PackedStringArray("Visual", "Sprite", "PlaceholderBody", "AnimationPlayer", "Hitbox", "StateMachine", "Flashlight", "InteractionArea")]
+[node name="Player" type="CharacterBody2D" node_paths=PackedStringArray("Visual", "Sprite", "PlaceholderBody", "AnimationPlayer", "Hitbox", "StateMachine", "Flashlight", "LightSensor", "InteractionArea")]
 collision_layer = 2
 collision_mask = 1
 motion_mode = 1
@@ -300,6 +303,7 @@ AnimationPlayer = NodePath("AnimationPlayer")
 Hitbox = NodePath("Visual/Hitbox")
 StateMachine = NodePath("StateMachine")
 Flashlight = NodePath("Flashlight")
+LightSensor = NodePath("LightSensor")
 InteractionArea = NodePath("InteractionArea")
 
 [node name="PH_Shadow" type="Polygon2D" parent="."]
@@ -324,6 +328,14 @@ polygon = PackedVector2Array(-6, -6, 6, -6, 6, 6, -6, 6)
 
 [node name="Sprite" type="AnimatedSprite2D" parent="Visual"]
 
+[node name="Hurtbox" type="Area2D" parent="Visual"]
+collision_layer = 2
+collision_mask = 0
+monitoring = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Visual/Hurtbox"]
+shape = SubResource("RectangleShape2D_hurt")
+
 [node name="Hitbox" type="Area2D" parent="Visual"]
 collision_layer = 8
 collision_mask = 4
@@ -342,14 +354,13 @@ libraries = {
 rotation = 1.5708
 shape = SubResource("CapsuleShape2D_foot")
 
-[node name="Hurtbox" type="Area2D" parent="."]
-collision_layer = 2
-collision_mask = 0
-monitoring = false
+[node name="LightSensor" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 64
+monitorable = false
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
-position = Vector2(0, -36)
-shape = SubResource("RectangleShape2D_hurt")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LightSensor"]
+shape = SubResource("CircleShape2D_sensor")
 
 [node name="InteractionArea" type="Area2D" parent="."]
 collision_layer = 0

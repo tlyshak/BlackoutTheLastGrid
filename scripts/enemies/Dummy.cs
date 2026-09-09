@@ -74,13 +74,15 @@ public partial class Dummy : CharacterBody2D, IHittable
 
     /// <summary>
     /// Applies one hit: knockback velocity, HP loss, flash and the matching state (KO at 0 HP,
-    /// Down for a knockdown hit, else Hurt). The depth check already happened in <see cref="Hitbox"/>.
+    /// Down for a knockdown hit, else Hurt). Ignored while knocked out or lying Down (T-B01: a
+    /// floored enemy is invulnerable until it gets up). The depth check already happened in
+    /// <see cref="Hitbox"/>.
     /// </summary>
     /// <param name="hit">Damage, knockback and timing of the hit.</param>
-    /// <returns><c>false</c> when the dummy is already knocked out and the hit was ignored.</returns>
+    /// <returns><c>false</c> when the hit was ignored.</returns>
     public bool TakeHit(in HitInfo hit)
     {
-        if (IsKnockedOut)
+        if (IsKnockedOut || StateMachine.IsIn(DummyState.StateDown))
         {
             return false;
         }
