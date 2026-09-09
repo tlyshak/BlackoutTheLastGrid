@@ -40,6 +40,9 @@ public abstract partial class PlayerState : State
     public const string StateHeavyAttack = "HeavyAttack";
 
     /// <inheritdoc cref="StateIdle"/>
+    public const string StateInteract = "Interact";
+
+    /// <inheritdoc cref="StateIdle"/>
     public const string StateHurt = "Hurt";
 
     /// <inheritdoc cref="StateIdle"/>
@@ -53,13 +56,20 @@ public abstract partial class PlayerState : State
 
     /// <summary>
     /// Shared grounded transitions: back to Jump if somehow airborne (a reaction interrupted a
-    /// jump), else heavy/light attack or jump. Returns <c>true</c> if a transition happened.
+    /// jump), else Interact when a usable prop is in reach, heavy/light attack or jump. Returns
+    /// <c>true</c> if a transition happened.
     /// </summary>
     protected bool TryStartAction()
     {
         if (Player.IsAirborne)
         {
             TransitionTo(StateJump);
+            return true;
+        }
+
+        if (Player.InteractPressed && Player.CurrentInteractable?.CanInteract == true)
+        {
+            TransitionTo(StateInteract);
             return true;
         }
 

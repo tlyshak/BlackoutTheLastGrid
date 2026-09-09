@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using BlackoutLastGrid.Core;
+using BlackoutLastGrid.Props;
 using Godot;
 
 namespace BlackoutLastGrid.Actors;
@@ -7,9 +9,10 @@ namespace BlackoutLastGrid.Actors;
 /// The hero on the belt-scroll floor plane. The node's origin is the contact point with the
 /// floor; Y is depth (used for Y-sorting), while jump height lives on a separate axis
 /// (<see cref="Height"/>) that only offsets <see cref="Visual"/>. Behaviour is driven by the
-/// child <see cref="StateMachine"/> (Idle / Move / Jump / attacks / Hurt / KO); this class owns
-/// movement, the jump integration, the visual (flip, height offset, animation), the attack
-/// <see cref="Hitbox"/> window and incoming hits.
+/// child <see cref="StateMachine"/> (Idle / Move / Jump / attacks / Interact / Hurt / KO); this
+/// class owns movement, the jump integration, the visual (flip, height offset, animation), the
+/// attack <see cref="Hitbox"/> window, incoming hits and the detection of nearby
+/// <see cref="Interactable"/>s through <see cref="InteractionArea"/>.
 /// </summary>
 public partial class Player : CharacterBody2D, IHittable
 {
@@ -20,6 +23,7 @@ public partial class Player : CharacterBody2D, IHittable
     private static readonly StringName ActionJump = "jump";
     private static readonly StringName ActionAttack = "attack";
     private static readonly StringName ActionHeavyAttack = "heavy_attack";
+    private static readonly StringName ActionInteract = "interact";
     private static readonly StringName ResetAnimation = "RESET";
 
     /// <summary>Emitted when a hit connected with the hero (after energy was drained).</summary>
@@ -33,6 +37,10 @@ public partial class Player : CharacterBody2D, IHittable
     /// <summary>Re-emits the state machine's transitions so owners (levels, HUD) never reach into the child.</summary>
     [Signal]
     public delegate void StateChangedEventHandler(string from, string to);
+
+    /// <summary>Emitted when <see cref="CurrentInteractable"/> changes; <c>null</c> once no prop is in reach.</summary>
+    [Signal]
+    public delegate void InteractableChangedEventHandler(Interactable? current);
 
     /// <summary>Walk speed along X on the floor plane.</summary>
     [Export] public float MoveSpeed { get; set; } = 220f;
@@ -85,6 +93,10 @@ public partial class Player : CharacterBody2D, IHittable
     /// <summary>Small area at the feet that masks the <c>LightDark</c> layer (bit 64); counts the lit zones the hero stands in.</summary>
     [Export] public Area2D LightSensor { get; set; } = null!;
 
+    /// <summary>Area (mask = Interactable layer) that collects the props in reach.</summary>
+    [Export] public Area2D InteractionArea { get; set; } = null!;
+
+    private readonly List<Interactable> _nearbyInteractables = new();
     private float _z;
     private float _zVelocity;
     private bool _knockedOut;
@@ -111,6 +123,12 @@ public partial class Player : CharacterBody2D, IHittable
     /// <summary><c>true</c> on the frame the heavy attack action was pressed.</summary>
     public bool HeavyPressed => Input.IsActionJustPressed(ActionHeavyAttack);
 
+    /// <summary><c>true</c> on the frame the interact action was pressed.</summary>
+    public bool InteractPressed => Input.IsActionJustPressed(ActionInteract);
+
+    /// <summary>The nearest prop inside <see cref="InteractionArea"/>, or <c>null</c>. Re-picked only when a prop enters or leaves.</summary>
+    public Interactable? CurrentInteractable { get; private set; }
+
     /// <summary>Name of the active state, for debug labels and tests.</summary>
     public string CurrentStateName => StateMachine.CurrentState?.Name ?? string.Empty;
 
@@ -135,6 +153,9 @@ public partial class Player : CharacterBody2D, IHittable
         StateMachine.StateChanged += OnStateChanged;
         LightSensor.AreaEntered += OnLitZoneEntered;
         LightSensor.AreaExited += OnLitZoneExited;
+
+        InteractionArea.AreaEntered += OnInteractionAreaEntered;
+        InteractionArea.AreaExited += OnInteractionAreaExited;
         UpdateVisual();
     }
 
@@ -144,6 +165,9 @@ public partial class Player : CharacterBody2D, IHittable
         StateMachine.StateChanged -= OnStateChanged;
         LightSensor.AreaEntered -= OnLitZoneEntered;
         LightSensor.AreaExited -= OnLitZoneExited;
+
+        InteractionArea.AreaEntered -= OnInteractionAreaEntered;
+        InteractionArea.AreaExited -= OnInteractionAreaExited;
     }
 
     /// <summary>
@@ -302,6 +326,58 @@ public partial class Player : CharacterBody2D, IHittable
     private void OnLitZoneEntered(Area2D area) => _litZones++;
 
     private void OnLitZoneExited(Area2D area) => _litZones = Mathf.Max(0, _litZones - 1);
+
+    private void OnInteractionAreaEntered(Area2D area)
+    {
+        if (area is Interactable interactable && !_nearbyInteractables.Contains(interactable))
+        {
+            _nearbyInteractables.Add(interactable);
+            RefreshCurrentInteractable();
+        }
+    }
+
+    private void OnInteractionAreaExited(Area2D area)
+    {
+        if (area is Interactable interactable && _nearbyInteractables.Remove(interactable))
+        {
+            RefreshCurrentInteractable();
+        }
+    }
+
+    /// <inheritdoc/>
+    public override void _PhysicsProcess(double delta)
+    {
+        // With several props in reach the nearest one changes as the hero walks; one distance
+        // comparison per prop per physics step, no allocation.
+        if (_nearbyInteractables.Count > 1)
+        {
+            RefreshCurrentInteractable();
+        }
+    }
+
+    /// <summary>Picks the nearest prop in reach (by feet distance) and announces a change.</summary>
+    private void RefreshCurrentInteractable()
+    {
+        Interactable? nearest = null;
+        float nearestDistance = float.MaxValue;
+        foreach (Interactable interactable in _nearbyInteractables)
+        {
+            float distance = GlobalPosition.DistanceSquaredTo(interactable.GlobalPosition);
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearest = interactable;
+            }
+        }
+
+        if (ReferenceEquals(nearest, CurrentInteractable))
+        {
+            return;
+        }
+
+        CurrentInteractable = nearest;
+        EmitSignalInteractableChanged(nearest);
+    }
 
     private void ClampToFloor()
     {
