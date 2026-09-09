@@ -79,6 +79,9 @@ public partial class Player : CharacterBody2D, IHittable
     /// <summary>Behaviour state machine.</summary>
     [Export] public StateMachine StateMachine { get; set; } = null!;
 
+    /// <summary>Head lamp; positioned by <see cref="UpdateVisual"/> so it turns with facing and rises with the jump.</summary>
+    [Export] public Flashlight Flashlight { get; set; } = null!;
+
     private float _z;
     private float _zVelocity;
     private bool _knockedOut;
@@ -298,5 +301,6 @@ public partial class Player : CharacterBody2D, IHittable
     {
         Visual.Position = new Vector2(0f, -(SpriteFeetOffset + _z));
         Visual.Scale = new Vector2(Facing, 1f);
+        Flashlight.Follow(Facing, _z);
     }
 }
