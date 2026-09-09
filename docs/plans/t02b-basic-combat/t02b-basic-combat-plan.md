@@ -27,11 +27,12 @@ frames for every attack (heavy = 5; the first draft had 6, corrected in review r
 2. Timers inside the attack states: simpler, but the active window would drift from the future
    sprite animation. Rejected.
 3. Hit-stop via pausing only the two animation players: local and safe, but the task and the
-   design doc describe a global freeze; `Engine.TimeScale = 0` is used. The restore lives in a
-   `HitStop` node that creates itself under the scene-tree root (`ProcessMode = Always`) and
-   restores the time scale from its own `_Process` using the wall clock — a `SceneTreeTimer`
-   with a C# `Timeout` subscription was tried first and its callback never fired once the timer
-   object went out of scope, so the restore must not depend on a temporary object.
+   design doc describe a global freeze; `Engine.TimeScale = 0` is used. The restore lives in the
+   `HitStop` autoload (`ProcessMode = Always`), which restores the time scale from its own
+   `_Process` using the wall clock — a `SceneTreeTimer` with a C# `Timeout` subscription was
+   tried first and its callback never fired once the timer object went out of scope, so the
+   restore must not depend on a temporary object. Since review #1 (T-03r) `Hitbox.TryHit`
+   triggers it for every attacker.
 
 ## GameState & save impact
 `Player.TakeHit` calls `GameState.AddEnergy(-Damage)`; KO when `Energy <= MinEnergy`. Nothing new
@@ -55,7 +56,7 @@ Player
 `PlayerAttack` exports: `AnimationName` (StringName), `Damage` (hp), `Knockback` (px/s),
 `Knockdown` (bool), `HitStopFrames` (frames), `NextCombo` (state name or ""), `ComboWindowStart`
 (s from the start of the animation after which `attack` is buffered).
-Defaults: L1 5/60/false/4/"LightAttack2"/0.10; L2 5/60/false/4/"LightAttack3"/0.10;
+Defaults: L1 5/60/false/4/"LightAttack2"/0.06; L2 5/60/false/4/"LightAttack3"/0.06;
 L3 8/160/false/5/""/0; Heavy 12/200/true/5/""/0. Light combo windows open at 0.06 s or as
 soon as the hit window is active, so a press during the hit-stop still chains.
 Player API: `AttackPressed`, `HeavyPressed`, `HitboxOn()`/`HitboxOff()` (animation method

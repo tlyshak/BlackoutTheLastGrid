@@ -4,17 +4,20 @@ extends SceneTree
 # off at start), toggle on/off by input with the Toggled signal, energy drain over 60 physics
 # frames (DrainPerSecond * N / ticks), no drain while off, energy death at MinEnergy (lamp turns
 # itself off exactly once and refuses to turn on again), beam rotation follows facing (π when
-# left, 0 when right), lamp Y follows the jump height, and the SetOn() API. Needs physics frames.
+# left, 0 when right), lamp Y follows the jump height, the SetOn() API, and (T-03r, optional in
+# review #1) no drain during a hit-stop freeze: the lamp stays on and Energy is unchanged while
+# Engine.time_scale == 0. Needs physics frames.
 # Run: godot --headless --path . -s tests/smoke/player_flashlight.gd
 #
-# No attack is thrown here, so no hit-stop (Engine.time_scale stays 1) and every physics step
-# drains exactly DrainPerSecond / physics_ticks_per_second.
+# Sections 1-6 throw no attack, so no hit-stop (Engine.time_scale stays 1) and every physics step
+# drains exactly DrainPerSecond / physics_ticks_per_second. Section 7 lands one light hit on Dummy;
+# the freeze is observed on idle frames (`process_frame`, which keep running) under a wall-clock cap.
 
 const NAME := "player_flashlight"   # must equal the file basename
 # Safety net: quit(1) instead of hanging into the runner timeout. Counts _process calls; headless
 # runs ~2-3 process frames per physics tick, and a green run uses ~250 ticks.
 const MAX_FRAMES := 6000
-const ACTIONS := ["move_left", "move_right", "move_up", "move_down", "jump", "flashlight"]
+const ACTIONS := ["move_left", "move_right", "move_up", "move_down", "jump", "flashlight", "attack"]
 const DARKNESS := Color(0.0392, 0.0510, 0.0784)   # #0a0d14 (plan: CanvasModulate base darkness)
 const COLOR_TOL := 0.01
 const DRAIN_FRAMES := 60
@@ -22,6 +25,9 @@ const DRAIN_TOL := 0.05
 const IDLE_FRAMES := 30
 const DEATH_CAP := 60    # frames allowed for 0.3 energy to drain away (18 at the defaults)
 const LAND_CAP := 120    # frames to wait for a landing (jump lasts ~51 frames at the defaults)
+const HIT_CAP_MS := 800      # wall-clock cap while waiting for the light hit to freeze time
+const RESTORE_CAP_MS := 1000 # wall-clock cap while waiting for the freeze to lift (4 frames = 67 ms)
+const FREEZE_TOL := 0.001    # one drained physics tick is DrainPerSecond / 60 = 0.0167, well above this
 
 var _started := false
 var _frames := 0
@@ -54,6 +60,9 @@ func _release_all() -> void:
 
 func _finish() -> void:
 	_release_all()
+	if Engine.time_scale != 1.0:
+		_check(false, "Engine.time_scale=%s at the end, expected 1 (reset by the test)" % Engine.time_scale)
+		Engine.time_scale = 1.0
 	if _failures.is_empty():
 		print("SMOKE %s PASS" % NAME)
 		quit(0)
@@ -265,7 +274,69 @@ func _run() -> void:
 	_check(_events.size() == events_api + 2, "SetOn(false) twice emitted Toggled again: %s" % _events_str())
 	await _step(1)
 
-	# 7. Teardown.
+	# 7. No drain during hit-stop: lamp on, one light hit on Dummy freezes time (Engine.time_scale
+	#    0 for HitStopFrames); Energy must not move while frozen and the lamp must stay on.
+	var dummy: Node = room.get_node_or_null("Dummy")
+	_check(dummy != null and dummy.get("Hp") != null, "TestRoom has no 'Dummy' with Dummy.cs (needed for the hit-stop drain check)")
+	_check(InputMap.has_action("attack"), "InputMap missing action 'attack'")
+	if dummy != null and dummy.get("Hp") != null and InputMap.has_action("attack"):
+		gs.ResetRun()
+		Input.action_press("move_right")
+		await _step(2)
+		Input.action_release("move_right")
+		await _step(2)
+		player.position = Vector2(dummy.position.x - 40.0, dummy.position.y)
+		await _step(2)
+		_check(player.Facing == 1, "hit-stop: Facing=%s, expected 1 (towards Dummy)" % player.Facing)
+		_check(player.CurrentStateName == "Idle", "hit-stop: player state '%s' before the attack, expected 'Idle'" % player.CurrentStateName)
+		lamp.SetOn(true)
+		await _step(2)
+		_check(lamp.IsOn, "hit-stop: lamp not on before the attack")
+		var hs_e0: float = gs.Energy
+		var hs_hp0: float = dummy.Hp
+		Input.action_press("attack")
+		await _step(1)
+		Input.action_release("attack")
+		var hs_froze := false
+		var hs_deadline: int = Time.get_ticks_msec() + HIT_CAP_MS
+		while Time.get_ticks_msec() < hs_deadline:
+			await process_frame
+			if Engine.time_scale == 0.0:
+				hs_froze = true
+				break
+		_check(hs_froze, "hit-stop: no freeze within %d ms (Dummy.Hp %s -> %s, state '%s')" % [HIT_CAP_MS, hs_hp0, dummy.Hp, player.CurrentStateName])
+		if hs_froze:
+			var hs_e_freeze: float = gs.Energy
+			var hs_e_min: float = hs_e_freeze
+			var hs_e_max: float = hs_e_freeze
+			var hs_idle_frames: int = 0
+			var hs_start: int = Time.get_ticks_msec()
+			var hs_restored := false
+			while Time.get_ticks_msec() - hs_start < RESTORE_CAP_MS:
+				await process_frame
+				if Engine.time_scale != 0.0:
+					hs_restored = true
+					break
+				hs_idle_frames += 1
+				hs_e_min = minf(hs_e_min, gs.Energy)
+				hs_e_max = maxf(hs_e_max, gs.Energy)
+				_check(lamp.IsOn, "hit-stop: lamp switched off during the freeze (idle frame %d)" % hs_idle_frames)
+			var hs_ms: int = Time.get_ticks_msec() - hs_start
+			_check(hs_restored, "hit-stop: Engine.time_scale still %s after %d ms, expected the freeze to lift" % [Engine.time_scale, RESTORE_CAP_MS])
+			_check(hs_idle_frames >= 1, "hit-stop: the freeze lasted %d idle frames, expected at least 1 to observe" % hs_idle_frames)
+			_check(absf(hs_e_max - hs_e_freeze) <= FREEZE_TOL and absf(hs_e_min - hs_e_freeze) <= FREEZE_TOL,
+				"hit-stop: Energy moved during the freeze: %.4f at the freeze, range [%.4f, %.4f] over %d idle frames (%d ms) — the lamp drained while time was stopped" % [hs_e_freeze, hs_e_min, hs_e_max, hs_idle_frames, hs_ms])
+			_check(hs_e_freeze <= hs_e0 + FREEZE_TOL, "hit-stop: Energy rose from %.4f to %.4f before the freeze" % [hs_e0, hs_e_freeze])
+			_check(lamp.IsOn, "hit-stop: lamp off after the freeze (IsOn=%s)" % lamp.IsOn)
+			print("player_flashlight: hit-stop Energy %.4f before the attack, %.4f at the freeze, [%.4f, %.4f] during %d idle frames (%d ms), lamp on" % [hs_e0, hs_e_freeze, hs_e_min, hs_e_max, hs_idle_frames, hs_ms])
+		_check(dummy.Hp < hs_hp0, "hit-stop: Dummy.Hp=%s, expected below %s (the light hit must connect)" % [dummy.Hp, hs_hp0])
+		await _step(30)   # the rest of light_1, the drain resumes
+		_check(player.CurrentStateName == "Idle", "hit-stop: player state '%s' 30 frames after the hit, expected 'Idle'" % player.CurrentStateName)
+		_check(Engine.time_scale == 1.0, "hit-stop: Engine.time_scale=%s after the attack, expected 1" % Engine.time_scale)
+		lamp.SetOn(false)
+		await _step(1)
+
+	# 8. Teardown.
 	_release_all()
 	gs.ResetRun()
 	room.queue_free()

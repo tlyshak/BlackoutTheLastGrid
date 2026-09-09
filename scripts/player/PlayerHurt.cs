@@ -10,10 +10,8 @@ namespace BlackoutLastGrid.Actors;
 /// </summary>
 public partial class PlayerHurt : PlayerState
 {
-    private static readonly StringName Animation = "hurt";
-
     /// <inheritdoc/>
-    public override void Enter(State? previous) => Player.PlayAnimation(Animation, AnimIdle);
+    public override void Enter(State? previous) => Player.PlayAnimation(AnimHurt, AnimIdle);
 
     /// <inheritdoc/>
     public override void PhysicsUpdate(double delta)
@@ -24,7 +22,7 @@ public partial class PlayerHurt : PlayerState
             Player.IntegrateJump(delta);
         }
 
-        if (!Player.IsAnimationPlaying(Animation) && !Player.IsAirborne)
+        if (!Player.IsAnimationPlaying(AnimHurt) && !Player.IsAirborne)
         {
             TransitionTo(StateIdle);
         }

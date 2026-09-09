@@ -7,6 +7,9 @@ extends SceneTree
 # pressed during the hit-stop chains into LightAttack2 (S2), a second knockdown restarts
 # DownDuration (S3), a facing-left hit, a hit taken mid-jump falls before Idle (S1), and
 # Player.TakeDamage -> Energy / Hurt signal / KO / ignored after KO (S6).
+# Review #1 fix-pass (T-03r): the combo is chained by AnimationTime / Hitbox.IsActive read from the
+# running attack state, never by a wall-clock wait (S4); a second hit 8 frames into the hero's Hurt
+# rewinds the stun so Idle comes no earlier than ~18 frames after the second hit (S1).
 # Run: godot --headless --path . -s tests/smoke/combat_dummy.gd
 #
 # Hit-stop sets Engine.time_scale = 0, which stops physics frames (awaiting `physics_frame` hangs
@@ -22,6 +25,9 @@ const ACTIONS := ["move_left", "move_right", "move_up", "move_down", "jump", "at
 const HIT_CAP_MS := 800        # wall-clock cap while waiting for one hit to land
 const NO_HIT_WINDOW_MS := 450  # longer than the light animation (0.30 s) — a miss must stay a miss
 const RESTORE_CAP_MS := 1000   # wall-clock cap while waiting for hit-stop to lift
+const COMBO_WINDOW_CAP := 30   # physics frames allowed for an attack's combo window to open (anim 0.30 s = 18)
+const HURT_IDLE_CAP := 60      # physics frames allowed for Hurt -> Idle after a hit (anim 0.30 s = 18)
+const HURT_RESTART_MIN := 17   # frames the second Hurt must last (18 at 60 Hz; 17 allows frame alignment)
 const DUMMY_START := Vector2(640, 450)
 const DUMMY2_START := Vector2(760, 470)
 const DIMMED := Color(0.35, 0.35, 0.4)   # Dummy.DimmedColor (KO)
@@ -105,6 +111,29 @@ func _wait_restored(cap_ms: int) -> int:
 			return Time.get_ticks_msec() - start
 		await process_frame
 	return -1
+
+# S4: waits (physics frames) until the attack `state_name` is the current state AND its combo window
+# is open — `Player.AnimationTime >= ComboWindowStart` (read from the state node's export) or the
+# Hitbox is active — exactly the condition PlayerAttack buffers a press on. Returns true when the
+# next `attack` press is guaranteed to chain; fails explicitly (and returns false) if the hero is
+# already back in Idle or the cap passes, naming the observed state and animation time.
+func _wait_combo_window(player: Node, sm: Node, hitbox: Node, state_name: String, label: String) -> bool:
+	var st: Node = sm.get_node_or_null(state_name)
+	if st == null or st.get("ComboWindowStart") == null:
+		_check(false, "%s: attack state '%s' missing or without a ComboWindowStart export" % [label, state_name])
+		return false
+	var window_start: float = st.ComboWindowStart
+	for i in COMBO_WINDOW_CAP:
+		var cur: String = player.CurrentStateName
+		var t: float = player.AnimationTime
+		if cur == state_name and (t >= window_start or hitbox.IsActive):
+			return true
+		if cur == "Idle":
+			_check(false, "%s: hero already in 'Idle' %d frames after the restore (AnimationTime=%.3f) — the combo window of '%s' (ComboWindowStart %.2f) was missed" % [label, i, t, state_name, window_start])
+			return false
+		await physics_frame
+	_check(false, "%s: combo window of '%s' not open within %d frames (state '%s', AnimationTime=%.3f, ComboWindowStart %.2f, Hitbox.IsActive=%s)" % [label, state_name, COMBO_WINDOW_CAP, player.CurrentStateName, player.AnimationTime, window_start, hitbox.IsActive])
+	return false
 
 # One light hit that must connect: tap `attack`, observe the hit, check hit-stop, wait for the
 # restore. `label` prefixes failure messages. Returns the hit snapshot.
@@ -257,14 +286,22 @@ func _run() -> void:
 	_check(hitbox.IsActive == false, "single attack: Hitbox still active after the attack")
 
 	# 3. Three-hit combo: press inside each combo window; states in order, 25 -> 20 -> 15 -> 7,
-	#    hit-stop on every hit and time scale restored at the end.
+	#    hit-stop on every hit and time scale restored at the end. S4 (review #1): the next press
+	#    waits for the running attack's combo window (AnimationTime >= ComboWindowStart or Hitbox
+	#    active) in physics frames — no wall-clock margin.
 	_transitions.clear()
-	var combo: Array = [[20.0, l1_frames], [15.0, l2_frames], [7.0, l3_frames]]
+	var combo: Array = [[20.0, l1_frames, "LightAttack1"], [15.0, l2_frames, "LightAttack2"], [7.0, l3_frames, "LightAttack3"]]
+	var combo_press_times: Array = []
 	for i in combo.size():
 		var h: Dictionary = await _light_hit(dummy, "combo hit %d" % (i + 1), combo[i][0], combo[i][1])
 		if not h["hit"]:
 			break
-		await _real_wait(0.15)   # lands inside the combo window (ComboWindowStart 0.1 s) before the animation ends
+		if i + 1 < combo.size():
+			var open: bool = await _wait_combo_window(player, sm, hitbox, combo[i][2], "combo hit %d -> %d" % [i + 1, i + 2])
+			if not open:
+				break
+			combo_press_times.append("%s@%.3f" % [player.CurrentStateName, player.AnimationTime])
+	print("combat_dummy: combo presses at %s" % [combo_press_times])
 	await _step(40)
 	_check(_transitions == ["LightAttack1", "LightAttack2", "LightAttack3", "Idle"],
 		"combo: transitions %s, expected [LightAttack1, LightAttack2, LightAttack3, Idle]" % [_transitions])
@@ -443,10 +480,16 @@ func _run() -> void:
 	if s2_froze:
 		_check(player.CurrentStateName == "LightAttack1", "S2: player state '%s' during the freeze, expected 'LightAttack1'" % player.CurrentStateName)
 		_check(hitbox.IsActive, "S2: Hitbox not active during the hit-stop of light_1")
+		# S4 (review #1): press inside the freeze (verified synchronously — no idle frame in between)
+		# and hold it until the first physics frame after the restore, i.e. the frame on which the
+		# attack state polls it. No wall-clock margin decides whether the press was seen.
 		Input.action_press("attack")
-		await process_frame
+		_check(Engine.time_scale == 0.0, "S2: freeze already lifted at the moment of the press")
+		var s2_press_time: float = player.AnimationTime
+		await physics_frame
 		Input.action_release("attack")
-		_check(Engine.time_scale == 0.0, "S2: freeze already lifted before the press was released (idle frames too slow)")
+		_check(player.CurrentStateName == "LightAttack1", "S2: player state '%s' on the first physics frame after the freeze, expected still 'LightAttack1' (AnimationTime=%.3f)" % [player.CurrentStateName, player.AnimationTime])
+		_check(player.AnimationTime >= s2_press_time, "S2: AnimationTime went backwards over the freeze (%.3f -> %.3f)" % [s2_press_time, player.AnimationTime])
 	var s2_elapsed: int = await _wait_restored(RESTORE_CAP_MS)
 	_check(s2_elapsed >= 0, "S2: Engine.time_scale not restored within %d ms" % RESTORE_CAP_MS)
 	await _step(40)   # rest of light_1 (~13 frames) + light_2 (18 frames) + Idle
@@ -570,7 +613,41 @@ func _run() -> void:
 	_check(hurt_events.size() == 1, "S1: Hurt signal fired %d times, expected once" % hurt_events.size())
 	print("combat_dummy: S1 hit at Height %.2f, landed %d frames later, Idle %d frames after landing" % [s1_height, s1_fall_frames, s1_idle_after])
 
-	# 14. S6: Player.TakeDamage (Variant-friendly TakeHit) — Energy -10, Hurt facing the hit,
+	# 14. S1 (review #1) regression: a second hit 8 frames into the hero's Hurt re-enters the state
+	#     (TransitionToOrRestart) AND rewinds the `hurt` animation, so Idle comes no earlier than
+	#     ~18 frames (0.30 s) after the SECOND hit. Pre-fix Play() kept the position and the hero
+	#     was back in Idle 11 frames after the second hit.
+	gs.ResetRun()
+	hurt_events.clear()
+	_transitions.clear()
+	await _step(2)
+	_check(player.CurrentStateName == "Idle", "hurt restart: player state '%s' before the first hit, expected 'Idle'" % player.CurrentStateName)
+	var hr_r1: bool = player.TakeDamage(2.0, 0.0, false, 0)
+	_check(hr_r1 == true, "hurt restart: first TakeDamage returned %s, expected true" % hr_r1)
+	_check(player.CurrentStateName == "Hurt", "hurt restart: player state '%s' after the first hit, expected 'Hurt'" % player.CurrentStateName)
+	await _step(8)
+	_check(player.CurrentStateName == "Hurt", "hurt restart: player state '%s' 8 frames into the first Hurt, expected still 'Hurt'" % player.CurrentStateName)
+	var hr_t_before: float = player.AnimationTime
+	_check(hr_t_before > 0.05, "hurt restart: AnimationTime=%.3f 8 frames into the first Hurt, expected > 0.05 (the hurt animation must be running)" % hr_t_before)
+	var hr_r2: bool = player.TakeDamage(2.0, 0.0, false, 0)
+	_check(hr_r2 == true, "hurt restart: second TakeDamage returned %s, expected true" % hr_r2)
+	_check(player.CurrentStateName == "Hurt", "hurt restart: player state '%s' right after the second hit, expected 'Hurt'" % player.CurrentStateName)
+	var hr_t_after: float = player.AnimationTime
+	_check(hr_t_after < hr_t_before, "hurt restart: AnimationTime %.3f -> %.3f over the second hit, expected a rewind (Hurt re-entry must restart the stun)" % [hr_t_before, hr_t_after])
+	var hr_idle_after: int = -1
+	for i in HURT_IDLE_CAP:
+		await physics_frame
+		if player.CurrentStateName == "Idle":
+			hr_idle_after = i + 1
+			break
+	_check(hr_idle_after >= 0, "hurt restart: player state '%s' %d frames after the second hit, expected 'Idle' within the cap" % [player.CurrentStateName, HURT_IDLE_CAP])
+	_check(hr_idle_after < 0 or hr_idle_after >= HURT_RESTART_MIN, "hurt restart: Idle observed %d frames after the second hit, expected >= %d (hurt animation 0.30 s = 18 frames; the second hit must restart it, pre-fix: 11)" % [hr_idle_after, HURT_RESTART_MIN])
+	_check(is_equal_approx(gs.Energy, gs.MaxEnergy - 4.0), "hurt restart: Energy=%s after two 2-damage hits, expected MaxEnergy-4=%s" % [gs.Energy, gs.MaxEnergy - 4.0])
+	_check(hurt_events == [2.0, 2.0], "hurt restart: Hurt signal events %s, expected [2.0, 2.0]" % [hurt_events])
+	_check(_transitions == ["Hurt", "Idle"], "hurt restart: transitions %s, expected [Hurt, Idle] (a restart emits no StateChanged)" % [_transitions])
+	print("combat_dummy: hurt restart — AnimationTime %.3f -> %.3f at the second hit, Idle %d frames after it" % [hr_t_before, hr_t_after, hr_idle_after])
+
+	# 15. S6: Player.TakeDamage (Variant-friendly TakeHit) — Energy -10, Hurt facing the hit,
 	#     knockback velocity, back to Idle; lethal damage -> KO once (signal, MinEnergy); a further
 	#     hit is ignored (false, Energy unchanged, still KO).
 	gs.ResetRun()
@@ -611,7 +688,17 @@ func _run() -> void:
 	_check(hurt_events.size() == 2 and ko_events.size() == 1, "S6: Hurt/KnockedOut fired %d/%d times after the ignored hit, expected 2/1" % [hurt_events.size(), ko_events.size()])
 	_check(_transitions == ["Hurt", "Idle", "KO"], "S6: transitions %s, expected [Hurt, Idle, KO]" % [_transitions])
 
-	# 15. Teardown: reset the run, make sure no freeze is pending, free the room.
+	# 15a. ResetPose() must leave a current animation (AnimationTime readable, no ERROR line)
+	#      and return the placeholder fist to its rest position.
+	sm.TransitionTo("Idle")
+	await _step(2)
+	player.ResetPose()
+	var t_after_reset: float = player.AnimationTime
+	_check(t_after_reset == 0.0, "AnimationTime after ResetPose() = %s, expected 0" % t_after_reset)
+	var fist: Node2D = player.get_node("Visual/PH_Fist")
+	_check(fist.position.is_equal_approx(Vector2(14, -10)), "PH_Fist after ResetPose() at %s, expected (14, -10)" % fist.position)
+
+	# 16. Teardown: reset the run, make sure no freeze is pending, free the room.
 	gs.ResetRun()
 	if Engine.time_scale != 1.0:
 		var tear_restore: int = await _wait_restored(RESTORE_CAP_MS)

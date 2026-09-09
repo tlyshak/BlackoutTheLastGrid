@@ -6,10 +6,8 @@ namespace BlackoutLastGrid.Actors;
 /// <summary>Knocked out: plays <c>ko</c>, falls to the floor if airborne, slides to a stop and stays down (scene restart comes in T-06).</summary>
 public partial class PlayerKO : PlayerState
 {
-    private static readonly StringName Animation = "ko";
-
     /// <inheritdoc/>
-    public override void Enter(State? previous) => Player.PlayAnimation(Animation, AnimIdle);
+    public override void Enter(State? previous) => Player.PlayAnimation(AnimKO, AnimIdle);
 
     /// <inheritdoc/>
     public override void PhysicsUpdate(double delta)

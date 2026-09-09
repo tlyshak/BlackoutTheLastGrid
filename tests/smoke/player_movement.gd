@@ -1,7 +1,9 @@
 extends SceneTree
 # Smoke: Player belt-scroll movement (T-02) — InputMap, physics layer names, TestRoom Y-sort,
 # Idle/Move/Jump transitions, walk speed, facing flip, floor depth clamp, diagonal input, jump
-# height axis (shadow stays on the floor, visual lifts), jump while moving. Needs physics frames.
+# height axis (shadow stays on the floor, visual lifts), jump while moving, and (review #1 S2,
+# T-03r) Idle forced while airborne resumes the fall — Jump is re-entered exactly once without a
+# second launch and the peak is never exceeded. Needs physics frames.
 # Run: godot --headless --path . -s tests/smoke/player_movement.gd
 
 const NAME := "player_movement"   # must equal the file basename
@@ -12,6 +14,8 @@ const ACTIONS := ["move_left", "move_right", "move_up", "move_down", "jump",
 	"attack", "heavy_attack", "special", "interact", "flashlight"]
 const MOVE_ACTIONS := ["move_left", "move_right", "move_up", "move_down", "jump"]
 const LAND_CAP := 180   # frames to wait for a landing (jump lasts ~51 frames at the defaults)
+const APEX_CAP := 60    # frames to wait for the apex (~25 at the defaults: 380 / 900 * 60)
+const PEAK_SLACK := 1.0 # px the height may exceed the recorded peak after the forced Idle (none expected)
 
 var _started := false
 var _frames := 0
@@ -269,6 +273,60 @@ func _run() -> void:
 		_check(jm["state_on_land"] == "Move" or jm["state_after_land"] == "Move",
 			"moving jump: state on landing '%s' / next frame '%s', expected 'Move'" % [jm["state_on_land"], jm["state_after_land"]])
 	Input.action_release("move_right")
+	await _step(2)
+
+	# 11. S2 (review #1): Idle forced while airborne (a reaction interrupting a jump, a jump attack
+	#     returning to Idle) must resume the fall, not launch again. Pre-fix Jump.Enter always
+	#     called StartJump, so the hero shot up from the apex (76.7 -> 82.8, 88.6, ... ~157 px).
+	_check(player.CurrentStateName == "Idle", "S2: state before the apex jump is '%s', expected 'Idle'" % player.CurrentStateName)
+	var s2_post: Array = []   # every StateChanged target after the forced Idle (connected at the force)
+	Input.action_press("jump")
+	await _step(1)
+	Input.action_release("jump")
+	var peak: float = 0.0
+	var apex_frame: int = -1
+	for i in APEX_CAP:
+		await physics_frame
+		var h: float = player.Height
+		if h < peak:
+			apex_frame = i   # first frame the height dropped: one frame past the apex
+			break
+		peak = h
+	_check(apex_frame >= 0, "S2: Height never stopped increasing within %d frames (Height=%.2f, state '%s')" % [APEX_CAP, player.Height, player.CurrentStateName])
+	_check(player.CurrentStateName == "Jump", "S2: state at the apex is '%s', expected 'Jump'" % player.CurrentStateName)
+	_check(player.IsAirborne, "S2: not airborne at the apex (Height=%.2f)" % player.Height)
+	if apex_frame >= 0 and player.IsAirborne:
+		var forced_h: float = player.Height
+		player.StateChanged.connect(func(_from: String, to: String): s2_post.append(to))
+		sm.TransitionTo("Idle")
+		_check(player.CurrentStateName == "Idle", "S2: state right after the forced TransitionTo(Idle) is '%s', expected 'Idle'" % player.CurrentStateName)
+		await physics_frame
+		await physics_frame
+		var post_heights: Array = [player.Height]
+		_check(player.CurrentStateName == "Jump", "S2: state 2 frames after the forced Idle is '%s', expected 'Jump' (airborne guard must bounce back)" % player.CurrentStateName)
+		_check(s2_post.count("Jump") == 1, "S2: Jump entered %d times after the forced Idle (transitions %s), expected exactly once" % [s2_post.count("Jump"), s2_post])
+		_check(player.Height < forced_h, "S2: Height %.2f -> %.2f two frames after the forced Idle, expected a decrease (fall resumed, no re-launch)" % [forced_h, player.Height])
+		var s2_landed := false
+		var s2_max_after: float = player.Height
+		for i in LAND_CAP:
+			var h2: float = player.Height
+			s2_max_after = maxf(s2_max_after, h2)
+			if h2 > peak + PEAK_SLACK:
+				_check(false, "S2: Height=%.2f on frame %d after the forced Idle exceeds the peak %.2f (+%.1f) — the jump was re-launched" % [h2, i + 2, peak, PEAK_SLACK])
+				break
+			if not player.IsAirborne:
+				s2_landed = true
+				break
+			if post_heights.size() < 6:
+				post_heights.append(h2)
+			await physics_frame
+		_check(s2_landed, "S2: still airborne %d frames after the forced Idle (Height=%.2f, state '%s')" % [LAND_CAP, player.Height, player.CurrentStateName])
+		await _step(1)
+		_check(is_equal_approx(player.Height, 0.0), "S2: Height=%.3f after landing, expected 0" % player.Height)
+		_check(player.CurrentStateName == "Idle" or player.CurrentStateName == "Move",
+			"S2: state after landing is '%s', expected 'Idle' or 'Move'" % player.CurrentStateName)
+		_check(s2_post.count("Jump") == 1, "S2: Jump entered %d times over the whole fall (transitions %s), expected exactly once" % [s2_post.count("Jump"), s2_post])
+		print("player_movement: S2 peak %.2f at frame %d, forced Idle at Height %.2f, then %s (max after %.2f), transitions after the force %s" % [peak, apex_frame, forced_h, post_heights, s2_max_after, s2_post])
 	await _step(2)
 
 	room.queue_free()

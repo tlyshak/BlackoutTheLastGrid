@@ -1,6 +1,5 @@
-# Godot 4
+# Godot 4 (.import side files ARE versioned: they hold per-asset import settings)
 .godot/
-*.import
 export_presets.cfg
 # Godot editor binaries (local, ~200 MB)
 GodotEngine/

@@ -11,8 +11,6 @@ namespace BlackoutLastGrid.Enemies;
 /// </summary>
 public partial class Dummy : CharacterBody2D, IHittable
 {
-    private static readonly Color DimmedColor = new(0.35f, 0.35f, 0.4f);
-
     /// <summary>Emitted after every hit that was applied, with the remaining HP.</summary>
     [Signal]
     public delegate void DamagedEventHandler(float hp);
@@ -38,6 +36,9 @@ public partial class Dummy : CharacterBody2D, IHittable
 
     /// <summary>Time the flash takes to fade back, in seconds.</summary>
     [Export] public float FlashDuration { get; set; } = 0.12f;
+
+    /// <summary>Modulate applied to <see cref="Visual"/> once knocked out.</summary>
+    [Export] public Color DimmedColor { get; set; } = new(0.35f, 0.35f, 0.4f);
 
     /// <summary>Distance from the origin (feet) up to the visual's pivot, in px (half the sprite height).</summary>
     [Export] public float SpriteFeetOffset { get; set; } = 36f;
