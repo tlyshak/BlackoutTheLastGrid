@@ -3,7 +3,7 @@ using Godot;
 
 namespace BlackoutLastGrid.Actors;
 
-/// <summary>Standing still. Leaves for Move on any direction input and for Jump on <c>jump</c>.</summary>
+/// <summary>Standing still. Leaves for an attack, Jump, or Move on any direction input.</summary>
 public partial class PlayerIdle : PlayerState
 {
     /// <inheritdoc/>
@@ -12,9 +12,8 @@ public partial class PlayerIdle : PlayerState
     /// <inheritdoc/>
     public override void PhysicsUpdate(double delta)
     {
-        if (Player.JumpPressed)
+        if (TryStartAction())
         {
-            TransitionTo(StateJump);
             return;
         }
 

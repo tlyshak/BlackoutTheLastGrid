@@ -3,7 +3,7 @@ using Godot;
 
 namespace BlackoutLastGrid.Actors;
 
-/// <summary>Walking in 8 directions on the floor plane. Back to Idle without input, Jump on <c>jump</c>.</summary>
+/// <summary>Walking in 8 directions on the floor plane. Attacks and Jump interrupt; back to Idle without input.</summary>
 public partial class PlayerMove : PlayerState
 {
     /// <inheritdoc/>
@@ -12,9 +12,8 @@ public partial class PlayerMove : PlayerState
     /// <inheritdoc/>
     public override void PhysicsUpdate(double delta)
     {
-        if (Player.JumpPressed)
+        if (TryStartAction())
         {
-            TransitionTo(StateJump);
             return;
         }
 

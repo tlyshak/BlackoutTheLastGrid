@@ -7,16 +7,27 @@ namespace BlackoutLastGrid.Actors;
 /// The hero on the belt-scroll floor plane. The node's origin is the contact point with the
 /// floor; Y is depth (used for Y-sorting), while jump height lives on a separate axis
 /// (<see cref="Height"/>) that only offsets <see cref="Visual"/>. Behaviour is driven by the
-/// child <see cref="StateMachine"/> (Idle / Move / Jump); this class owns movement, the jump
-/// integration and the visual (flip, height offset, animation).
+/// child <see cref="StateMachine"/> (Idle / Move / Jump / attacks / Hurt / KO); this class owns
+/// movement, the jump integration, the visual (flip, height offset, animation), the attack
+/// <see cref="Hitbox"/> window and incoming hits.
 /// </summary>
-public partial class Player : CharacterBody2D
+public partial class Player : CharacterBody2D, IHittable
 {
     private static readonly StringName ActionLeft = "move_left";
     private static readonly StringName ActionRight = "move_right";
     private static readonly StringName ActionUp = "move_up";
     private static readonly StringName ActionDown = "move_down";
     private static readonly StringName ActionJump = "jump";
+    private static readonly StringName ActionAttack = "attack";
+    private static readonly StringName ActionHeavyAttack = "heavy_attack";
+
+    /// <summary>Emitted when a hit connected with the hero (after energy was drained).</summary>
+    [Signal]
+    public delegate void HurtEventHandler(float damage);
+
+    /// <summary>Emitted once when the hero is knocked out (energy reached the minimum).</summary>
+    [Signal]
+    public delegate void KnockedOutEventHandler();
 
     /// <summary>Walk speed along X on the floor plane.</summary>
     [Export] public float MoveSpeed { get; set; } = 220f;
@@ -39,8 +50,11 @@ public partial class Player : CharacterBody2D
     /// <summary>Distance from the origin (feet) up to the visual's pivot, in px (half the sprite height).</summary>
     [Export] public float SpriteFeetOffset { get; set; } = 36f;
 
-    /// <summary>Max |ΔY| between attacker and target for a hit to connect (used from T-02b).</summary>
+    /// <summary>Max |ΔY| between the hero and a target for a hit to connect, in px.</summary>
     [Export] public float DepthTolerance { get; set; } = 12f;
+
+    /// <summary>Deceleration of the knockback received in Hurt, in px/s².</summary>
+    [Export] public float HurtKnockbackFriction { get; set; } = 900f;
 
     /// <summary>Container for everything that is lifted by the jump and flipped by facing.</summary>
     [Export] public Node2D Visual { get; set; } = null!;
@@ -51,11 +65,18 @@ public partial class Player : CharacterBody2D
     /// <summary>Placeholder body shown while <see cref="Sprite"/> has no frames.</summary>
     [Export] public Node2D? PlaceholderBody { get; set; }
 
-    /// <summary>Behaviour state machine (Idle / Move / Jump).</summary>
+    /// <summary>Attack, hurt and KO animations; their method tracks call <see cref="HitboxOn"/>/<see cref="HitboxOff"/>.</summary>
+    [Export] public AnimationPlayer AnimationPlayer { get; set; } = null!;
+
+    /// <summary>The hero's attack area (under <see cref="Visual"/> so it flips with facing).</summary>
+    [Export] public Hitbox Hitbox { get; set; } = null!;
+
+    /// <summary>Behaviour state machine.</summary>
     [Export] public StateMachine StateMachine { get; set; } = null!;
 
     private float _z;
     private float _zVelocity;
+    private bool _knockedOut;
 
     /// <summary>Current height above the floor along the jump axis, in px (0 when grounded).</summary>
     public float Height => _z;
@@ -72,8 +93,20 @@ public partial class Player : CharacterBody2D
     /// <summary><c>true</c> on the frame the jump action was pressed.</summary>
     public bool JumpPressed => Input.IsActionJustPressed(ActionJump);
 
+    /// <summary><c>true</c> on the frame the light attack action was pressed.</summary>
+    public bool AttackPressed => Input.IsActionJustPressed(ActionAttack);
+
+    /// <summary><c>true</c> on the frame the heavy attack action was pressed.</summary>
+    public bool HeavyPressed => Input.IsActionJustPressed(ActionHeavyAttack);
+
     /// <summary>Name of the active state, for debug labels and tests.</summary>
     public string CurrentStateName => StateMachine.CurrentState?.Name ?? string.Empty;
+
+    /// <summary>Hit parameters of the attack in progress; set by the attack state, read by <see cref="HitboxOn"/>.</summary>
+    public HitInfo CurrentAttack { get; set; }
+
+    /// <summary><c>true</c> once the hero has been knocked out.</summary>
+    public bool IsKnockedOut => _knockedOut;
 
     /// <inheritdoc/>
     public override void _Ready()
@@ -83,8 +116,13 @@ public partial class Player : CharacterBody2D
             PlaceholderBody.Visible = false;
         }
 
+        Hitbox.Attacker = this;
+        Hitbox.Hit += OnHitboxHit;
         UpdateVisual();
     }
+
+    /// <inheritdoc/>
+    public override void _ExitTree() => Hitbox.Hit -= OnHitboxHit;
 
     /// <summary>
     /// Moves along the floor plane for one physics step, clamps depth to the floor bounds and
@@ -96,16 +134,23 @@ public partial class Player : CharacterBody2D
     {
         Velocity = new Vector2(input.X * MoveSpeed, input.Y * MoveSpeed * DepthSpeedFactor);
         MoveAndSlide();
-
-        Vector2 position = Position;
-        position.Y = Mathf.Clamp(position.Y, FloorTop, FloorBottom);
-        Position = position;
+        ClampToFloor();
 
         if (input.X != 0f)
         {
             Facing = input.X > 0f ? 1 : -1;
         }
 
+        UpdateVisual();
+    }
+
+    /// <summary>Slides with the current knockback velocity, decelerating by <see cref="HurtKnockbackFriction"/>.</summary>
+    /// <param name="delta">Physics step in seconds.</param>
+    public void ApplyKnockbackStep(double delta)
+    {
+        Velocity = Velocity.MoveToward(Vector2.Zero, HurtKnockbackFriction * (float)delta);
+        MoveAndSlide();
+        ClampToFloor();
         UpdateVisual();
     }
 
@@ -134,11 +179,18 @@ public partial class Player : CharacterBody2D
     }
 
     /// <summary>
-    /// Plays <paramref name="animation"/> if the sprite has it, else <paramref name="fallback"/>;
-    /// does nothing while no <c>SpriteFrames</c> are assigned (placeholder art).
+    /// Plays <paramref name="animation"/>: on the <see cref="AnimationPlayer"/> when it has it
+    /// (attacks, hurt, ko), else on the sprite when its <c>SpriteFrames</c> has it, else
+    /// <paramref name="fallback"/> on the sprite. Silently does nothing without art.
     /// </summary>
     public void PlayAnimation(StringName animation, StringName? fallback = null)
     {
+        if (AnimationPlayer.HasAnimation(animation))
+        {
+            AnimationPlayer.Play(animation);
+            return;
+        }
+
         SpriteFrames? frames = Sprite.SpriteFrames;
         if (frames is null)
         {
@@ -153,6 +205,57 @@ public partial class Player : CharacterBody2D
         {
             Sprite.Play(fallback);
         }
+    }
+
+    /// <summary><c>true</c> while <see cref="AnimationPlayer"/> is playing <paramref name="animation"/>.</summary>
+    public bool IsAnimationPlaying(StringName animation) =>
+        AnimationPlayer.IsPlaying() && AnimationPlayer.CurrentAnimation == animation;
+
+    /// <summary>Seconds elapsed in the current <see cref="AnimationPlayer"/> animation.</summary>
+    public double AnimationTime => AnimationPlayer.CurrentAnimationPosition;
+
+    /// <summary>Opens the attack window with <see cref="CurrentAttack"/>. Called from animation method tracks.</summary>
+    public void HitboxOn() => Hitbox.Activate(CurrentAttack);
+
+    /// <summary>Closes the attack window. Called from animation method tracks and on leaving an attack state.</summary>
+    public void HitboxOff() => Hitbox.Deactivate();
+
+    /// <inheritdoc/>
+    public bool TakeHit(in HitInfo hit)
+    {
+        if (_knockedOut)
+        {
+            return false;
+        }
+
+        GameState state = GameState.Instance;
+        state.AddEnergy(-hit.Damage);
+        Velocity = new Vector2(hit.Knockback, 0f);
+        Facing = hit.Knockback > 0f ? -1 : hit.Knockback < 0f ? 1 : Facing;
+        UpdateVisual();
+        EmitSignalHurt(hit.Damage);
+
+        if (state.Energy <= state.MinEnergy)
+        {
+            _knockedOut = true;
+            StateMachine.TransitionTo(PlayerState.StateKO);
+            EmitSignalKnockedOut();
+        }
+        else
+        {
+            StateMachine.TransitionTo(PlayerState.StateHurt);
+        }
+
+        return true;
+    }
+
+    private void OnHitboxHit(Node2D target) => HitStop.Trigger(GetTree(), CurrentAttack.HitStopFrames);
+
+    private void ClampToFloor()
+    {
+        Vector2 position = Position;
+        position.Y = Mathf.Clamp(position.Y, FloorTop, FloorBottom);
+        Position = position;
     }
 
     private void UpdateVisual()
