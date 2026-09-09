@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3 uid="uid://ct2db4jsifoal"]
+[gd_scene load_steps=21 format=3 uid="uid://ct2db4jsifoal"]
 
 [ext_resource type="Script" path="res://scripts/player/Player.cs" id="1_player"]
 [ext_resource type="Script" path="res://scripts/core/StateMachine.cs" id="2_sm"]
@@ -352,7 +352,7 @@ Damage = 5.0
 Knockback = 60.0
 HitStopFrames = 4
 NextCombo = "LightAttack2"
-ComboWindowStart = 0.1
+ComboWindowStart = 0.06
 
 [node name="LightAttack2" type="Node" parent="StateMachine"]
 script = ExtResource("7_attack")
@@ -361,7 +361,7 @@ Damage = 5.0
 Knockback = 60.0
 HitStopFrames = 4
 NextCombo = "LightAttack3"
-ComboWindowStart = 0.1
+ComboWindowStart = 0.06
 
 [node name="LightAttack3" type="Node" parent="StateMachine"]
 script = ExtResource("7_attack")
@@ -378,7 +378,7 @@ AnimationName = &"heavy"
 Damage = 12.0
 Knockback = 200.0
 Knockdown = true
-HitStopFrames = 6
+HitStopFrames = 5
 NextCombo = ""
 ComboWindowStart = 0.0
 

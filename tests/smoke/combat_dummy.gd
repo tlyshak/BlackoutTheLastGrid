@@ -3,6 +3,10 @@ extends SceneTree
 # (hit-stop, flash, knockback, Hurt), three-hit light combo, hitbox depth tolerance (miss at
 # |dy| = 20, hit at |dy| = DepthTolerance inclusive), heavy knockdown (Down → Idle after
 # DownDuration), KO at 0 HP and ignored hits afterwards, hero Hurt/KO states. Needs physics frames.
+# Review fix-pass regressions (sections 8+, in a fresh room): HitStop autoload (S4), `attack`
+# pressed during the hit-stop chains into LightAttack2 (S2), a second knockdown restarts
+# DownDuration (S3), a facing-left hit, a hit taken mid-jump falls before Idle (S1), and
+# Player.TakeDamage -> Energy / Hurt signal / KO / ignored after KO (S6).
 # Run: godot --headless --path . -s tests/smoke/combat_dummy.gd
 #
 # Hit-stop sets Engine.time_scale = 0, which stops physics frames (awaiting `physics_frame` hangs
@@ -13,7 +17,7 @@ extends SceneTree
 const NAME := "combat_dummy"   # must equal the file basename
 # Safety net: quit(1) instead of hanging into the runner timeout. Counts _process calls; the
 # real-time waits around each hit-stop cost idle frames too, so this is roomier than usual.
-const MAX_FRAMES := 6000
+const MAX_FRAMES := 12000
 const ACTIONS := ["move_left", "move_right", "move_up", "move_down", "jump", "attack", "heavy_attack"]
 const HIT_CAP_MS := 800        # wall-clock cap while waiting for one hit to land
 const NO_HIT_WINDOW_MS := 450  # longer than the light animation (0.30 s) — a miss must stay a miss
@@ -185,9 +189,10 @@ func _run() -> void:
 		_check(sm.HasState(s), "Player StateMachine lacks state '%s'" % s)
 	for s in ["Idle", "Hurt", "Down", "KO"]:
 		_check(dsm.HasState(s), "Dummy StateMachine lacks state '%s'" % s)
-	# Attack exports as documented in the plan (L1 5 / L2 5 / L3 8 / Heavy 12 knockdown).
+	# Attack exports as documented in the plan (L1 5 / L2 5 / L3 8 / Heavy 12 knockdown); heavy
+	# hit-stop 5 frames per GAME_DESIGN §6 (3-5 frames, review S5).
 	var expected_attacks := {"LightAttack1": [5.0, false, 4], "LightAttack2": [5.0, false, 4],
-		"LightAttack3": [8.0, false, 5], "HeavyAttack": [12.0, true, 6]}
+		"LightAttack3": [8.0, false, 5], "HeavyAttack": [12.0, true, 5]}
 	for s in expected_attacks:
 		var st: Node = sm.get_node_or_null(s)
 		if st == null or st.get("Damage") == null:
@@ -375,8 +380,243 @@ func _run() -> void:
 	await _step(20)
 	_check(player.CurrentStateName == "KO", "hero: state '%s' 20 frames after KO, expected to stay 'KO'" % player.CurrentStateName)
 
-	# 8. Teardown.
+	# 8. Fresh room for the review fix-pass regressions: the old room's hero is KO and its dummies
+	#    are spent (Dummy 0 HP, Dummy2 13 HP). Both dummies back at 30 HP, hero Idle, Energy Max.
+	room.queue_free()
 	gs.ResetRun()
+	await _step(1)
+	room = scene.instantiate()
+	root.add_child(room)
+	player = room.get_node_or_null("Player")
+	dummy = room.get_node_or_null("Dummy")
+	dummy2 = room.get_node_or_null("Dummy2")
+	if player == null or dummy == null or dummy2 == null:
+		_check(false, "fresh room: Player/Dummy/Dummy2 missing after re-instantiating TestRoom")
+		if room != null:
+			room.queue_free()
+		_finish()
+		return
+	sm = player.get_node_or_null("StateMachine")
+	hitbox = player.get_node_or_null("Visual/Hitbox")
+	dvisual = dummy.get_node_or_null("Visual")
+	d2visual = dummy2.get_node_or_null("Visual")
+	var pvisual: Node2D = player.get_node_or_null("Visual")
+	if sm == null or hitbox == null or dvisual == null or d2visual == null or pvisual == null:
+		_check(false, "fresh room: StateMachine/Visual/Hitbox missing on the re-instantiated actors")
+		room.queue_free()
+		_finish()
+		return
+	# Player re-emits its StateMachine's transitions (Player.StateChanged); record both and compare.
+	_transitions.clear()
+	var sm_transitions: Array = []
+	player.StateChanged.connect(func(_from: String, to: String): _transitions.append(to))
+	sm.StateChanged.connect(func(_from: String, to: String): sm_transitions.append(to))
+	var hurt_events: Array = []
+	var ko_events: Array = []
+	player.Hurt.connect(func(d: float): hurt_events.append(d))
+	player.KnockedOut.connect(func(): ko_events.append(true))
+	await _step(2)
+	_check(player.CurrentStateName == "Idle", "fresh room: player state '%s', expected 'Idle'" % player.CurrentStateName)
+	_check(is_equal_approx(dummy.Hp, 30.0) and is_equal_approx(dummy2.Hp, 30.0), "fresh room: Dummy.Hp=%s Dummy2.Hp=%s, expected 30/30" % [dummy.Hp, dummy2.Hp])
+	_check(is_equal_approx(gs.Energy, gs.MaxEnergy), "fresh room: Energy=%s, expected MaxEnergy" % gs.Energy)
+	_check(Engine.time_scale == 1.0, "fresh room: Engine.time_scale=%s, expected 1" % Engine.time_scale)
+
+	# 9. S4: HitStop is an autoload (project.godot [autoload]), not a self-installed root node.
+	_check(root.get_node_or_null("HitStop") != null, "S4: 'HitStop' autoload not in the tree (project.godot [autoload])")
+
+	# 10. S2 regression: `attack` pressed DURING the hit-stop of light_1 must chain into
+	#     LightAttack2 (the combo buffer opens with the hit window, not only at ComboWindowStart).
+	_transitions.clear()
+	player.position = Vector2(600, 450)
+	await _step(2)
+	_check(player.CurrentStateName == "Idle", "S2: player state '%s' before the attack, expected 'Idle'" % player.CurrentStateName)
+	var s2_hp0: float = dummy.Hp
+	await _tap("attack")
+	var s2_froze := false
+	var s2_deadline: int = Time.get_ticks_msec() + HIT_CAP_MS
+	while Time.get_ticks_msec() < s2_deadline:
+		await process_frame
+		if Engine.time_scale == 0.0:
+			s2_froze = true
+			break
+	_check(s2_froze, "S2: no hit-stop within %d ms (Dummy.Hp=%s, state '%s')" % [HIT_CAP_MS, dummy.Hp, player.CurrentStateName])
+	if s2_froze:
+		_check(player.CurrentStateName == "LightAttack1", "S2: player state '%s' during the freeze, expected 'LightAttack1'" % player.CurrentStateName)
+		_check(hitbox.IsActive, "S2: Hitbox not active during the hit-stop of light_1")
+		Input.action_press("attack")
+		await process_frame
+		Input.action_release("attack")
+		_check(Engine.time_scale == 0.0, "S2: freeze already lifted before the press was released (idle frames too slow)")
+	var s2_elapsed: int = await _wait_restored(RESTORE_CAP_MS)
+	_check(s2_elapsed >= 0, "S2: Engine.time_scale not restored within %d ms" % RESTORE_CAP_MS)
+	await _step(40)   # rest of light_1 (~13 frames) + light_2 (18 frames) + Idle
+	var s2_i1: int = _transitions.find("LightAttack1")
+	var s2_i2: int = _transitions.find("LightAttack2")
+	_check(s2_i1 >= 0 and s2_i2 > s2_i1, "S2: transitions %s, expected LightAttack2 after LightAttack1 (press during the freeze must chain)" % [_transitions])
+	var s2_delta: float = s2_hp0 - dummy.Hp
+	print("combat_dummy: S2 Dummy.Hp delta = %s (transitions %s)" % [s2_delta, _transitions])
+	_check(s2_delta >= 5.0, "S2: Dummy.Hp delta %s, expected >= 5 (10 when light_2 connects)" % s2_delta)
+	_check(player.CurrentStateName == "Idle", "S2: player state '%s' after 40 frames, expected 'Idle'" % player.CurrentStateName)
+	_check(Engine.time_scale == 1.0, "S2: Engine.time_scale=%s at the end, expected 1" % Engine.time_scale)
+	_check(_transitions == sm_transitions, "Player.StateChanged %s differs from StateMachine.StateChanged %s" % [_transitions, sm_transitions])
+
+	# 11. S3 regression: a second heavy on a Down dummy restarts DownDuration (60 frames) instead
+	#     of keeping the first timer. Dummy2 (30 HP): 18 after the first, 6 after the second.
+	_transitions.clear()
+	player.position = Vector2(DUMMY2_START.x - 40.0, DUMMY2_START.y)
+	await _step(2)
+	_check(player.CurrentStateName == "Idle", "S3: player state '%s' before the first heavy, expected 'Idle'" % player.CurrentStateName)
+	await _tap("heavy_attack")
+	var s3a: Dictionary = await _watch_hit(dummy2, HIT_CAP_MS)
+	_check(s3a["hit"], "S3: first heavy did not hit Dummy2 within %d ms (Hp=%s)" % [HIT_CAP_MS, dummy2.Hp])
+	if s3a["hit"]:
+		_check(s3a["state"] == "Down", "S3: Dummy2 state '%s' after the first heavy, expected 'Down'" % s3a["state"])
+	var s3a_restore: int = await _wait_restored(RESTORE_CAP_MS)
+	_check(s3a_restore >= 0, "S3: Engine.time_scale not restored after the first heavy within %d ms" % RESTORE_CAP_MS)
+	await _step(20)
+	_check(dummy2.CurrentStateName == "Down", "S3: Dummy2 state '%s' 20 frames after the first heavy, expected 'Down'" % dummy2.CurrentStateName)
+	_check(is_equal_approx(dummy2.Hp, 18.0), "S3: Dummy2.Hp=%s after the first heavy, expected 18" % dummy2.Hp)
+	var s3_player_idle := false
+	for i in 20:   # the heavy animation (0.55 s) ends ~20 frames after its hit
+		if player.CurrentStateName == "Idle":
+			s3_player_idle = true
+			break
+		await physics_frame
+	_check(s3_player_idle, "S3: player state '%s' after the first heavy, expected 'Idle' within 40 frames" % player.CurrentStateName)
+	# Keep the hero in range for the second heavy (knockback moved Dummy2 right).
+	player.position = Vector2(dummy2.position.x - 40.0, dummy2.position.y)
+	await _step(2)
+	_check(dummy2.position.x - player.position.x <= 60.0, "S3: Dummy2 %.1f px ahead of the hero, expected <= 60 (in range)" % (dummy2.position.x - player.position.x))
+	_check(dummy2.CurrentStateName == "Down", "S3: Dummy2 state '%s' right before the second heavy, expected still 'Down'" % dummy2.CurrentStateName)
+	await _tap("heavy_attack")
+	var s3b: Dictionary = await _watch_hit(dummy2, HIT_CAP_MS)
+	_check(s3b["hit"], "S3: second heavy did not hit the Down Dummy2 within %d ms (Hp=%s)" % [HIT_CAP_MS, dummy2.Hp])
+	if s3b["hit"]:
+		_check(s3b["state"] == "Down", "S3: Dummy2 state '%s' after the second heavy, expected 'Down'" % s3b["state"])
+		_check(s3b["scale"] == 0.0, "S3: Engine.time_scale=%s right after the second heavy, expected 0" % s3b["scale"])
+	var s3b_restore: int = await _wait_restored(RESTORE_CAP_MS)
+	_check(s3b_restore >= 0, "S3: Engine.time_scale not restored after the second heavy within %d ms" % RESTORE_CAP_MS)
+	_check(is_equal_approx(dummy2.Hp, 6.0), "S3: Dummy2.Hp=%s after the second heavy, expected 6" % dummy2.Hp)
+	await _step(45)
+	_check(dummy2.CurrentStateName == "Down", "S3: Dummy2 state '%s' 45 frames after the second knockdown, expected still 'Down' (DownDuration restarted; pre-fix it stood up ~24 frames after the second hit)" % dummy2.CurrentStateName)
+	_check(is_equal_approx(d2visual.rotation, PI / 2.0), "S3: Dummy2 Visual.rotation=%.3f 45 frames after the second knockdown, expected PI/2" % d2visual.rotation)
+	await _step(30)
+	_check(dummy2.CurrentStateName == "Idle", "S3: Dummy2 state '%s' 75 frames after the second knockdown, expected 'Idle'" % dummy2.CurrentStateName)
+	_check(is_equal_approx(d2visual.rotation, 0.0), "S3: Dummy2 Visual.rotation=%.3f after getting up, expected 0" % d2visual.rotation)
+	_check(dummy2.IsKnockedOut == false, "S3: Dummy2 knocked out at 6 HP")
+	_check(player.CurrentStateName == "Idle", "S3: player state '%s' at the end, expected 'Idle'" % player.CurrentStateName)
+	_check(Engine.time_scale == 1.0, "S3: Engine.time_scale=%s at the end, expected 1" % Engine.time_scale)
+
+	# 12. Facing-left hit: hero to the RIGHT of Dummy (healthy, 20 HP after S2), faces left after a
+	#     2-frame move_left, the flipped hitbox lands and the knockback pushes the dummy LEFT.
+	_transitions.clear()
+	var fl_hp0: float = dummy.Hp
+	var fl_x0: float = dummy.position.x
+	player.position = Vector2(dummy.position.x + 40.0, dummy.position.y)
+	await _step(2)
+	Input.action_press("move_left")
+	await _step(2)
+	Input.action_release("move_left")
+	await _step(2)
+	_check(player.Facing == -1, "facing-left: Facing=%s after move_left, expected -1" % player.Facing)
+	_check(pvisual.scale.x == -1.0, "facing-left: Visual.scale=%s, expected (-1, 1)" % pvisual.scale)
+	_check(player.CurrentStateName == "Idle", "facing-left: player state '%s' before the attack, expected 'Idle'" % player.CurrentStateName)
+	_check(player.position.x > dummy.position.x, "facing-left: hero x=%.1f not to the right of Dummy x=%.1f" % [player.position.x, dummy.position.x])
+	var hfl: Dictionary = await _light_hit(dummy, "facing-left", fl_hp0 - 5.0, l1_frames)
+	_check(hfl["hit"] and is_equal_approx(dummy.Hp, fl_hp0 - 5.0), "facing-left: Dummy.Hp=%s, expected %s" % [dummy.Hp, fl_hp0 - 5.0])
+	await _step(30)
+	_check(dummy.position.x < fl_x0, "facing-left: Dummy.x=%.2f, expected < %.2f (pushed left)" % [dummy.position.x, fl_x0])
+	_check(dummy.CurrentStateName == "Idle", "facing-left: Dummy state '%s' after 30 frames, expected 'Idle'" % dummy.CurrentStateName)
+	_check(player.CurrentStateName == "Idle", "facing-left: player state '%s' after the hit, expected 'Idle'" % player.CurrentStateName)
+	_check(_transitions == ["Move", "Idle", "LightAttack1", "Idle"], "facing-left: transitions %s, expected [Move, Idle, LightAttack1, Idle]" % [_transitions])
+
+	# 13. S1 regression: a hit taken mid-jump — Hurt keeps falling, lands, then returns to Idle
+	#     with the visual back on the feet (no floating hero). 0 hit-stop frames so physics runs.
+	_transitions.clear()
+	hurt_events.clear()
+	player.position = Vector2(400, 450)
+	await _step(2)
+	_check(player.CurrentStateName == "Idle", "S1: player state '%s' before the jump, expected 'Idle'" % player.CurrentStateName)
+	await _tap("jump")
+	await _step(8)
+	_check(player.CurrentStateName == "Jump", "S1: player state '%s' 8 frames after jump, expected 'Jump'" % player.CurrentStateName)
+	_check(player.Height > 0.0 and player.IsAirborne, "S1: Height=%.2f IsAirborne=%s 8 frames after jump, expected airborne" % [player.Height, player.IsAirborne])
+	var s1_height: float = player.Height
+	var s1_took: bool = player.TakeDamage(5.0, -80.0, false, 0)
+	_check(s1_took == true, "S1: TakeDamage returned %s, expected true" % s1_took)
+	_check(player.CurrentStateName == "Hurt", "S1: player state '%s' right after TakeDamage mid-jump, expected 'Hurt'" % player.CurrentStateName)
+	_check(hurt_events == [5.0], "S1: Hurt signal events %s, expected [5.0]" % [hurt_events])
+	_check(is_equal_approx(gs.Energy, gs.MaxEnergy - 5.0), "S1: Energy=%s, expected MaxEnergy-5=%s" % [gs.Energy, gs.MaxEnergy - 5.0])
+	var s1_landed := false
+	var s1_fall_frames := 0
+	for i in 120:
+		await physics_frame
+		s1_fall_frames += 1
+		if player.Height == 0.0:
+			s1_landed = true
+			break
+	_check(s1_landed, "S1: Height=%.2f (was %.2f at the hit) still > 0 after 120 frames in '%s' — hero hangs in the air" % [player.Height, s1_height, player.CurrentStateName])
+	_check(player.IsAirborne == false, "S1: IsAirborne=%s after landing, expected false" % player.IsAirborne)
+	var s1_idle_after: int = -1
+	for i in 30:
+		if player.CurrentStateName == "Idle":
+			s1_idle_after = i
+			break
+		await physics_frame
+	_check(s1_idle_after >= 0, "S1: player state '%s' 30 frames after landing, expected 'Idle'" % player.CurrentStateName)
+	_check(is_equal_approx(pvisual.position.y, -player.SpriteFeetOffset), "S1: Visual.position.y=%.2f after landing, expected %.2f (-SpriteFeetOffset)" % [pvisual.position.y, -player.SpriteFeetOffset])
+	_check(player.Height == 0.0, "S1: Height=%.2f at the end, expected 0" % player.Height)
+	_check(_transitions == ["Jump", "Hurt", "Idle"], "S1: transitions %s, expected [Jump, Hurt, Idle]" % [_transitions])
+	_check(hurt_events.size() == 1, "S1: Hurt signal fired %d times, expected once" % hurt_events.size())
+	print("combat_dummy: S1 hit at Height %.2f, landed %d frames later, Idle %d frames after landing" % [s1_height, s1_fall_frames, s1_idle_after])
+
+	# 14. S6: Player.TakeDamage (Variant-friendly TakeHit) — Energy -10, Hurt facing the hit,
+	#     knockback velocity, back to Idle; lethal damage -> KO once (signal, MinEnergy); a further
+	#     hit is ignored (false, Energy unchanged, still KO).
+	gs.ResetRun()
+	hurt_events.clear()
+	_transitions.clear()
+	await _step(2)
+	_check(player.CurrentStateName == "Idle", "S6: player state '%s' before TakeDamage, expected 'Idle'" % player.CurrentStateName)
+	_check(ko_events.is_empty(), "S6: KnockedOut already fired %d times before the lethal hit" % ko_events.size())
+	var s6_x0: float = player.position.x
+	var s6_r1: bool = player.TakeDamage(10.0, 120.0, false, 0)
+	_check(s6_r1 == true, "S6: TakeDamage(10, 120) returned %s, expected true" % s6_r1)
+	_check(is_equal_approx(gs.Energy, gs.MaxEnergy - 10.0), "S6: Energy=%s after 10 damage, expected MaxEnergy-10=%s" % [gs.Energy, gs.MaxEnergy - 10.0])
+	_check(player.CurrentStateName == "Hurt", "S6: player state '%s' after TakeDamage, expected 'Hurt'" % player.CurrentStateName)
+	_check(player.Facing == -1, "S6: Facing=%s after a knockback to the right, expected -1 (faces the hit)" % player.Facing)
+	_check(pvisual.scale.x == -1.0, "S6: Visual.scale=%s after the hit, expected (-1, 1)" % pvisual.scale)
+	await _step(1)
+	_check(player.velocity.x > 0.0, "S6: velocity.x=%.1f on the next frame, expected > 0 (knockback to the right)" % player.velocity.x)
+	await _step(30)
+	_check(player.CurrentStateName == "Idle", "S6: player state '%s' 30 frames after Hurt, expected 'Idle'" % player.CurrentStateName)
+	_check(player.position.x > s6_x0, "S6: hero x=%.2f after the knockback, expected > %.2f" % [player.position.x, s6_x0])
+	_check(hurt_events == [10.0], "S6: Hurt signal events %s, expected [10.0]" % [hurt_events])
+	_check(ko_events.is_empty(), "S6: KnockedOut fired on a non-lethal hit")
+	var s6_lethal: float = gs.Energy + 1.0
+	var s6_r2: bool = player.TakeDamage(s6_lethal, 0.0, false, 0)
+	_check(s6_r2 == true, "S6: lethal TakeDamage(%s) returned %s, expected true" % [s6_lethal, s6_r2])
+	_check(player.IsKnockedOut == true, "S6: IsKnockedOut=%s after lethal damage, expected true" % player.IsKnockedOut)
+	_check(player.CurrentStateName == "KO", "S6: player state '%s' after lethal damage, expected 'KO'" % player.CurrentStateName)
+	_check(ko_events.size() == 1, "S6: KnockedOut fired %d times, expected once" % ko_events.size())
+	_check(is_equal_approx(gs.Energy, gs.MinEnergy), "S6: Energy=%s after lethal damage, expected MinEnergy=%s" % [gs.Energy, gs.MinEnergy])
+	_check(hurt_events.size() == 2, "S6: Hurt signal fired %d times after the lethal hit, expected 2" % hurt_events.size())
+	await _step(20)
+	_check(player.CurrentStateName == "KO", "S6: player state '%s' 20 frames after KO, expected still 'KO'" % player.CurrentStateName)
+	var s6_energy_ko: float = gs.Energy
+	var s6_r3: bool = player.TakeDamage(1.0, 0.0, false, 0)
+	_check(s6_r3 == false, "S6: TakeDamage after KO returned %s, expected false" % s6_r3)
+	_check(gs.Energy == s6_energy_ko, "S6: Energy=%s after an ignored hit, expected unchanged %s" % [gs.Energy, s6_energy_ko])
+	_check(player.CurrentStateName == "KO", "S6: player state '%s' after an ignored hit, expected 'KO'" % player.CurrentStateName)
+	_check(hurt_events.size() == 2 and ko_events.size() == 1, "S6: Hurt/KnockedOut fired %d/%d times after the ignored hit, expected 2/1" % [hurt_events.size(), ko_events.size()])
+	_check(_transitions == ["Hurt", "Idle", "KO"], "S6: transitions %s, expected [Hurt, Idle, KO]" % [_transitions])
+
+	# 15. Teardown: reset the run, make sure no freeze is pending, free the room.
+	gs.ResetRun()
+	if Engine.time_scale != 1.0:
+		var tear_restore: int = await _wait_restored(RESTORE_CAP_MS)
+		_check(tear_restore >= 0, "teardown: Engine.time_scale not restored within %d ms" % RESTORE_CAP_MS)
 	room.queue_free()
 	await _step(1)
+	print("combat_dummy: idle frames used %d of MAX_FRAMES %d" % [_frames, MAX_FRAMES])
 	_finish()

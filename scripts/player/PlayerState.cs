@@ -51,9 +51,18 @@ public abstract partial class PlayerState : State
     /// <inheritdoc/>
     public override void _Ready() => Player = Machine.GetParent<Player>();
 
-    /// <summary>Shared grounded transitions: heavy/light attack or jump. Returns <c>true</c> if a transition happened.</summary>
+    /// <summary>
+    /// Shared grounded transitions: back to Jump if somehow airborne (a reaction interrupted a
+    /// jump), else heavy/light attack or jump. Returns <c>true</c> if a transition happened.
+    /// </summary>
     protected bool TryStartAction()
     {
+        if (Player.IsAirborne)
+        {
+            TransitionTo(StateJump);
+            return true;
+        }
+
         if (Player.HeavyPressed)
         {
             TransitionTo(StateHeavyAttack);

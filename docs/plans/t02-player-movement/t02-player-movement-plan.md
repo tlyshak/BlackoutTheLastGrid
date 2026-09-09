@@ -72,7 +72,7 @@ Exports on `Player`:
 
 Public API used by states/tests (no signals needed in T-02):
 `Vector2 MoveInput` (read each physics step), `bool JumpPressed`, `float Height` (=`_z`),
-`bool IsAirborne`, `void ApplyFloorMove(Vector2 input, double delta)`, `void StartJump()`,
+`bool IsAirborne`, `void ApplyFloorMove(Vector2 input)`, `void StartJump()`,
 `void IntegrateJump(double delta)` (returns to ground → `IsAirborne == false`),
 `string CurrentStateName` (for the room's debug label). `Facing` (`int`, ±1).
 
@@ -151,4 +151,76 @@ None blocking. Whether floor bounds should move from `Player` exports to a level
 to T-08.
 
 ## Review findings
-_filled in by /reviewer_
+
+### Round 1 — Ship: yes
+
+Reviewed at branch `task/t-02b-basic-combat`, commit a13069d (T-02) as part of the delta `main...HEAD`
+(the branch also carries d2aea6f / T-02b, reviewed in `docs/plans/t02b-basic-combat/`). Working tree
+clean. Verification re-run by the reviewer: `dotnet build` 0 warnings / 0 errors; `godot --headless
+--path . --quit` and `... res://scenes/levels/TestRoom.tscn --quit-after 5` exit 0 with no
+`ERROR:` lines; `tools/smoke.ps1` 4 passed / 0 failed.
+
+#### Summary
+Adds the hero: `Player.tscn`/`Player.cs` (CharacterBody2D, Floating motion, 8-way floor movement
+with a depth-speed factor, FloorTop/FloorBottom clamp, fake-Z jump that lifts `Visual` while
+`PH_Shadow` stays at the origin, facing flip), states Idle/Move/Jump on the shared `StateMachine`,
+`TestRoom.tscn`/`TestRoom.cs` (y-sorted floor band, two `PH_` props at different depths, walls,
+debug label), `[layer_names]` for 2D physics layers 1–7, and `tests/smoke/player_movement.gd`.
+
+#### Plan conformance
+Plan: `docs/plans/t02-player-movement/t02-player-movement-plan.md`
+TASKS.md: T-02 `done`; "Зроблено / Не зроблено" notes present and truthful (no sprite sheet under
+`assets/art/player/` → `PH_` polygons, empty `AnimatedSprite2D` slot); playtest checklist present.
+- Implemented as planned: node tree exactly as the Scene & signal contract (`scenes/player/Player.tscn:274-347`);
+  all eight exports with the table's defaults (`scripts/player/Player.cs:33-54`); transitions
+  Idle→Move / Move→Idle / Idle|Move→Jump / Jump→Idle|Move (`PlayerIdle.cs`, `PlayerMove.cs`,
+  `PlayerJump.cs:31`); input only through InputMap actions cached as `StringName`
+  (`Player.cs:16-22, 91-100`); TestRoom with `PH_Floor` at y 300, `PH_Crate` (560, 420), `PH_Post`
+  (760, 520), walls at x 40 / 1880 on layer 1, `DebugLabel` (`scenes/levels/TestRoom.tscn`);
+  `project.godot` `[layer_names]` 1–7 with the reason in the commit body; smoke covers every
+  acceptance criterion except the visual overlap, which the plan assigns to playtest.
+- Deviates from plan: `ApplyFloorMove(Vector2 input)` (`Player.cs:133`) has no `delta` parameter
+  (plan: `ApplyFloorMove(Vector2 input, double delta)`) — correct as written, `MoveAndSlide` uses the
+  physics step; the plan's API line is stale. `Player.tscn:297` adds `PH_Face` (not in the plan's
+  tree) — harmless placeholder that marks the facing side.
+- Missing / partial: none. The four `.gitkeep` files in the new folders were deleted (not in the
+  file-level list, implied by adding content).
+- Accepted limitation (per plan): no art → `PH_Body`; `Sprite` has no `SpriteFrames`. Residual risk:
+  `Player.cs:114-117` hides the placeholder only when frames are present at `_Ready`; assigning
+  `SpriteFrames` at runtime later will not hide `PH_Body` (fine until art lands via the scene).
+
+#### Code
+- [x] **S1. Per-frame string allocation in the debug label path** — `scripts/levels/TestRoom.cs:25` and `:34`, `scripts/player/Player.cs:103` — Should-fix
+  **Problem / why it matters:** `Player.CurrentStateName` converts the state's `StringName` to a
+  managed `string` on every call (`StateMachine.CurrentState?.Name ?? string.Empty`), and
+  `TestRoom._Process` calls it every render frame, then compares strings; during a jump the
+  interpolated label string is rebuilt every frame as well. It is a test room, but the pattern
+  (poll + convert per frame) is what the reviewer checklist flags, and `CurrentStateName` is public
+  API other rooms will copy.
+  **Fix:** subscribe `TestRoom` to `Player.StateMachine.StateChanged` (already emitted with the
+  names) and rebuild the text only there and when the rounded `Height` changes; alternatively keep
+  a cached `StringName` in `Player` and compare by reference.
+
+#### Tests
+- none missing — `tests/smoke/player_movement.gd` asserts the state transitions, distance moved,
+  facing flip, per-frame floor clamp (both edges), diagonal, jump height/shadow/visual offset and
+  landing state; Y-sort overlap is on the playtest list as planned.
+
+#### Nits
+- Plan API drift: `ApplyFloorMove` signature (see Deviations) — update the plan line — `Player.cs:133`.
+- `PH_Face` is not in the plan's node tree — add it to the contract or drop it — `Player.tscn:297`.
+- Process note: T-02 and T-02b live on one branch (`task/t-02b-basic-combat`), one commit each; the
+  workflow in `CLAUDE.md` expects one task per branch. Not a code issue.
+
+#### What's done well
+- Fake-Z jump on a separate axis with the shadow at the origin and `motion_mode = Floating` —
+  depth sorting and floor clamping keep working mid-air, exactly as the plan argued.
+- Every balance number is an `[Export]` with the plan's default; no magic numbers in method bodies.
+- States are real `State` children with no boolean flags; input is polled through cached
+  `StringName` actions with no per-frame allocation in any `PhysicsUpdate`.
+- The smoke test checks the clamp on every frame (not just the end value) and the jump on every
+  frame of the arc — it would catch an overshoot or a shadow that lifts.
+
+#### Verdict
+Ship: yes — no blockers; the T-02 contract is implemented as planned and verified green. First:
+S1 (label allocation, small), then refresh the plan's `ApplyFloorMove` line.

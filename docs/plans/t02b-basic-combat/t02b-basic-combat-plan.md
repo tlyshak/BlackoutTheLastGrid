@@ -17,7 +17,8 @@ and a training dummy with HP to receive it all in `TestRoom`. This is `GAME_DESI
 §4: light/heavy attack, 3–4 hit combo, hit-stop 3–5 frames, flash on the enemy. §6: hit-stop 3–5
 frames. Task says "спалах шейдером (плейсхолдер — модуляція кольору)" → `Modulate` tween.
 Hero damage → energy is T-06's rule, but `Player.TakeHit` already routes damage through
-`GameState.Energy` so T-06 only adds enemies and the restart. No disagreements.
+`GameState.Energy` so T-06 only adds enemies and the restart. Hit-stop stays within §6's 3–5
+frames for every attack (heavy = 5; the first draft had 6, corrected in review round 1).
 
 ## Options considered
 1. **Hitbox windows from `AnimationPlayer` method tracks** (chosen, as the task asks): attack
@@ -55,7 +56,8 @@ Player
 `Knockdown` (bool), `HitStopFrames` (frames), `NextCombo` (state name or ""), `ComboWindowStart`
 (s from the start of the animation after which `attack` is buffered).
 Defaults: L1 5/60/false/4/"LightAttack2"/0.10; L2 5/60/false/4/"LightAttack3"/0.10;
-L3 8/160/false/5/""/0; Heavy 12/200/true/6/""/0.
+L3 8/160/false/5/""/0; Heavy 12/200/true/5/""/0. Light combo windows open at 0.06 s or as
+soon as the hit window is active, so a press during the hit-stop still chains.
 Player API: `AttackPressed`, `HeavyPressed`, `HitboxOn()`/`HitboxOff()` (animation method
 tracks), `PlayAnimation` (now via `AnimationPlayer` when the animation exists there),
 `IsAnimationPlaying(name)`, `CurrentAttack` (set by the attack state), `TakeHit(HitInfo)`,
@@ -116,7 +118,9 @@ Smoke `tests/smoke/combat_dummy.gd` (async): instantiate `TestRoom`, place the h
 `Input.action_press` for one physics frame; observe `CurrentStateName` per frame, `Dummy.Hp`,
 `Engine.time_scale`, `Modulate`. Hit-stop freezes physics frames, so the test waits with
 `create_timer(t, true, false, true)` (ignores time scale) where needed. Depth test with `Dummy2`.
-Hero Hurt/KO via direct `TakeHit` calls. Only by hand: "feel" of hit-stop and the fist motion.
+Hero Hurt/KO via `Player.TakeDamage(damage, knockback, knockdown, hitStopFrames)` (a
+Variant-friendly seam over `TakeHit`, since GDScript cannot build `HitInfo`). Only by hand: "feel"
+of hit-stop and the fist motion.
 
 ## Playtest (manual QA)
 1. Відкрити `scenes/levels/TestRoom.tscn` (F6). Два сірих манекени з написом `HP 30`, один на
@@ -145,4 +149,158 @@ method names in sync with `Player` (`HitboxOn`/`HitboxOff`) — the smoke test w
 None.
 
 ## Review findings
-_filled in by /reviewer_
+
+### Round 1 — Ship: yes
+
+Reviewed at branch `task/t-02b-basic-combat`, commit d2aea6f (T-02b) on top of a13069d (T-02, see
+`docs/plans/t02-player-movement/`), full delta `main...HEAD`, working tree clean. Cross-cutting
+`scripts/core` findings live here. Verification re-run by the reviewer: `dotnet build` 0 warnings
+/ 0 errors; `godot --headless --path . --quit` and `... res://scenes/levels/TestRoom.tscn
+--quit-after 5` exit 0, no `ERROR:` lines; `tools/smoke.ps1` 4 passed / 0 failed. Findings marked
+"probe" were confirmed with a throwaway GDScript driving `TestRoom.tscn` headless.
+
+#### Summary
+Adds the shared combat core (`Hitbox` always-monitoring and gated by `Activate`/`Deactivate` from
+`AnimationPlayer` method tracks, `HitInfo`, `IHittable`, `HitStop` = `Engine.TimeScale = 0`
+restored by a wall-clock node under the tree root), hero attack states LightAttack1-3 / HeavyAttack
+with exported tunables and a buffered combo, Hurt / KO states, `Player.TakeHit` routing damage
+into `GameState.Energy`, the training `Dummy` (HP, Modulate flash, knockback, Idle/Hurt/Down/KO),
+two dummies in `TestRoom`, and `tests/smoke/combat_dummy.gd`.
+
+#### Plan conformance
+Plan: `docs/plans/t02b-basic-combat/t02b-basic-combat-plan.md`
+TASKS.md: T-02b `done`; "Зроблено / Не зроблено" notes present and truthful (shader flash →
+Modulate; `Player.TakeHit` only state-checked; restart in T-06); playtest checklist present.
+- Implemented as planned: `Hitbox.cs` / `HitInfo.cs` / `IHittable.cs` / `HitStop.cs`; `PlayerAttack`
+  exports and the four state nodes with exactly the plan's defaults (`scenes/player/Player.tscn:348-383`);
+  `AnimationPlayer` with light_1/2/3, heavy, hurt, ko, RESET and `HitboxOn`/`HitboxOff` method
+  tracks on `NodePath(".")` (all track paths resolve from the Player root; headless load clean);
+  `Visual/Hitbox` layer 4 (bit 8) / mask 3 (bit 4) matches `Dummy/Hurtbox` layer 3 (bit 4) /
+  mask 0; `Dummy.tscn` tree, exports, `Damaged` / `KnockedOut` signals; TestRoom dummies at
+  (640, 450) and (760, 470); `Player.Hurt` / `KnockedOut` signals and `HurtKnockbackFriction`;
+  `project.godot` unchanged in this commit.
+- Deviates from plan: Test strategy says "Hero Hurt/KO via direct `TakeHit` calls" — the smoke
+  (`tests/smoke/combat_dummy.gd:362-376`) drives `sm.TransitionTo("Hurt"/"KO")` instead, so the
+  acceptance criterion "`Player.TakeHit(HitInfo{Damage 10})` → Energy −10 / KO at ≤ MinEnergy" has
+  no automated coverage (S6). Heavy `HitStopFrames = 6` (`Player.tscn:381`) is the plan's own
+  default, but GAME_DESIGN §6 says hit-stop 3–5 frames while the plan's Design-doc conformance
+  claims "No disagreements" (S5). `Player.AnimationTime` (`Player.cs:215`) is API beyond the plan's
+  list (harmless).
+- Missing / partial: none of the File-level list. `HitStop.Cancel()` (`HitStop.cs:45-54`) is
+  documented for "scene change, game over" but has no caller; the wall-clock restore covers it for
+  now, T-06's restart should call it explicitly.
+- Accepted limitation (per plan): global freeze via `Engine.TimeScale = 0` also freezes the attack
+  animation, tweens and physics — residual risk: a press made during the freeze is dropped by the
+  combo window (S2). `Hitbox.Activate` allocates one Godot array per activation — accepted, a few
+  per second at most.
+
+#### Code
+- [x] **S1. Hurt / KO entered while airborne leave the hero floating** — `scripts/player/PlayerHurt.cs:15-22`, `scripts/player/PlayerKO.cs:15-21`, `scripts/player/Player.cs:224-250` — Should-fix
+  **Problem / why it matters:** `Player.TakeHit` transitions straight to Hurt/KO; neither state
+  integrates the jump, and Idle/Move never do. Probe: jump, at `Height` 45.75 → `TransitionTo("Hurt")`
+  → 30 frames later state `Idle`, `Height` 45.75, `IsAirborne` true, `Visual.position.y` −81.75,
+  still the same 60 frames later. The hero hangs in the air until the next jump press. Not reachable
+  in T-02b (nothing attacks the hero) — it becomes a Blocker the moment T-06 enemies can hit a
+  jumping hero.
+  **Fix:** A (correct) — `Player.TakeHit` (or Hurt/KO `Enter`) resets `_z`/`_zVelocity` via a new
+  `Player.Land()` and Hurt/KO `PhysicsUpdate` call `IntegrateJump(delta)` while `IsAirborne` so an
+  airborne hero falls during the reaction; B (quick) — Idle/Move `PhysicsUpdate` guard
+  `if (Player.IsAirborne) TransitionTo(StateJump)`.
+- [x] **S2. `attack` pressed during the hit-stop of the same attack is dropped** — `scripts/player/PlayerAttack.cs:58-63`, `scenes/player/Player.tscn:355, 364` (ComboWindowStart 0.1) vs `:45` (HitboxOn key 0.08) — Should-fix
+  **Problem / why it matters:** the light hit lands at animation time ≈ 0.08 s and freezes the
+  animation; on the first physics step after the restore `AnimationTime` is still < 0.1, so the
+  press seen there is not buffered and the combo ends. Probe: hit at `AnimationTime` 0.0819, attack
+  held through the freeze → first physics step at 0.0889 → transitions `[LightAttack1, Idle]`;
+  control press 60 ms after the restore → `[LightAttack1, LightAttack2, Idle]`. A single deliberate
+  press inside the 67 ms freeze (the natural moment to press in a SoR-style game) loses the combo.
+  **Fix:** A (correct) — buffer when `Player.AnimationTime >= ComboWindowStart || Player.Hitbox.IsActive
+  || HitStop.IsActive` (the window opens with the hit); B (quick, scene only) — set `ComboWindowStart`
+  of LightAttack1/2 to ≤ 0.05 so it precedes the hit key. Add the "press during freeze" case to the
+  smoke (see Tests).
+- [x] **S3. A second hit in the same reaction state does not restart the reaction** — `scripts/core/StateMachine.cs:94-97`, `scripts/enemies/Dummy.cs:92`, `scripts/enemies/DummyDown.cs:11-15`, `scripts/enemies/DummyHurt.cs:11`, `scripts/player/Player.cs:246`, `scripts/player/PlayerHurt.cs:12` — Should-fix
+  **Problem / why it matters:** `TransitionTo` to the current state is a no-op, so `Enter` (which
+  resets `_elapsed` / restarts the `hurt` animation) never runs on a repeat hit; damage, flash and
+  knockback are applied but the timer is the old one. Probe: two heavies on Dummy2; the second lands
+  while it is `Down` → HP 18→6, flash, new knockback, but it stands up 26 physics frames after the
+  2nd hit instead of `DownDuration` = 60. Same path for the hero: Hurt→Hurt keeps the first `hurt`
+  animation, so hit-stun does not refresh — that inconsistency between actors is exactly what
+  T-06's combo rules would build on.
+  **Fix:** A (correct) — add `StateMachine.Restart()` (Exit + Enter on the current state) and have
+  `Dummy.TakeHit` / `Player.TakeHit` call it when `StateMachine.IsIn(target)`; B (local) — Hurt/Down
+  states subscribe to `Dummy.Damaged` and reset `_elapsed` there.
+- [x] **S4. `HitStop` is a static singleton with a self-installed root node** — `scripts/core/HitStop.cs:16, 78-94` — Should-fix
+  **Problem / why it matters:** `CLAUDE.md` allows global state only in the `GameState` autoload;
+  `HitStop` keeps `_instance` and the freeze deadline in statics and adds a node to `tree.Root` from
+  inside a hit callback. It works (probe and smoke: the time scale is always restored, `_ExitTree`
+  backstop present, single owner of `Engine.TimeScale`), but ownership is invisible in the tree and
+  editor, `Cancel()` has no caller, and a second static singleton sets the precedent the rulebook
+  forbids. Plan-accepted design, so not a blocker.
+  **Fix:** A (correct) — register `HitStop` as an autoload via `/project-settings` (commit-body
+  note) and drop `_instance` / `GetOrCreate`; B (quick) — create the node once from
+  `GameState._Ready` as its child so the autoload is the owner and `Cancel()` is called from the
+  T-06 restart.
+- [x] **S5. Heavy hit-stop 6 frames exceeds GAME_DESIGN §6 (3–5 frames)** — `scenes/player/Player.tscn:381`, plan "Defaults" line — Should-fix
+  **Problem / why it matters:** `CLAUDE.md`: when code and document disagree, the document wins;
+  the plan's conformance section claims no disagreement. One exported number.
+  **Fix:** set `HeavyAttack.HitStopFrames = 5` (or get the author's OK and amend §6 to "3–6").
+- [x] **S6. `Player.TakeHit` → energy / Hurt / KO has no automated coverage** — `tests/smoke/combat_dummy.gd:362-376` — Should-fix
+  **Problem / why it matters:** the plan's test strategy and acceptance criterion name direct
+  `TakeHit` calls; GDScript cannot build a C# `HitInfo`, so the smoke only drives the states and
+  never checks `Energy −10`, `Hurt` signal, KO at `≤ MinEnergy` or `TakeHit` returning false after KO.
+  **Fix:** add a Variant-friendly seam, e.g. `public bool TakeHit(float damage, float knockback,
+  bool knockdown, int hitStopFrames)` on `Player` (builds the `HitInfo`), then assert in the smoke:
+  Energy drops by 10, state `Hurt`→`Idle`, `Velocity.X` sign, KO when damage ≥ energy, further
+  `TakeHit` → false and state stays `KO`.
+
+#### Tests
+- [x] S6 — `Player.TakeHit` energy/Hurt/KO path — `tests/smoke/combat_dummy.gd`.
+- [x] Facing-left hit not covered (probe confirms it works: `Facing` −1, `Visual.scale` (−1, 1), HP
+  30→25, dummy pushed left) — add one left-facing hit to `tests/smoke/combat_dummy.gd` so a future
+  hitbox reparenting cannot break it silently.
+- [x] Regression steps for S2 (press during freeze must chain) and S3 (second knockdown restarts
+  `DownDuration`) once fixed — `tests/smoke/combat_dummy.gd`.
+- Playtest checklist present in the plan and TASKS.md.
+
+#### Nits
+- `HitInfo.SourceY` is captured at activation (`scripts/core/Hitbox.cs:53`) and compared at
+  `:91`; fine while attackers stand still during attacks (`PlayerAttack.cs:65`), stale for a future
+  moving attack — read `Attacker.GlobalPosition.Y` live in `TryHit`.
+- `scenes/player/Player.tscn:1` `load_steps=20` but the file has 9 ext + 11 sub-resources + the
+  scene = 21; harmless (progress hint only), the editor will rewrite it.
+- `scenes/levels/TestRoom.tscn:5` references `Dummy.tscn` without `uid=` while the Player
+  reference has one; the editor will add it — consistent style.
+- `scripts/player/Player.cs:186-208`: an attack state whose `AnimationName` is not on the
+  `AnimationPlayer` silently ends on the next physics frame — a `GD.PushWarning` would make a
+  renamed animation visible.
+- An attack interrupted by Hurt/KO leaves `PH_Fist` at its last keyed position (no RESET on
+  interruption) — cosmetic until art replaces the fist.
+- `scripts/core/HitStop.cs:20` `IsActive => Engine.TimeScale == 0.0` — brittle if any slow-motion
+  ever sets 0.5; track a bool.
+- Design observation (plan-conformant): a light hit on a `Down` dummy stands it up into Hurt
+  (`Dummy.cs:92` → `DummyDown.Exit` → `SetDown(false)`); SoR keeps floored enemies down — decide
+  before T-06 copies the rule.
+- `scripts/enemies/Dummy.cs:107` rotates `Visual` about its centre (36 px above the feet), so the
+  "lying" body floats — placeholder cosmetic.
+
+#### What's done well
+- `Hitbox` stays monitoring and is gated by `Activate`/`Deactivate`: no `Monitoring` toggles inside
+  physics callbacks, targets already overlapping are hit on activation, `_alreadyHit` gives exactly
+  one hit per activation, and the depth check lives in one shared place — the player and future
+  enemies cannot drift apart.
+- `HitStop` restores from the wall clock in a `ProcessMode.Always` node under the root with an
+  `_ExitTree` backstop — the freeze never depends on the attacker, target or level surviving; the
+  probe and smoke confirm the restore every time, including multiple hits and the KO case.
+- Attack states carry all balance in exports; `PlayerAttack.Exit` closes the hitbox on any
+  interruption, so a Hurt/KO mid-swing cannot leave an active hitbox.
+- `Dummy.TakeHit` orders transition → flash so the KO dim and the flash tween compose correctly;
+  the previous tween is killed before a new flash.
+- `combat_dummy.gd` asserts real behaviour: hit-stop start and bounded duration, the inclusive
+  depth boundary at exactly `DepthTolerance`, a miss at 20 px with no time-scale dip, KO ignoring
+  further hits, transition order — and resets `Engine.time_scale` on exit.
+- Signal handlers are unsubscribed in `_ExitTree` (`Player.cs:125`, `Hitbox.cs:47`).
+
+#### Verdict
+Ship: yes — no blockers; build, headless and smoke are green and the task's "done when" is
+literally true (3-hit combo, heavy knockdown, hit-stop). S1–S3 are real combat-feel/consistency
+bugs that T-06 will expose, so fix them before enemies arrive. First: S2 (combo window vs freeze),
+S3 (reaction restart), S1 (airborne Hurt).

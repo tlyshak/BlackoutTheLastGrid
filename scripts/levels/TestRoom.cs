@@ -5,8 +5,8 @@ namespace BlackoutLastGrid.Levels;
 
 /// <summary>
 /// Placeholder room for movement/combat tasks: a floor band, two <c>PH_</c> props at different
-/// depths, side walls and a debug label. Owns the <see cref="Player"/> instance and reads only
-/// its public state for the label.
+/// depths, dummies, side walls and a debug label. Owns the <see cref="Player"/> instance and reads
+/// only its public API: the <c>StateChanged</c> signal and <c>Height</c>.
 /// </summary>
 public partial class TestRoom : Node2D
 {
@@ -16,21 +16,36 @@ public partial class TestRoom : Node2D
     /// <summary>On-screen label showing the current state and jump height.</summary>
     [Export] public Label DebugLabel { get; set; } = null!;
 
-    private string _lastState = string.Empty;
-    private int _lastHeight = -1;
+    private string _state = string.Empty;
+    private int _height = -1;
+
+    /// <inheritdoc/>
+    public override void _Ready()
+    {
+        Player.StateChanged += OnPlayerStateChanged;
+        _state = Player.CurrentStateName;
+        RefreshLabel();
+    }
+
+    /// <inheritdoc/>
+    public override void _ExitTree() => Player.StateChanged -= OnPlayerStateChanged;
 
     /// <inheritdoc/>
     public override void _Process(double delta)
     {
-        string state = Player.CurrentStateName;
         int height = Mathf.RoundToInt(Player.Height);
-        if (state == _lastState && height == _lastHeight)
+        if (height != _height)
         {
-            return;
+            _height = height;
+            RefreshLabel();
         }
-
-        _lastState = state;
-        _lastHeight = height;
-        DebugLabel.Text = $"State: {state}  z: {height}";
     }
+
+    private void OnPlayerStateChanged(string from, string to)
+    {
+        _state = to;
+        RefreshLabel();
+    }
+
+    private void RefreshLabel() => DebugLabel.Text = $"State: {_state}  z: {_height}";
 }

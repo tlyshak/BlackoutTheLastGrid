@@ -89,7 +89,8 @@ public partial class Dummy : CharacterBody2D, IHittable
         UpdateHpLabel();
         EmitSignalDamaged(Hp);
 
-        StateMachine.TransitionTo(Hp <= 0f ? DummyState.StateKO : hit.Knockdown ? DummyState.StateDown : DummyState.StateHurt);
+        string reaction = Hp <= 0f ? DummyState.StateKO : hit.Knockdown ? DummyState.StateDown : DummyState.StateHurt;
+        StateMachine.TransitionToOrRestart(reaction);
         Flash();
         return true;
     }

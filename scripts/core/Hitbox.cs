@@ -47,7 +47,7 @@ public partial class Hitbox : Area2D
     public override void _ExitTree() => AreaEntered -= OnAreaEntered;
 
     /// <summary>Opens the active window with the given hit parameters and hits anything already overlapping.</summary>
-    /// <param name="info">Hit parameters; <see cref="HitInfo.SourceY"/> is filled in from <see cref="Attacker"/>.</param>
+    /// <param name="info">Hit parameters; <see cref="HitInfo.SourceY"/> is refreshed from <see cref="Attacker"/> at every hit.</param>
     public void Activate(in HitInfo info)
     {
         _info = info with { SourceY = Attacker?.GlobalPosition.Y ?? info.SourceY };
@@ -88,13 +88,14 @@ public partial class Hitbox : Area2D
             return;
         }
 
-        if (Mathf.Abs(targetNode.GlobalPosition.Y - _info.SourceY) > _info.DepthTolerance)
+        float sourceY = Attacker?.GlobalPosition.Y ?? _info.SourceY;
+        if (Mathf.Abs(targetNode.GlobalPosition.Y - sourceY) > _info.DepthTolerance)
         {
             return;
         }
 
         _alreadyHit.Add(target);
-        if (hittable.TakeHit(_info))
+        if (hittable.TakeHit(_info with { SourceY = sourceY }))
         {
             EmitSignalHit(targetNode);
         }

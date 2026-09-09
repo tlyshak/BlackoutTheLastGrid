@@ -46,18 +46,33 @@ public partial class PlayerAttack : PlayerState
             HitStopFrames,
             Player.DepthTolerance,
             Player.GlobalPosition.Y);
+        if (!Player.AnimationPlayer.HasAnimation(AnimationName))
+        {
+            GD.PushWarning($"{Name}: AnimationPlayer has no animation '{AnimationName}'; the attack ends immediately.");
+        }
+
         Player.PlayAnimation(AnimationName);
     }
 
     /// <inheritdoc/>
-    public override void Exit(State? next) => Player.HitboxOff();
+    public override void Exit(State? next)
+    {
+        Player.HitboxOff();
+        if (Player.IsAnimationPlaying(AnimationName))
+        {
+            Player.ResetPose();   // interrupted mid-swing (Hurt/KO): put the fist back
+        }
+    }
 
     /// <inheritdoc/>
     public override void PhysicsUpdate(double delta)
     {
         if (Player.IsAnimationPlaying(AnimationName))
         {
-            if (NextCombo.Length > 0 && Player.AttackPressed && Player.AnimationTime >= ComboWindowStart)
+            // The combo window opens either at ComboWindowStart or as soon as the hit window is
+            // open — a press during the hit-stop of this attack (animation frozen) still counts.
+            bool windowOpen = Player.AnimationTime >= ComboWindowStart || Player.Hitbox.IsActive;
+            if (NextCombo.Length > 0 && windowOpen && Player.AttackPressed)
             {
                 _buffered = true;
             }

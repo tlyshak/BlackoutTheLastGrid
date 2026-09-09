@@ -20,6 +20,7 @@ public partial class Player : CharacterBody2D, IHittable
     private static readonly StringName ActionJump = "jump";
     private static readonly StringName ActionAttack = "attack";
     private static readonly StringName ActionHeavyAttack = "heavy_attack";
+    private static readonly StringName ResetAnimation = "RESET";
 
     /// <summary>Emitted when a hit connected with the hero (after energy was drained).</summary>
     [Signal]
@@ -28,6 +29,10 @@ public partial class Player : CharacterBody2D, IHittable
     /// <summary>Emitted once when the hero is knocked out (energy reached the minimum).</summary>
     [Signal]
     public delegate void KnockedOutEventHandler();
+
+    /// <summary>Re-emits the state machine's transitions so owners (levels, HUD) never reach into the child.</summary>
+    [Signal]
+    public delegate void StateChangedEventHandler(string from, string to);
 
     /// <summary>Walk speed along X on the floor plane.</summary>
     [Export] public float MoveSpeed { get; set; } = 220f;
@@ -118,11 +123,16 @@ public partial class Player : CharacterBody2D, IHittable
 
         Hitbox.Attacker = this;
         Hitbox.Hit += OnHitboxHit;
+        StateMachine.StateChanged += OnStateChanged;
         UpdateVisual();
     }
 
     /// <inheritdoc/>
-    public override void _ExitTree() => Hitbox.Hit -= OnHitboxHit;
+    public override void _ExitTree()
+    {
+        Hitbox.Hit -= OnHitboxHit;
+        StateMachine.StateChanged -= OnStateChanged;
+    }
 
     /// <summary>
     /// Moves along the floor plane for one physics step, clamps depth to the floor bounds and
@@ -158,6 +168,14 @@ public partial class Player : CharacterBody2D, IHittable
     public void StartJump()
     {
         _zVelocity = JumpVelocity;
+        UpdateVisual();
+    }
+
+    /// <summary>Puts the hero back on the floor immediately (height and vertical speed reset).</summary>
+    public void Land()
+    {
+        _z = 0f;
+        _zVelocity = 0f;
         UpdateVisual();
     }
 
@@ -207,6 +225,15 @@ public partial class Player : CharacterBody2D, IHittable
         }
     }
 
+    /// <summary>Returns the <see cref="AnimationPlayer"/> to its rest pose (fist, tint, rotation) after an interrupted animation.</summary>
+    public void ResetPose()
+    {
+        if (AnimationPlayer.HasAnimation(ResetAnimation))
+        {
+            AnimationPlayer.Play(ResetAnimation);
+        }
+    }
+
     /// <summary><c>true</c> while <see cref="AnimationPlayer"/> is playing <paramref name="animation"/>.</summary>
     public bool IsAnimationPlaying(StringName animation) =>
         AnimationPlayer.IsPlaying() && AnimationPlayer.CurrentAnimation == animation;
@@ -238,18 +265,27 @@ public partial class Player : CharacterBody2D, IHittable
         if (state.Energy <= state.MinEnergy)
         {
             _knockedOut = true;
-            StateMachine.TransitionTo(PlayerState.StateKO);
+            StateMachine.TransitionToOrRestart(PlayerState.StateKO);
             EmitSignalKnockedOut();
         }
         else
         {
-            StateMachine.TransitionTo(PlayerState.StateHurt);
+            StateMachine.TransitionToOrRestart(PlayerState.StateHurt);
         }
 
         return true;
     }
 
-    private void OnHitboxHit(Node2D target) => HitStop.Trigger(GetTree(), CurrentAttack.HitStopFrames);
+    /// <summary>
+    /// Variant-friendly form of <see cref="TakeHit(in HitInfo)"/> for tests and scripted events
+    /// (GDScript cannot construct <see cref="HitInfo"/>).
+    /// </summary>
+    public bool TakeDamage(float damage, float knockback, bool knockdown, int hitStopFrames) =>
+        TakeHit(new HitInfo(damage, knockback, knockdown, hitStopFrames, DepthTolerance, GlobalPosition.Y));
+
+    private void OnHitboxHit(Node2D target) => HitStop.Trigger(CurrentAttack.HitStopFrames);
+
+    private void OnStateChanged(string from, string to) => EmitSignalStateChanged(from, to);
 
     private void ClampToFloor()
     {

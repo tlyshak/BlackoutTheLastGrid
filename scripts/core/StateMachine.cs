@@ -80,10 +80,21 @@ public partial class StateMachine : Node
     /// <summary>
     /// Switches to the state named <paramref name="stateName"/>. Unknown names and requests made
     /// from inside <see cref="State.Exit"/> are reported with <c>GD.PushError</c> and ignored;
-    /// transitioning to the current state is a no-op.
+    /// transitioning to the current state is a no-op (see <see cref="TransitionToOrRestart"/>
+    /// for hit reactions that must restart).
     /// </summary>
     /// <param name="stateName">Node name of the target state.</param>
-    public void TransitionTo(string stateName)
+    public void TransitionTo(string stateName) => Transition(stateName, restartIfCurrent: false);
+
+    /// <summary>
+    /// Like <see cref="TransitionTo"/>, but re-enters the state when it is already current
+    /// (a second hit while already in Hurt/Down restarts the reaction). Kept as a separate
+    /// method because Godot does not expose C# optional parameters to scripts.
+    /// </summary>
+    /// <param name="stateName">Node name of the target state.</param>
+    public void TransitionToOrRestart(string stateName) => Transition(stateName, restartIfCurrent: true);
+
+    private void Transition(string stateName, bool restartIfCurrent)
     {
         if (!_states.TryGetValue(stateName, out State? next))
         {
@@ -93,6 +104,11 @@ public partial class StateMachine : Node
 
         if (ReferenceEquals(next, CurrentState))
         {
+            if (restartIfCurrent)
+            {
+                Restart();
+            }
+
             return;
         }
 
@@ -115,6 +131,25 @@ public partial class StateMachine : Node
         CurrentState = next;
         EmitSignalStateChanged(fromName, next.Name);
         next.Enter(previous);
+    }
+
+    /// <summary>
+    /// Re-enters the current state: <see cref="State.Exit"/> then <see cref="State.Enter"/> with
+    /// the state itself as the other party. No <see cref="StateChangedEventHandler"/> is emitted.
+    /// Ignored while exiting or when there is no current state.
+    /// </summary>
+    public void Restart()
+    {
+        if (CurrentState is null || _exiting)
+        {
+            return;
+        }
+
+        State current = CurrentState;
+        _exiting = true;
+        current.Exit(current);
+        _exiting = false;
+        current.Enter(current);
     }
 
     /// <summary>Returns <c>true</c> if a state with the given name is registered.</summary>
