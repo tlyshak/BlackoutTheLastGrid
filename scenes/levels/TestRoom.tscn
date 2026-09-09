@@ -1,18 +1,40 @@
-[gd_scene load_steps=6 format=3 uid="uid://c5as8u6w2way2"]
+[gd_scene load_steps=13 format=3 uid="uid://c5as8u6w2way2"]
 
 [ext_resource type="Script" path="res://scripts/levels/TestRoom.cs" id="1_room"]
 [ext_resource type="PackedScene" uid="uid://ct2db4jsifoal" path="res://scenes/player/Player.tscn" id="2_player"]
 [ext_resource type="PackedScene" uid="uid://cx22u1thref1a" path="res://scenes/enemies/Dummy.tscn" id="3_dummy"]
 [ext_resource type="PackedScene" uid="uid://2adcecasbtv6" path="res://scenes/ui/HUD.tscn" id="4_hud"]
+[ext_resource type="PackedScene" uid="uid://cfwn1x5yxrf0r" path="res://scenes/enemies/Guard.tscn" id="5_guard"]
+[ext_resource type="PackedScene" uid="uid://bl4rdh3hy5v37" path="res://scenes/core/WaveSpawner.tscn" id="6_spawner"]
+[ext_resource type="Script" path="res://scripts/core/EnemyDirector.cs" id="7_director"]
+[ext_resource type="Script" path="res://scripts/props/LitZone.cs" id="8_litzone"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
 size = Vector2(40, 400)
 
-[node name="TestRoom" type="Node2D" node_paths=PackedStringArray("Player", "DebugLabel")]
+[sub_resource type="CircleShape2D" id="CircleShape2D_zone"]
+radius = 160.0
+
+[sub_resource type="Gradient" id="Gradient_lamp"]
+offsets = PackedFloat32Array(0, 0.4, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.5, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_lamp"]
+gradient = SubResource("Gradient_lamp")
+width = 256
+height = 256
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.5, 0)
+
+[node name="TestRoom" type="Node2D" node_paths=PackedStringArray("Player", "Camera", "DebugLabel", "Director", "StandingGuard")]
 y_sort_enabled = true
 script = ExtResource("1_room")
 Player = NodePath("Player")
+Camera = NodePath("Camera2D")
 DebugLabel = NodePath("UI/DebugLabel")
+Director = NodePath("EnemyDirector")
+StandingGuard = NodePath("Guard")
 
 [node name="CanvasModulate" type="CanvasModulate" parent="."]
 color = Color(0.0392157, 0.0509804, 0.0784314, 1)
@@ -60,6 +82,23 @@ position = Vector2(760, 520)
 color = Color(0.5, 0.52, 0.55, 1)
 polygon = PackedVector2Array(-8, -96, 8, -96, 8, 0, -8, 0)
 
+[node name="LitZone" type="Area2D" parent="."]
+position = Vector2(760, 520)
+collision_layer = 64
+collision_mask = 0
+monitoring = false
+script = ExtResource("8_litzone")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LitZone"]
+shape = SubResource("CircleShape2D_zone")
+
+[node name="PH_ZoneLamp" type="PointLight2D" parent="LitZone"]
+position = Vector2(0, -96)
+color = Color(1, 0.9, 0.7, 1)
+energy = 1.2
+texture = SubResource("GradientTexture2D_lamp")
+texture_scale = 1.5
+
 [node name="Player" parent="." instance=ExtResource("2_player")]
 position = Vector2(400, 450)
 
@@ -68,6 +107,28 @@ position = Vector2(640, 450)
 
 [node name="Dummy2" parent="." instance=ExtResource("3_dummy")]
 position = Vector2(760, 470)
+
+[node name="Guard" parent="." instance=ExtResource("5_guard")]
+position = Vector2(1300, 450)
+Facing = -1
+
+[node name="EnemyDirector" type="Node" parent="."]
+script = ExtResource("7_director")
+
+[node name="WaveSpawner" parent="." node_paths=PackedStringArray("Player", "Director", "Camera") instance=ExtResource("6_spawner")]
+position = Vector2(950, 450)
+LockRect = Rect2(0, 0, 1920, 1080)
+Player = NodePath("../Player")
+Director = NodePath("../EnemyDirector")
+Camera = NodePath("../Camera2D")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(960, 540)
+limit_left = 0
+limit_top = 0
+limit_right = 1920
+limit_bottom = 1080
+position_smoothing_enabled = true
 
 [node name="HUD" parent="." instance=ExtResource("4_hud")]
 

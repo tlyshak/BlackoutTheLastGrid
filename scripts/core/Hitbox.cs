@@ -14,8 +14,10 @@ namespace BlackoutLastGrid.Core;
 /// </summary>
 /// <remarks>
 /// Scene contract: node name <c>Hitbox</c>; targets are <c>Area2D</c> nodes named <c>Hurtbox</c>
-/// whose parent (the scene root) implements <see cref="IHittable"/>. Collision layers/masks are
-/// set in the scene (<c>Player/Visual/Hitbox</c> = layer 4 / mask 3, enemy hitboxes = 5 / 2).
+/// whose scene root (<see cref="Node.Owner"/>, or failing that the nearest ancestor) implements
+/// <see cref="IHittable"/> — the hurtbox itself lives under <c>Visual</c> so it rises with a jump.
+/// Collision layers/masks are set in the scene (<c>Player/Visual/Hitbox</c> = layer 4 / mask 3,
+/// enemy hitboxes = 5 / 2).
 /// </remarks>
 public partial class Hitbox : Area2D
 {
@@ -84,8 +86,8 @@ public partial class Hitbox : Area2D
             return;
         }
 
-        Node target = area.GetParent();
-        if (ReferenceEquals(target, Attacker))
+        Node? target = FindHittable(area);
+        if (target is null || ReferenceEquals(target, Attacker))
         {
             return;   // never hit the owner's own Hurtbox, whatever the masks say
         }
@@ -107,5 +109,22 @@ public partial class Hitbox : Area2D
             HitStop.Trigger(_info.HitStopFrames);
             EmitSignalHit(targetNode);
         }
+    }
+
+    /// <summary>The actor a Hurtbox belongs to: its scene root when that is hittable, else the nearest hittable ancestor.</summary>
+    private static Node? FindHittable(Area2D hurtbox)
+    {
+        if (hurtbox.Owner is IHittable)
+        {
+            return hurtbox.Owner;
+        }
+
+        Node? node = hurtbox.GetParent();
+        while (node is not null && node is not IHittable)
+        {
+            node = node.GetParent();
+        }
+
+        return node;
     }
 }

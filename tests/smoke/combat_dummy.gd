@@ -4,9 +4,11 @@ extends SceneTree
 # |dy| = 20, hit at |dy| = DepthTolerance inclusive), heavy knockdown (Down → Idle after
 # DownDuration), KO at 0 HP and ignored hits afterwards, hero Hurt/KO states. Needs physics frames.
 # Review fix-pass regressions (sections 8+, in a fresh room): HitStop autoload (S4), `attack`
-# pressed during the hit-stop chains into LightAttack2 (S2), a second knockdown restarts
-# DownDuration (S3), a facing-left hit, a hit taken mid-jump falls before Idle (S1), and
-# Player.TakeDamage -> Energy / Hurt signal / KO / ignored after KO (S6).
+# pressed during the hit-stop chains into LightAttack2 (S2), a Down dummy is invulnerable — a
+# second heavy while it lies is ignored and it gets up on the first knockdown's DownDuration
+# (T-B01, section 11, replacing the earlier "restart DownDuration" S3 check), a facing-left hit,
+# a hit taken mid-jump falls before Idle (S1), and Player.TakeDamage -> Energy / Hurt signal /
+# KO / ignored after KO (S6).
 # Review #1 fix-pass (T-03r): the combo is chained by AnimationTime / Hitbox.IsActive read from the
 # running attack state, never by a wall-clock wait (S4); a second hit 8 frames into the hero's Hurt
 # rewinds the stun so Idle comes no earlier than ~18 frames after the second hit (S1).
@@ -173,6 +175,12 @@ func _run() -> void:
 		return
 	var room: Node = scene.instantiate()
 	root.add_child(room)
+	# Instancing the T-06 room takes ~130 ms (guard, spawner, lamp texture); Godot then catches up
+	# with up to 8 physics steps in ONE iteration whose idle delta is 8/60 s. Let that iteration
+	# pass before stepping physics frames, or the first attack — and its 0.12 s flash — would run
+	# entirely inside it.
+	await process_frame
+	await process_frame
 
 	var player: Node = room.get_node_or_null("Player")
 	var dummy: Node = room.get_node_or_null("Dummy")
@@ -213,7 +221,7 @@ func _run() -> void:
 		room.queue_free()
 		_finish()
 		return
-	_check(dummy.get_node_or_null("Hurtbox") != null, "Dummy has no 'Hurtbox' Area2D (Hitbox looks it up by name)")
+	_check(dummy.get_node_or_null("Visual/Hurtbox") != null, "Dummy has no 'Visual/Hurtbox' Area2D (Hitbox looks it up by name; it lives under Visual so it rises with a jump)")
 	for s in ["Idle", "LightAttack1", "LightAttack2", "LightAttack3", "HeavyAttack", "Hurt", "KO"]:
 		_check(sm.HasState(s), "Player StateMachine lacks state '%s'" % s)
 	for s in ["Idle", "Hurt", "Down", "KO"]:
@@ -424,6 +432,8 @@ func _run() -> void:
 	await _step(1)
 	room = scene.instantiate()
 	root.add_child(room)
+	await process_frame   # same settle as for the first room: consume the load catch-up iteration
+	await process_frame
 	player = room.get_node_or_null("Player")
 	dummy = room.get_node_or_null("Dummy")
 	dummy2 = room.get_node_or_null("Dummy2")
@@ -503,8 +513,9 @@ func _run() -> void:
 	_check(Engine.time_scale == 1.0, "S2: Engine.time_scale=%s at the end, expected 1" % Engine.time_scale)
 	_check(_transitions == sm_transitions, "Player.StateChanged %s differs from StateMachine.StateChanged %s" % [_transitions, sm_transitions])
 
-	# 11. S3 regression: a second heavy on a Down dummy restarts DownDuration (60 frames) instead
-	#     of keeping the first timer. Dummy2 (30 HP): 18 after the first, 6 after the second.
+	# 11. T-B01 (SoR rule, replaces the S3 "restart DownDuration" check): a Down dummy is
+	#     invulnerable. Dummy2 (30 HP): 18 after the first heavy; a second heavy while it lies is
+	#     ignored (no Hp change, no hit-stop) and it gets up on the first knockdown's DownDuration.
 	_transitions.clear()
 	player.position = Vector2(DUMMY2_START.x - 40.0, DUMMY2_START.y)
 	await _step(2)
@@ -532,23 +543,33 @@ func _run() -> void:
 	_check(dummy2.position.x - player.position.x <= 60.0, "S3: Dummy2 %.1f px ahead of the hero, expected <= 60 (in range)" % (dummy2.position.x - player.position.x))
 	_check(dummy2.CurrentStateName == "Down", "S3: Dummy2 state '%s' right before the second heavy, expected still 'Down'" % dummy2.CurrentStateName)
 	await _tap("heavy_attack")
-	var s3b: Dictionary = await _watch_hit(dummy2, HIT_CAP_MS)
-	_check(s3b["hit"], "S3: second heavy did not hit the Down Dummy2 within %d ms (Hp=%s)" % [HIT_CAP_MS, dummy2.Hp])
-	if s3b["hit"]:
-		_check(s3b["state"] == "Down", "S3: Dummy2 state '%s' after the second heavy, expected 'Down'" % s3b["state"])
-		_check(s3b["scale"] == 0.0, "S3: Engine.time_scale=%s right after the second heavy, expected 0" % s3b["scale"])
-	var s3b_restore: int = await _wait_restored(RESTORE_CAP_MS)
-	_check(s3b_restore >= 0, "S3: Engine.time_scale not restored after the second heavy within %d ms" % RESTORE_CAP_MS)
-	_check(is_equal_approx(dummy2.Hp, 6.0), "S3: Dummy2.Hp=%s after the second heavy, expected 6" % dummy2.Hp)
-	await _step(45)
-	_check(dummy2.CurrentStateName == "Down", "S3: Dummy2 state '%s' 45 frames after the second knockdown, expected still 'Down' (DownDuration restarted; pre-fix it stood up ~24 frames after the second hit)" % dummy2.CurrentStateName)
-	_check(is_equal_approx(d2visual.rotation, PI / 2.0), "S3: Dummy2 Visual.rotation=%.3f 45 frames after the second knockdown, expected PI/2" % d2visual.rotation)
-	await _step(30)
-	_check(dummy2.CurrentStateName == "Idle", "S3: Dummy2 state '%s' 75 frames after the second knockdown, expected 'Idle'" % dummy2.CurrentStateName)
+	# The heavy's hit window (0.22-0.36 s) opens ~40 frames after the first knockdown, well inside
+	# DownDuration (60 frames): the hit must be ignored — no Hp change, no hit-stop.
+	var s3b: Dictionary = await _watch_hit(dummy2, NO_HIT_WINDOW_MS)
+	_check(not s3b["hit"], "T-B01: second heavy hit the Down Dummy2 (Hp=%s), expected the hit to be ignored while it lies" % dummy2.Hp)
+	_check(s3b["min_scale"] == 1.0, "T-B01: Engine.time_scale dropped to %s during the ignored heavy, expected no hit-stop" % s3b["min_scale"])
+	_check(is_equal_approx(dummy2.Hp, 18.0), "T-B01: Dummy2.Hp=%s after the ignored heavy, expected still 18" % dummy2.Hp)
+	_check(dummy2.IsKnockedOut == false, "T-B01: Dummy2 knocked out at 18 HP")
+	# It gets up on the FIRST knockdown's DownDuration — the ignored hit restarts nothing.
+	var s3_getup_cap := 45
+	var s3_up_after: int = -1
+	for i in s3_getup_cap:
+		if dummy2.CurrentStateName == "Idle":
+			s3_up_after = i
+			break
+		await physics_frame
+	_check(s3_up_after >= 0, "T-B01: Dummy2 state '%s' %d frames after the ignored heavy, expected 'Idle' (got up on the original DownDuration)" % [dummy2.CurrentStateName, s3_getup_cap])
 	_check(is_equal_approx(d2visual.rotation, 0.0), "S3: Dummy2 Visual.rotation=%.3f after getting up, expected 0" % d2visual.rotation)
-	_check(dummy2.IsKnockedOut == false, "S3: Dummy2 knocked out at 6 HP")
-	_check(player.CurrentStateName == "Idle", "S3: player state '%s' at the end, expected 'Idle'" % player.CurrentStateName)
+	_check(is_equal_approx(dummy2.Hp, 18.0), "T-B01: Dummy2.Hp=%s after getting up, expected 18" % dummy2.Hp)
+	var s3_player_idle_end := false
+	for i in 20:   # the second heavy animation (0.55 s) may still be finishing
+		if player.CurrentStateName == "Idle":
+			s3_player_idle_end = true
+			break
+		await physics_frame
+	_check(s3_player_idle_end, "S3: player state '%s' at the end, expected 'Idle' within 20 frames" % player.CurrentStateName)
 	_check(Engine.time_scale == 1.0, "S3: Engine.time_scale=%s at the end, expected 1" % Engine.time_scale)
+	print("combat_dummy: T-B01 second heavy on the Down Dummy2 ignored (Hp %s), up %d frames after the no-hit window" % [dummy2.Hp, s3_up_after])
 
 	# 12. Facing-left hit: hero to the RIGHT of Dummy (healthy, 20 HP after S2), faces left after a
 	#     2-frame move_left, the flipped hitbox lands and the knockback pushes the dummy LEFT.
