@@ -1,12 +1,15 @@
 ---
 name: task
-description: Run the CLAUDE.md work cycle for exactly one docs/TASKS.md task end to end — status, branch, optional plan, implementation, /verify, smoke tests, playtest note, done-note, one commit. Never pushes or starts the next task.
+description: Run the CLAUDE.md work cycle for exactly one docs/TASKS.md task end to end — status, branch, optional plan, implementation, /verify, smoke tests, one /reviewer round with a fix pass (coder + test-writer) and a post-fix /verify, playtest note, done-note, one commit. Never pushes or starts the next task.
 ---
 
 You are acting as the **task runner** for BLACKOUT: Last Grid (Godot 4.7 .NET, C# 12). Usage:
 `/task T-02` (or `/task` for the first `todo`). You own the whole cycle for **one** task and
-delegate the specialised parts to `/architect`, `/coder`, `/verify`, `/test-writer` and
-`/project-settings` — their rules apply inside this run.
+delegate the specialised parts to `/architect`, `/coder`, `/verify`, `/test-writer`,
+`/reviewer` and `/project-settings` — their rules apply inside this run. Steps 5–11 are the
+same fixed pipeline `/orchestrator` runs
+(`coder → verify → test-writer → reviewer → coder → test-writer → verify`); on top of it
+`/task` owns the branch, the TASKS.md status and the commit.
 
 ## Your job in this invocation
 
@@ -40,7 +43,7 @@ delegate the specialised parts to `/architect`, `/coder`, `/verify`, `/test-writ
    `project.godot`, InputMap, autoloads, layer names or `.csproj` goes through
    `/project-settings` first. Out-of-scope findings become `backlog` entries in `docs/TASKS.md`,
    not code. `/coder` hands back the Зроблено / Не зроблено text in its report — keep it for
-   step 8; it does not write it into TASKS.md itself.
+   step 12; it does not write it into TASKS.md itself.
 6. **Verify** with `/verify` — pass/fail criteria are defined there, not here. On any verdict
    other than `verified`, fix and re-run — at most **3** loops. If the third run is still not
    `verified`, stop, leave the branch as is, and report what is failing; do not mark the task
@@ -49,36 +52,67 @@ delegate the specialised parts to `/architect`, `/coder`, `/verify`, `/test-writ
    line (and the plan's Test strategy) plus the numbered playtest checklist. Re-run
    `powershell -ExecutionPolicy Bypass -File tools/smoke.ps1` after they land (judged by
    `/verify`'s rules); a failing new script counts as a failed run in step 6's budget.
-8. **Set `done` and write the note** — change the heading status to `done` and append under
-   the task's bullets, in the same shape T-01 uses (Ukrainian is fine here; the Зроблено /
-   Не зроблено lines come from the coder's report, the playtest from `/test-writer`):
-   ```
-   - **Зроблено:** <1–2 lines: files/scenes/scripts, what works, how it was verified>
-   - **Не зроблено:** <what was deferred and why, or "—">
-   - **Плейтест:** 1) відкрити scenes/levels/TestRoom.tscn як головну (F6) … 2) …
-   ```
-9. **One commit** — stage the task's files only (`git add -A`, then read `git status` and unstage
-   anything unrelated; `.godot/`, `bin/`, `obj/` never appear). Message:
-   ```
-   feat(<area>): <what> [T-xx]
+8. **Review** — run `/reviewer` on the branch delta (`main...HEAD` plus the working tree). It
+   appends `### Round 1 — Ship: <yes|no>` to the plan's `## Review findings` section (when
+   there is no plan it reports the same structure in chat — that chat review is then the
+   journal for steps 9–10). Record the blocker count, the should-fix count and the verdict in
+   the run ledger (the same TodoWrite/scratch list that holds the acceptance criteria from
+   step 1). You fix nothing yourself at this step.
+9. **Fix pass — code** — run `/coder` on exactly the journal's `#### Code` block (every
+   Blocker and Should-fix; Nits optional) plus any red `/verify` result still open. `/coder`
+   ticks each closed item `[x]`. Anything the author must decide — a design question, a
+   conflict with `docs/GAME_DESIGN.md`, an addon or NuGet request — is **not** fixed: leave it
+   unticked and list it for the final report and the done-note.
+10. **Fix pass — tests** — run `/test-writer` on the journal's `#### Tests` block plus a
+    regression smoke check (or playtest step) for every Blocker / Should-fix closed in step 9.
+    It ticks the Tests items `[x]` and refreshes the playtest checklist if behaviour moved.
+11. **Verify again** — run `/verify`; the verdict must be `verified`. Step 6's retry budget
+    (**3** loops in total across the run) applies here too: if it is exhausted, stop, leave
+    the branch as is and report what is failing — no `done`, no commit.
+12. **Set `done` and write the note** — `done` only after the post-fix `/verify` (step 11) is
+    green **and** the Round 1 verdict is `Ship: yes` — or `Ship: no` where every open item is
+    one the author explicitly deferred (those go under Не зроблено). Otherwise leave
+    `in_progress` and report. Change the heading status to `done` and append under the task's
+    bullets, in the same shape T-01 uses (Ukrainian is fine here; the Зроблено / Не зроблено
+    lines come from the coder's report, the playtest from `/test-writer`, the review line from
+    the journal):
+    ```
+    - **Зроблено:** <1–2 lines: files/scenes/scripts, what works, how it was verified>
+    - **Не зроблено:** <what was deferred and why, or "—">
+    - **Рев'ю:** Round 1 — Ship: <yes|no>, закрито <n> Blockers / <n> Should-fix, відкрито: <…|—>
+    - **Плейтест:** 1) відкрити scenes/levels/TestRoom.tscn як головну (F6) … 2) …
+    ```
+13. **One commit** — the fix pass is part of this same task commit: never commit before steps
+    8–11 have run. Stage the task's files only (`git add -A`, then read `git status` and
+    unstage anything unrelated; `.godot/`, `bin/`, `obj/` never appear). Message:
+    ```
+    feat(<area>): <what> [T-xx]
 
-   - <file or scene>: <one-line intent>
-   - ...
-   project.godot: added <…> because <…>      # only if it changed — per /project-settings
-   Verify: build passed, headless passed, smoke <n>/<n>
+    - <file or scene>: <one-line intent>
+    - ...
+    project.godot: added <…> because <…>      # only if it changed — per /project-settings
+    Verify: build passed, headless passed, smoke <n>/<n>
 
-   Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
-   ```
-   `<area>` is the scenes folder the task lives in (`player`, `combat`, `props`, `ui`,
-   `enemies`, `levels`, `core`). Use a heredoc or `-F` file for the multi-line message.
-10. **Stop.** Never push, never merge, never open a PR, never start the next task — the author
-    reviews and pushes. Final report = commit hash, branch, the `/verify` block, the playtest
-    checklist, open items.
+    Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+    ```
+    `<area>` is the scenes folder the task lives in (`player`, `combat`, `props`, `ui`,
+    `enemies`, `levels`, `core`). Use a heredoc or `-F` file for the multi-line message.
+    Legacy exception: if the task was already committed before the review (a branch started
+    under the old rules), a second commit `fix(<area>): review round 1 fixes [T-xx]` is
+    allowed — the only case where a task has two commits.
+14. **Stop.** Never push, never merge, never open a PR, never start the next task — the author
+    reviews and pushes. Final report = commit hash, branch, the `/verify` block, the review
+    line, the playtest checklist, open items.
+
+Steps 8–11 run **exactly once**: one review, one fix pass. A second round (`### Round 2`) only
+on the author's explicit request — the same rule as `/orchestrator`.
 
 ## Constraints specific to this repo
 
-- One task, one branch, one commit. If the task turns out to need two commits, that is a sign
-  it should be split — ask instead of committing twice.
+- One task, one branch, one commit — the review fix pass is inside that commit. If the task
+  turns out to need two commits, that is a sign it should be split — ask instead of committing
+  twice. The only exception is the legacy case in step 13 (task committed before the review →
+  `fix(<area>): review round 1 fixes [T-xx]`).
 - `docs/TASKS.md` edits in this run: the heading status and the done-note only. Backlog entries
   found along the way go under `## Backlog` as `### T-xx · <title> · \`backlog\`` (next free id).
 - Never create or modify anything under `assets/`. Missing art means a `PH_*` placeholder and a
@@ -96,6 +130,8 @@ delegate the specialised parts to `/architect`, `/coder`, `/verify`, `/test-writ
 - "Готово, коли:" is demonstrably true: each clause is backed by a smoke check or a playtest step
   the author can follow in under two minutes.
 - `/verify` verdict is `verified` with real output, and the commit body says how.
+- The Round 1 journal has every Blocker and Should-fix ticked `[x]`, or listed as deferred in
+  the done-note; the post-fix `/verify` is green.
 - The done-note tells the author what to look at first when they open the branch.
 
 ## Output format
@@ -112,6 +148,7 @@ Verify:
   Smoke:    <n pass / n fail> (<names>)
   Scene:    <…>
   Verdict:  <verified | not verified — why>
+Review: Round 1 — Ship: <yes|no>, <n> blockers, <n> should-fix (closed <n>)
 Playtest (manual QA):
 1. …
 Open items: <deferred work, backlog entries added, questions for the author | none>
