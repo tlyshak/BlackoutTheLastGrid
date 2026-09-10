@@ -963,6 +963,26 @@ assertion prevents the whole class of escort bugs); the hero's X after walking i
 free-walk X ± 2 px; `WarpBehind()` from `ApplyRoomBounds` (call it via `Door.Entered` on a
 `TestMine` room switch or directly) leaves him within `FollowDistance`.
 
+**Як це вийшло насправді (2026-09-11, test-writer).** Чотири скрипти написані як заплановано —
+`props_circuit.gd`, `props_gaszone.gd`, `actors_companion.gd`, `level_mine.gd`; `tools/smoke.ps1` →
+**19 passed, 0 failed**. Розбіжності з планом вище, усі на боці плану:
+
+- властивість контуру називається `FreeCapacity`, не `Free` (`Free()` — метод `GodotObject`);
+  `TryPower` справді не викликається з GDScript, тому всі запити йдуть через `panel.Begin(player)`;
+- машин **три**, не чотири (рішення автора №2), тому `Circuit.Machines.size() == 3`;
+- назви машин і всі підказки — англійські (рішення автора №5): `Pump`, `Extractor`, `Hoist`,
+  `"Not enough power: {0} is running"`;
+- HUD після згасання спалаху відмови додає до рядка префікс `E: ` (панель знову доступна для
+  повторної спроби), тому критерій 1 перевіряється як «HUD містить рядок відмови» + точна
+  рівність відформатованому `PromptFormat`; сам `machine.CurrentPrompt` — чистий рядок відмови;
+- вікно попередження міряється через `GasZone.WarningRemaining` у фізичних кадрах, а сам підрив і
+  зняття hit-stop — на idle-кадрах під стінним годинником (фізика під `time_scale == 0` стоїть);
+  промах важкого удару доводиться тим, що `Engine.time_scale` жодного разу не впав;
+- `level_mine.gd` доводить старий KO-шлях у `TestRoom` тим, що `Respawned` не спрацював, героя не
+  підняли, а `RestartLevel()` скинув пробіг (`Energy == MaxEnergy`); у виводі при цьому лишається
+  штатний `WARNING: no current scene to reload` — сцену під тестом нема куди перезавантажувати.
+
+
 **Only verifiable by hand** (→ Playtest): whether the refusal message *reads* as an instruction
 rather than a failure; whether the gas haze is visible enough in the dark before the first warning;
 whether 0.8 s is enough time to react; whether Дан's trailing distance feels like company rather
@@ -974,56 +994,78 @@ feels instant; the pile's floor decal being legible in the dark.
 ## Playtest (manual QA)
 
 Self-contained: scene paths and key names only. Keys — WASD move, Space jump, **J** light attack,
-**K** heavy attack, **E** interact, **F** head lamp, Esc pause.
+**K** heavy attack, **E** interact, **F** head lamp, Esc pause. Кожен видимий рядок у грі —
+англійською (рішення автора 2026-09-11).
 
-1. Open `scenes/levels/TestMine.tscn` and run it as the main scene (**F6**). Expected: a dark mine
-   room, the hero at the left, a second, slimmer figure (Дан) just behind him, the debug label at
-   the top-left reading `Контур 0/1`.
-2. Walk right and stop. Expected: Дан follows, closes to roughly one body-length behind and stops;
-   he never pushes you and you walk **through** him if you turn back into him.
-3. Walk to the pile of timber at x≈440 and press **J** three times. Expected: sparks and hit-stop on
-   each hit, the pile does **not** break. Press **K** twice. Expected: dust, a screen shake, the
-   pile collapses and you can walk through where it was.
-4. Stand slightly above or below the marked floor strip at the pile and press **K**. Expected:
-   nothing connects — the pile is only hittable from the marked strip (this is the belt-scroll depth
-   rule, not a bug).
-5. Walk to the water-blue blockage at x≈700 and press **K**. Expected: nothing but the "resisted"
-   feel — hands do not clear this one. Walk to the panel at x≈620 («Насос») and press **E**.
-   Expected: its screen turns green, its lamp comes on, the water drains and the way is open, the
-   debug label reads `Контур 1/1`.
-6. Walk on to the panel at x≈960 («Витяжка») and press **E**. Expected: it does **not** switch on;
-   the prompt at the bottom reads **«Не хватає потужності: працює Насос»** and its screen flashes
-   red and goes back to dark.
-7. Walk back to «Насос» and press **E**. Expected: its screen goes dark, its lamp goes out, the
-   label reads `Контур 0/1` — **and the drained water does not come back**.
-8. Return to «Витяжка» and press **E**. Expected: it switches on and the greenish-yellow haze in the
-   drift ahead fades out over about a second.
-9. Switch «Витяжка» back off (**E**), walk into the haze area with the lamp **off** (**F** to make
-   sure it is off) and stand there for a few seconds. Expected: nothing happens; the air is visibly
-   tinted but you are safe in the dark.
-10. Still inside the gas, press **F**. Expected: the haze flares, Дан shouts a line, and after
-    roughly a second the pocket ignites: a flash, a hard shake, the hero goes down.
-11. Wait about a second. Expected: you are standing again at the checkpoint before the gas, with the
-    lamp **off**, energy topped up to at least a third, **and the level did not restart** — the
-    cleared pile is still cleared and the circuit label is unchanged.
-12. Repeat step 10, but press **F** again quickly (within the first half-second). Expected: the haze
-    calms down, no explosion. The rule is a reaction test, not a trap.
-13. Switch «Витяжка» on, walk through the cleared gas to x≈1240. Expected: a rumble, a screen shake,
-    and a fresh collapse **behind** you that you cannot walk back through; Дан says a line and
-    stays with you.
-14. Walk to the cage at x≈1720 and press **E**. Expected: refused, naming «Витяжка». Walk back to
-    «Витяжка», press **E** to switch it off, return to the cage and press **E**. Expected: the cage
-    powers up; stepping into it shows the departure label.
-15. Press **Esc** during the gas warning. Expected: the pause menu opens, the countdown stops, the
-    haze freezes; «Продовжити» resumes the countdown where it was. Press **Esc** during the second
-    between the death and the respawn. Expected: no respawn until you resume.
-16. Walk Дан into a wall corner on purpose and run away for three seconds. Expected: he pops back to
-    just behind you rather than staying stuck; he never blocks a panel prompt or a door.
-17. Open `scenes/levels/TestRoom.tscn` (**F6**). Expected: everything behaves exactly as before this
-    task — dummies, guard, wave, outlet, panel, pause, lamp. Let a guard beat you to zero energy:
-    the level **reloads** (there are no checkpoints here), as it always did.
-18. Open `scenes/Main.tscn` (**F5**) and play the prologue as far as the fan panel. Expected: no
-    change of any kind — same texts, same alarm, same doors, same fine.
+Фікстура `scenes/levels/TestMine.tscn` — одна кімната 0…1920, смуга ходьби Y 300…600, механіки
+розставлені зліва праворуч у порядку, у якому їх варто чіпати; підписи `PH_Sign*` на підлозі —
+плейсхолдери-орієнтири, у пролозі їх не буде. Дві відмінності від прологу навмисні: розетка біля
+старту (щоб прогін не можна було забрикувати енергією) і завал від обвалу, який **ламається**
+двома `K` (у пролозі буде `HeavyHitsToClear = 0`).
+
+1. Відкрий `scenes/levels/TestMine.tscn` і запусти як головну сцену (**F6**). Очікується: темна
+   шахта, герой на x≈150, трохи позаду — тонша фігура (Дан), угорі ліворуч рядок
+   `Circuit 0/1   Checkpoint: -   Dan: Follow` і другий рядок подій `-`.
+2. Іди праворуч і стань. Очікується: Дан доганяє, зупиняється приблизно за корпус позаду й стоїть;
+   він ніколи не штовхає героя, і якщо повернути в нього — проходиш крізь.
+3. Пройди смугу на x≈220. Очікується: рядок подій `Checkpoint: Start`, у першому рядку
+   `Checkpoint: Start`.
+4. Розетка на x≈300 (**E**). Очікується: `E: Charge`, енергія в HUD росте, далі `Drained` — як і
+   до цієї задачі.
+5. Завал із кріпильного лісу на x≈440 (підпис `TIMBER PILE (K x2)`, під ним світла смуга ±12 px).
+   Стань на смугу й натисни **J** тричі. Очікується: **нічого** — ні іскор, ні hit-stop, завал
+   стоїть. Тепер **K** двічі. Очікується: пил і тряска на кожному, після другого завал зникає.
+6. Стань на два-три кроки вище або нижче світлої смуги і натисни **K**. Очікується: удар не
+   влучає — це правило глибини belt-scroll, а не баг. (Цей завал перекриває лише саму смугу, тому
+   в широкій кімнаті його можна й обійти по глибині; у пролозі штрек буде вузький.)
+7. Синювате перекриття на x≈700 (`FLOODED DRIFT`) між двома брилами породи. Спробуй **K** і
+   спробуй обійти його по глибині. Очікується: ні руками, ні в обхід — штрек справді перекритий.
+   Панель на x≈600 (`PUMP`), **E**. Очікується: екран зеленіє, лампа над панеллю горить, вода
+   зникає, прохід відкривається, рядок `Circuit 1/1`, подія `Pump running`.
+8. Панель на x≈1180 (`EXTRACTOR`), **E**. Очікується: панель **не** вмикається, екран блимає
+   червоним, унизу підказка **«Not enough power: Pump is running»**, подія
+   `Extractor refused: Pump is running`. Через ~3 с підказка повертається до
+   `E: Switch on the extractor`.
+9. Повернись до `PUMP` і натисни **E**. Очікується: екран гасне, лампа згасає, `Circuit 0/1`,
+   подія `Pump switched off` — **і спущена вода не повертається**.
+10. Газова кишеня на x≈920 (`GAS - REHEARSAL 1.5 s`). З **вимкненим** ліхтарем (натисни **F**, щоб
+    переконатися, що він вимкнений) постій у ній кілька секунд. Очікується: повітря помітно
+    підфарбоване, але нічого не відбувається — у темряві газ безпечний.
+11. Стоячи в кишені, натисни **F**. Очікується: серпанок яскріє, з'являється жовте світло, Дан
+    кричить `Lamp off! Gas!`, і приблизно через 1,5 с кишеня підривається: тряска, герой падає.
+12. Зачекай ~1 с. Очікується: герой знову стоїть на x≈220 з **вимкненим** ліхтарем, **рівень не
+    перезапустився** — розчищений завал так і розчищений, рядок контуру не змінився, подія
+    `Respawned at the checkpoint`.
+13. Повтори п. 11, але натисни **F** ще раз протягом першої секунди. Очікується: серпанок
+    заспокоюється, вибуху немає, подія `Gas: warning off`. Правило — тест на реакцію, не пастка.
+14. Пройди смугу на x≈1080. Очікується: подія `Checkpoint: Before the gas`.
+15. Друга кишеня на x≈1340 (`GAS POCKET 0.8 s`) — той самий дослід, але вікно вдвічі коротше:
+    встигнути погасити ліхтар відчутно важче. Помри в ній і переконайся, що тепер повертає на
+    x≈1048, а не на старт.
+16. Увімкни `EXTRACTOR` (**E** на x≈1180). Очікується: `Circuit 1/1`, і жовто-зелений серпанок
+    кишені на x≈1340 гасне приблизно за секунду, подія `Gas: cleared for good`. Зайди в неї з
+    **увімкненим** ліхтарем — тепер безпечно. Вимкни `EXTRACTOR` — серпанок **не** повертається.
+17. Іди праворуч до x≈1550 (`CAVE-IN TRIGGER`). Очікується: гуркіт, тряска, і **позаду** тебе
+    (x≈1500) з'являється свіжий завал між брилами, крізь який не пройти; Дан каже
+    `Move! It's coming down!`, подія `The roof came down`. Обвал **не вбиває**. Перейди тригер ще
+    раз — більше нічого не відбувається.
+18. Кліть на x≈1780 (`HOIST (whole circuit)`), **E**. Якщо контур вільний — кліть заводиться;
+    щоб побачити відмову, залиш перед обвалом увімкненою якусь машину: тоді **E** дає відмову з її
+    іменем, і щоб її вимкнути, доведеться пробити свіжий завал двома **K** (це піддавка фікстури).
+    З вільним контуром: кліть заводиться, `Circuit 1/1`, зайди в неї — подія `The hoist departed`.
+    Другий раз кліть не «відходить», і вимкнути її вже не можна.
+19. Натисни **Esc** під час відліку газу. Очікується: меню паузи, відлік стоїть, серпанок завмер;
+    «Resume» продовжує відлік з того ж місця. Натисни **Esc** у секунду між смертю і відродженням.
+    Очікується: відродження не відбувається, поки не знімеш паузу.
+20. Заведи Дана в кут навмисно (наприклад, за брилу біля затопленого штреку) і біжи від нього три
+    секунди. Очікується: він з'являється просто позаду тебе, а не лишається в геометрії; він
+    ніколи не блокує підказку панелі й не спрацьовує замість тебе на контрольній точці, обвалі
+    чи газі.
+21. Відкрий `scenes/levels/TestRoom.tscn` (**F6**). Очікується: усе як до цієї задачі — манекени,
+    охоронець, хвиля, розетка, панель, пауза, ліхтар. Дай охоронцю збити енергію в нуль: рівень
+    **перезавантажується** (контрольних точок тут немає), як і раніше.
+22. Відкрий `scenes/Main.tscn` (**F5**) і пройди пролог до панелі вентилятора. Очікується: жодних
+    змін — ті самі тексти, та сама тривога, ті самі двері, той самий штраф.
 
 ---
 
