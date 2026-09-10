@@ -15,13 +15,24 @@ namespace BlackoutLastGrid.Levels;
 /// each room's ambient FX group runs only while that room is the active one; the hero's KO
 /// restarts the level after <see cref="RestartDelay"/> — hit-stop cancelled, run state reset,
 /// current scene reloaded (with <c>Main</c> as the current scene that re-instantiates the level)
-/// — and <see cref="GoToLevel"/> hands the run over to the next level. The level also owns the
-/// <see cref="Pause"/> menu instanced in its scene and the way out of the run
-/// (<see cref="GoToMainMenu"/>). Every transition lifts the pause and the hit-stop first, so the
-/// next scene can never come up frozen. Concrete levels derive from it and add their props.
+/// — unless a <see cref="Checkpoint"/> has been reached, in which case it costs a soft respawn
+/// after <see cref="RespawnDelay"/> instead (<see cref="RespawnAtCheckpoint"/>: no reload, the
+/// world exactly as the player left it); and <see cref="GoToLevel"/> hands the run over to the
+/// next level. The level also owns the <see cref="Pause"/> menu instanced in its scene and the
+/// way out of the run (<see cref="GoToMainMenu"/>). Every transition lifts the pause and the
+/// hit-stop first, so the next scene can never come up frozen. Concrete levels derive from it and
+/// add their props.
 /// </summary>
 public partial class LevelBase : Node2D
 {
+    /// <summary>Emitted when the hero reaches a checkpoint, which becomes the one a death returns him to.</summary>
+    [Signal]
+    public delegate void CheckpointArmedEventHandler(Checkpoint checkpoint);
+
+    /// <summary>Emitted after a soft respawn; a level that wants to rewind its own scripted state does it here.</summary>
+    [Signal]
+    public delegate void RespawnedEventHandler();
+
     /// <summary>The hero instance placed in this level.</summary>
     [Export] public Player Player { get; set; } = null!;
 
@@ -40,6 +51,18 @@ public partial class LevelBase : Node2D
     /// <summary>Real seconds between the hero's KO and the scene reload (hit-stop does not stretch it).</summary>
     [Export] public float RestartDelay { get; set; } = 1f;
 
+    /// <summary>
+    /// Container whose <see cref="Checkpoint"/> children are connected on ready; leave it empty and
+    /// the level keeps the plain "a KO reloads the level" rule.
+    /// </summary>
+    [Export] public Node2D? Checkpoints { get; set; }
+
+    /// <summary>Real seconds between the hero's KO and a checkpoint respawn (hit-stop does not stretch it).</summary>
+    [Export] public float RespawnDelay { get; set; } = 0.9f;
+
+    /// <summary>Energy floor a checkpoint respawn hands back, so a death can never start a spiral.</summary>
+    [Export] public float MinRespawnEnergy { get; set; } = 30f;
+
     /// <summary>Px the camera leads the hero in his direction of travel; 0 disables the lookahead.</summary>
     [Export] public float CameraLookahead { get; set; } = 90f;
 
@@ -55,6 +78,8 @@ public partial class LevelBase : Node2D
 
     private readonly RandomNumberGenerator _rng = new();
     private SceneTreeTimer? _restartTimer;
+    private Checkpoint? _checkpoint;
+    private float _checkpointEnergy;
     private Interactable? _currentInteractable;
     private string? _interactablePrompt;
     private Node2D? _activeFx;
@@ -64,8 +89,11 @@ public partial class LevelBase : Node2D
     private float _shakeTime;
     private float _shakeFlip = 1f;
 
-    /// <summary><c>true</c> between the hero's KO and the reload.</summary>
+    /// <summary><c>true</c> between the hero's KO and the reload (or the checkpoint respawn).</summary>
     public bool IsRestartPending => _restartTimer is not null;
+
+    /// <summary>The checkpoint a death returns the hero to, or <c>null</c> while none has been reached.</summary>
+    public Checkpoint? ArmedCheckpoint => _checkpoint;
 
     /// <summary>Formatted prompt of the prop currently in reach, or <c>null</c> when there is none.</summary>
     protected string? InteractablePrompt => _interactablePrompt;
@@ -81,6 +109,7 @@ public partial class LevelBase : Node2D
             Pause.QuitToMenuRequested += GoToMainMenu;
         }
 
+        ConnectCheckpoints(true);
         FollowPlayer(0.0);
     }
 
@@ -94,6 +123,7 @@ public partial class LevelBase : Node2D
             Pause.QuitToMenuRequested -= GoToMainMenu;
         }
 
+        ConnectCheckpoints(false);
         FollowInteractable(null);
         if (Camera is not null)
         {
@@ -129,6 +159,51 @@ public partial class LevelBase : Node2D
         }
 
         tree.ReloadCurrentScene();
+    }
+
+    /// <summary>
+    /// Arms <paramref name="checkpoint"/> and snapshots the energy the hero has right now, so a
+    /// respawn restores what he had instead of handing out a free refill.
+    /// </summary>
+    /// <param name="checkpoint">The checkpoint a death returns the hero to from now on.</param>
+    public void SetCheckpoint(Checkpoint checkpoint)
+    {
+        _checkpoint = checkpoint;
+        _checkpointEnergy = GameState.Instance.Energy;
+        EmitSignalCheckpointArmed(checkpoint);
+    }
+
+    /// <summary>
+    /// Brings the hero back at the armed checkpoint <b>without reloading the scene</b>: the hit-stop
+    /// and the pause are lifted, the hero is revived (lamp forced off) at the checkpoint, its room
+    /// bounds are re-applied and the energy is restored to the snapshot, never below
+    /// <see cref="MinRespawnEnergy"/>. Everything the player changed in the world — cleared rubble,
+    /// drained water, powered machines — stays exactly as it was: one mistake costs seconds, not the
+    /// puzzle. The run state is <b>not</b> reset. Falls back to <see cref="RestartLevel"/> when no
+    /// checkpoint is armed.
+    /// </summary>
+    public void RespawnAtCheckpoint()
+    {
+        if (_checkpoint is null || !IsInstanceValid(_checkpoint))
+        {
+            RestartLevel();
+            return;
+        }
+
+        HitStop.Cancel();
+        GetTree().Paused = false;
+        Player.Revive();
+        Player.GlobalPosition = _checkpoint.RespawnPosition;
+        if (_checkpoint.Room is not null)
+        {
+            ApplyRoomBounds(_checkpoint.Room);
+        }
+
+        GameState state = GameState.Instance;
+        state.Energy = _checkpoint.RestoresFullEnergy
+            ? state.MaxEnergy
+            : Mathf.Max(_checkpointEnergy, MinRespawnEnergy);
+        EmitSignalRespawned();
     }
 
     /// <summary>
@@ -360,6 +435,39 @@ public partial class LevelBase : Node2D
         Camera.Offset = new Vector2(_shakeFlip * strength, _rng.RandfRange(-strength, strength));
     }
 
+    /// <summary>
+    /// Subscribes to (or unsubscribes from) every <see cref="Checkpoint"/> under
+    /// <see cref="Checkpoints"/>. Walked once on ready and once on teardown, never per frame; a
+    /// level without the container does nothing at all, which is why its KO behaviour is unchanged.
+    /// </summary>
+    /// <param name="connect"><c>true</c> subscribes, <c>false</c> drops the subscriptions.</param>
+    private void ConnectCheckpoints(bool connect)
+    {
+        if (Checkpoints is null || !IsInstanceValid(Checkpoints))
+        {
+            return;
+        }
+
+        foreach (Node child in Checkpoints.GetChildren())
+        {
+            if (child is not Checkpoint checkpoint)
+            {
+                continue;
+            }
+
+            if (connect)
+            {
+                checkpoint.Reached += OnCheckpointReached;
+            }
+            else
+            {
+                checkpoint.Reached -= OnCheckpointReached;
+            }
+        }
+    }
+
+    private void OnCheckpointReached(Checkpoint checkpoint) => SetCheckpoint(checkpoint);
+
     private void OnPlayerKnockedOut()
     {
         if (_restartTimer is not null)
@@ -368,8 +476,9 @@ public partial class LevelBase : Node2D
         }
 
         // ignoreTimeScale keeps the delay out of the hit-stop; processAlways stays false so the
-        // level never reloads under an open pause menu.
-        _restartTimer = GetTree().CreateTimer(RestartDelay, processAlways: false, processInPhysics: false, ignoreTimeScale: true);
+        // level never reloads (or respawns) under an open pause menu.
+        float delay = _checkpoint is null ? RestartDelay : RespawnDelay;
+        _restartTimer = GetTree().CreateTimer(delay, processAlways: false, processInPhysics: false, ignoreTimeScale: true);
         _restartTimer.Timeout += OnRestartTimeout;
     }
 
@@ -381,6 +490,12 @@ public partial class LevelBase : Node2D
         }
 
         _restartTimer = null;
-        RestartLevel();
+        if (_checkpoint is null)
+        {
+            RestartLevel();
+            return;
+        }
+
+        RespawnAtCheckpoint();
     }
 }

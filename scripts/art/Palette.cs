@@ -47,6 +47,9 @@ public static class Palette
     /// <summary>Alarm light.</summary>
     public static readonly Color AlarmGlow = Color.FromHtml("#ff6b52");
 
+    /// <summary>Methane haze — the colour of the air inside a gas pocket (GAME_DESIGN §6: gas is shown by the colour of the air, not by an icon).</summary>
+    public static readonly Color GasHaze = Color.FromHtml("#b6c24a");
+
     /// <summary>Hero's face and hands.</summary>
     public static readonly Color SkinWarm = Color.FromHtml("#d9a077");
 
