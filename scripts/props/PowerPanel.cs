@@ -65,10 +65,10 @@ public partial class PowerPanel : Interactable
     [Export] public float FailResetDelay { get; set; } = 0.5f;
 
     /// <summary>Prompt shown once the panel is activated.</summary>
-    [Export] public string ActivatedPromptText { get; set; } = "Працює";
+    [Export] public string ActivatedPromptText { get; set; } = "Running";
 
     /// <summary>Prompt shown once an unpowered panel has failed with <see cref="FailedNoPowerEventHandler"/>.</summary>
-    [Export] public string NoPowerPromptText { get; set; } = "Обезструмлена";
+    [Export] public string NoPowerPromptText { get; set; } = "No power";
 
     /// <summary>Colour of <see cref="Screen"/> while dead.</summary>
     [Export] public Color DeadColor { get; set; } = new(0.6f, 0.1f, 0.1f);

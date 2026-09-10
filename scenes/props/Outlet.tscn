@@ -11,7 +11,7 @@ collision_mask = 0
 monitoring = false
 script = ExtResource("1_outlet")
 Indicator = NodePath("PH_Indicator")
-PromptText = "Зарядити"
+PromptText = "Charge"
 
 [node name="PH_Body" type="Polygon2D" parent="."]
 color = Color(0.12, 0.35, 0.18, 1)

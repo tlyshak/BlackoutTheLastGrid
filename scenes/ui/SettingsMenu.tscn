@@ -62,7 +62,7 @@ theme_override_constants/separation = 20
 layout_mode = 2
 theme_override_colors/font_color = Color(0.941176, 0.639216, 0.14902, 1)
 theme_override_font_sizes/font_size = 40
-text = "НАЛАШТУВАННЯ"
+text = "SETTINGS"
 horizontal_alignment = 1
 
 [node name="FullscreenRow" type="HBoxContainer" parent="Root/Panel/Margin/VBox"]
@@ -73,7 +73,7 @@ theme_override_constants/separation = 16
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 1
-text = "Повний екран"
+text = "Fullscreen"
 
 [node name="FullscreenCheck" type="CheckBox" parent="Root/Panel/Margin/VBox/FullscreenRow"]
 layout_mode = 2
@@ -87,7 +87,7 @@ theme_override_constants/separation = 16
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 1
-text = "Гучність"
+text = "Volume"
 
 [node name="VolumeSlider" type="HSlider" parent="Root/Panel/Margin/VBox/VolumeRow"]
 custom_minimum_size = Vector2(320, 0)
@@ -108,10 +108,10 @@ horizontal_alignment = 2
 layout_mode = 2
 theme_override_colors/font_color = Color(0.301961, 0.345098, 0.4, 1)
 theme_override_font_sizes/font_size = 16
-text = "Звуку в грі ще немає — гучність застосується, коли з'явиться"
+text = "The game has no sound yet — the volume will apply once it does"
 autowrap_mode = 3
 
 [node name="BackButton" type="Button" parent="Root/Panel/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 8
-text = "Назад"
+text = "Back"

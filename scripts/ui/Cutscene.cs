@@ -35,10 +35,10 @@ public partial class Cutscene : CanvasLayer
     [Export] public float LineDuration { get; set; }
 
     /// <summary>Hint under the text while more lines follow.</summary>
-    [Export] public string HintText { get; set; } = "E — далі";
+    [Export] public string HintText { get; set; } = "E — next";
 
     /// <summary>Hint under the last line.</summary>
-    [Export] public string LastHintText { get; set; } = "E — продовжити";
+    [Export] public string LastHintText { get; set; } = "E — continue";
 
     /// <summary>Overlay root, hidden while idle.</summary>
     [Export] public Control Root { get; set; } = null!;

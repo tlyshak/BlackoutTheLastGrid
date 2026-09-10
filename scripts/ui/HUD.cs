@@ -19,7 +19,7 @@ public partial class HUD : CanvasLayer
     [Export] public Label? EnergyLabel { get; set; }
 
     /// <summary>Format of <see cref="EnergyLabel"/>; {0} is the energy rounded to a whole unit (an <c>int</c>).</summary>
-    [Export] public string LabelFormat { get; set; } = "ЕНЕРГІЯ {0}";
+    [Export] public string LabelFormat { get; set; } = "ENERGY {0}";
 
     /// <summary>Interaction prompt at the bottom centre; hidden until <see cref="ShowPrompt"/>.</summary>
     [Export] public Label? Prompt { get; set; }
@@ -74,7 +74,7 @@ public partial class HUD : CanvasLayer
     }
 
     /// <summary>Shows the interaction prompt with <paramref name="text"/>.</summary>
-    /// <param name="text">Prompt text, e.g. "E: Зарядити".</param>
+    /// <param name="text">Prompt text, e.g. "E: Charge".</param>
     public void ShowPrompt(string text)
     {
         if (Prompt is null)

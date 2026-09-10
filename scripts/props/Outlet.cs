@@ -26,10 +26,10 @@ public partial class Outlet : Interactable
     [Export] public int Uses { get; set; } = 1;
 
     /// <summary>Prompt shown while spent or cooling down without a countdown.</summary>
-    [Export] public string SpentPromptText { get; set; } = "Розряджена";
+    [Export] public string SpentPromptText { get; set; } = "Drained";
 
     /// <summary>Prompt shown during the cooldown; {0} is the whole seconds left.</summary>
-    [Export] public string CooldownPromptFormat { get; set; } = "Розряджена ({0} с)";
+    [Export] public string CooldownPromptFormat { get; set; } = "Drained ({0}s)";
 
     /// <summary>Colour of <see cref="Indicator"/> while the outlet is ready.</summary>
     [Export] public Color ReadyColor { get; set; } = new(0.2f, 1f, 0.3f);

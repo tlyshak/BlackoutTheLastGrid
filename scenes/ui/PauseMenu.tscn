@@ -54,19 +54,19 @@ alignment = 1
 layout_mode = 2
 theme_override_colors/font_color = Color(0.941176, 0.639216, 0.14902, 1)
 theme_override_font_sizes/font_size = 48
-text = "ПАУЗА"
+text = "PAUSED"
 horizontal_alignment = 1
 
 [node name="ResumeButton" type="Button" parent="Root/Center"]
 layout_mode = 2
-text = "Продовжити"
+text = "Resume"
 
 [node name="SettingsButton" type="Button" parent="Root/Center"]
 layout_mode = 2
-text = "Налаштування"
+text = "Settings"
 
 [node name="QuitButton" type="Button" parent="Root/Center"]
 layout_mode = 2
-text = "Вихід у головне меню"
+text = "Quit to Main Menu"
 
 [node name="Settings" parent="." instance=ExtResource("3_settings")]

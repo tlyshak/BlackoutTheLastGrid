@@ -27,7 +27,7 @@ public abstract partial class Interactable : Area2D
     public delegate void PromptChangedEventHandler(string text);
 
     /// <summary>Prompt shown by the HUD while this prop is the hero's current interactable and ready.</summary>
-    [Export] public string PromptText { get; set; } = "Взаємодіяти";
+    [Export] public string PromptText { get; set; } = "Use";
 
     /// <summary>Stable id for save/load (T-09); unused until then.</summary>
     [Export] public string SaveId { get; set; } = string.Empty;

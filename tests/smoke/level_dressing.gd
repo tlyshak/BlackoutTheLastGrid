@@ -66,7 +66,7 @@ const LOOKAHEAD_REST_TOL := 3.0
 const JUMP_CAP := 90            # physics frames for a full jump (~51 at the defaults)
 const OUTLET_REACH := Vector2(330, 560)
 const AWAY_FROM_PROPS := Vector2(900, 560)
-const OUTLET_PROMPT := "E: Зарядити"
+const OUTLET_PROMPT := "E: Charge"
 
 var _started := false
 var _frames := 0
@@ -298,8 +298,8 @@ func _check_prologue() -> void:
 				"after Door_1.Entered the stage is %s, expected Ventilation (%d)" % [level.CurrentStage, STAGE_VENTILATION])
 			panel.emit_signal("FailedNoPower")
 			await _step(1)
-			_check(sparks.emitting == true, "the dead panel does not spark after «Немає живлення»")
-			_check(spark_light.enabled == true, "the panel sparks have no light after «Немає живлення»")
+			_check(sparks.emitting == true, "the dead panel does not spark after the NoPower stage")
+			_check(spark_light.enabled == true, "the panel sparks have no light after the NoPower stage")
 
 	# 7. Camera shake (acceptance criterion 7).
 	var camera: Camera2D = level.get_node_or_null("Camera2D")
