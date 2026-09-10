@@ -1,0 +1,20 @@
+[gd_scene load_steps=3 format=3 uid="uid://cpbrpcvs6w23v"]
+
+[ext_resource type="Script" path="res://scripts/levels/Checkpoint.cs" id="1_checkpoint"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_checkpoint"]
+size = Vector2(80, 320)
+
+[node name="Checkpoint" type="Area2D"]
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+script = ExtResource("1_checkpoint")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_checkpoint")
+
+[node name="PH_Mark" type="Polygon2D" parent="."]
+z_index = -20
+color = Color(0.941176, 0.639216, 0.14902, 0.25)
+polygon = PackedVector2Array(-36, -8, 36, -8, 36, 8, -36, 8)
