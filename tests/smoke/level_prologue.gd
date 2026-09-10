@@ -308,7 +308,11 @@ func _run() -> void:
 	_check(lights.size() == 3, "AlarmLights has %d PointLight2D children, expected 3" % lights.size())
 	for l in lights:
 		_check(l.enabled == false, "alarm light %s enabled at boot" % l.name)
-	_check(dan_figure != null and dan_figure.visible == true, "PH_Dan hidden before the intro")
+	_check(dan_figure != null and dan_figure.visible == true, "Dan hidden before the intro")
+	_check(dan_figure != null and String(dan_figure.name) == "Dan", "DanFigure is '%s', expected the 'Dan' node (T-07i-b replaced the PH_Dan rectangle)" % [dan_figure.name if dan_figure != null else null])
+	_check(dan_figure != null and dan_figure.get_node_or_null("Rig") != null, "Dan has no CharacterRig — he must read as a second person, not a rectangle")
+	_check(dan_figure != null and dan_figure.get_node_or_null("PH_Shadow") is Polygon2D, "Dan has no PH_Shadow decal — a silhouette must not float")
+	_check(level.get_node_or_null("PH_Dan") == null, "the prologue still carries the old PH_Dan rectangle")
 	_check(crate.get("ClearHeight") != null and is_equal_approx(crate.ClearHeight, 20.0), "Crate.ClearHeight=%s, expected 20 (JumpableObstacle)" % crate.get("ClearHeight"))
 	if _failures.size() > 0:
 		main.queue_free()
@@ -332,7 +336,7 @@ func _run() -> void:
 	_check(player.process_mode == Node.PROCESS_MODE_INHERIT, "after the intro: Player.process_mode=%s, expected Inherit (resumed)" % player.process_mode)
 	_check(player.CurrentStateName == "Idle" and transitions.is_empty(), "after the intro: hero state '%s' transitions %s, expected Idle with none (the taps must not reach the hero)" % [player.CurrentStateName, transitions])
 	_check(move_prompt.IsShowing and hud.PromptText == move_prompt.Text, "after the intro: HUD prompt '%s' (MovePrompt showing=%s), expected '%s'" % [hud.PromptText, move_prompt.IsShowing, move_prompt.Text])
-	_check(dan_figure.visible == false, "after the intro: PH_Dan still visible")
+	_check(dan_figure.visible == false, "after the intro: Dan still visible")
 	_check(cutscene.Root.visible == false, "after the intro: cutscene overlay still visible")
 	print("level_prologue: intro skipped with %d taps, prompt '%s'" % [intro_taps, hud.PromptText])
 

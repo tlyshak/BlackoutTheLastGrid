@@ -1,4 +1,4 @@
-[gd_scene load_steps=28 format=3 uid="uid://d3d1177b7jpkm"]
+[gd_scene load_steps=29 format=3 uid="uid://d3d1177b7jpkm"]
 
 [ext_resource type="Script" path="res://scripts/levels/Level00_Prologue.cs" id="1_level"]
 [ext_resource type="PackedScene" uid="uid://ct2db4jsifoal" path="res://scenes/player/Player.tscn" id="2_player"]
@@ -15,6 +15,7 @@
 [ext_resource type="PackedScene" uid="uid://4hbuflsw3m5e" path="res://scenes/ui/Cutscene.tscn" id="13_cutscene"]
 [ext_resource type="PackedScene" uid="uid://g0gjms1b3i3p" path="res://scenes/levels/Level01_District.tscn" id="14_next"]
 [ext_resource type="PackedScene" uid="uid://b01co21wm8ogb" path="res://scenes/ui/PauseMenu.tscn" id="15_pause"]
+[ext_resource type="PackedScene" uid="uid://xgieoj27djpn" path="res://scenes/actors/CharacterRig.tscn" id="16_rig"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
 size = Vector2(40, 400)
@@ -73,7 +74,7 @@ Hud = NodePath("HUD")
 Cutscene = NodePath("Cutscene")
 Darkness = NodePath("Darkness")
 Tutorial = NodePath("Tutorial")
-DanFigure = NodePath("PH_Dan")
+DanFigure = NodePath("Dan")
 Door1 = NodePath("Door_1")
 Door2 = NodePath("Door_2")
 FlashlightPrompt = NodePath("Tutorial/FlashlightPrompt")
@@ -243,14 +244,19 @@ position = Vector2(330, 591)
 color = Color(0.4, 0.36, 0.3, 1)
 polygon = PackedVector2Array(-60, -4, 60, -4, 60, 0, -60, 0)
 
-[node name="PH_Dan" type="Polygon2D" parent="."]
+[node name="Dan" type="Node2D" parent="."]
 position = Vector2(330, 520)
-color = Color(0.25, 0.45, 0.85, 1)
-polygon = PackedVector2Array(-16, -68, 16, -68, 16, 0, -16, 0)
 
-[node name="PH_Face" type="Polygon2D" parent="PH_Dan"]
-color = Color(1, 0.9, 0.6, 1)
-polygon = PackedVector2Array(-12, -62, 0, -62, 0, -50, -12, -50)
+[node name="PH_Shadow" type="Polygon2D" parent="Dan"]
+color = Color(0, 0, 0, 0.45)
+polygon = PackedVector2Array(18.0, 0.0, 16.6, 2.7, 12.7, 4.9, 6.9, 6.5, 0.0, 7.0, -6.9, 6.5, -12.7, 4.9, -16.6, 2.7, -18.0, 0.0, -16.6, -2.7, -12.7, -4.9, -6.9, -6.5, -0.0, -7.0, 6.9, -6.5, 12.7, -4.9, 16.6, -2.7)
+
+[node name="Rig" parent="Dan" instance=ExtResource("16_rig")]
+position = Vector2(0, -36)
+scale = Vector2(-1, 1)
+SuitColor = Color(0.7882352941, 0.4588235294, 0.1647058824, 1)
+SkinColor = Color(0.8509803922, 0.6274509804, 0.4666666667, 1)
+Build = 0
 
 [node name="PH_WorkLamp_1" type="PointLight2D" parent="."]
 position = Vector2(480, 250)

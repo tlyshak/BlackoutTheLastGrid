@@ -12,6 +12,10 @@ extends SceneTree
 # Review #1 fix-pass (T-03r): the combo is chained by AnimationTime / Hitbox.IsActive read from the
 # running attack state, never by a wall-clock wait (S4); a second hit 8 frames into the hero's Hurt
 # rewinds the stun so Idle comes no earlier than ~18 frames after the second hit (S1).
+# T-07i-b (section 15b): the hero's animation data on the CharacterRig — attack lengths and the
+# HitboxOn/HitboxOff method-track times are frozen to the millisecond, idle/walk loop while jump
+# does not, no looping animation keys Visual:modulate or Visual:rotation, and RESET keys every
+# property any other animation on the player writes.
 # Run: godot --headless --path . -s tests/smoke/combat_dummy.gd
 #
 # Hit-stop sets Engine.time_scale = 0, which stops physics frames (awaiting `physics_frame` hangs
@@ -44,6 +48,24 @@ var _transitions: Array = []
 func _check(cond: bool, msg: String) -> void:
 	if not cond:
 		_failures.append(msg)
+
+# Time of the first key of `method` on any method track of `anim`, or -1 when it is not called.
+func _method_time(anim: Animation, method: String) -> float:
+	for t in anim.get_track_count():
+		if anim.track_get_type(t) != Animation.TYPE_METHOD:
+			continue
+		for k in anim.track_get_key_count(t):
+			if String(anim.method_track_get_name(t, k)) == method:
+				return anim.track_get_key_time(t, k)
+	return -1.0
+
+# Every "<node path>:<property>" a value track of `anim` writes.
+func _value_paths(anim: Animation) -> Array:
+	var paths: Array = []
+	for t in anim.get_track_count():
+		if anim.track_get_type(t) == Animation.TYPE_VALUE:
+			paths.append(String(anim.track_get_path(t)))
+	return paths
 
 func _process(_delta: float) -> bool:
 	# First frame: start the coroutine (no await here). Returning false keeps the main loop
@@ -722,8 +744,50 @@ func _run() -> void:
 	player.ResetPose()
 	var t_after_reset: float = player.AnimationTime
 	_check(t_after_reset == 0.0, "AnimationTime after ResetPose() = %s, expected 0" % t_after_reset)
-	var fist: Node2D = player.get_node("Visual/PH_Fist")
-	_check(fist.position.is_equal_approx(Vector2(14, -10)), "PH_Fist after ResetPose() at %s, expected (14, -10)" % fist.position)
+	var fist: Node2D = player.get_node("Visual/Rig/ArmFront/Fist")
+	_check(fist.position.is_equal_approx(Vector2(14, -10)), "Rig fist after ResetPose() at %s, expected (14, -10)" % fist.position)
+
+	# 15b. Animation data on the rig (T-07i-b). Combat balance is frozen: the four attack
+	#      animations keep their lengths and their HitboxOn/HitboxOff method-track times to the
+	#      millisecond. The new looping idle/walk must never key Visual:modulate or
+	#      Visual:rotation — those belong to hurt/ko and to the enemies' flash and knockdown
+	#      writes, and a breathing loop would erase them every frame. RESET must key every
+	#      property any other animation moves, or an interrupted animation leaves a limb behind.
+	var ap: AnimationPlayer = player.get_node("AnimationPlayer")
+	var expected_lengths := {"light_1": 0.3, "light_2": 0.3, "light_3": 0.4, "heavy": 0.55, "hurt": 0.3, "ko": 0.6}
+	for a in expected_lengths:
+		_check(ap.has_animation(a), "hero AnimationPlayer lacks '%s'" % a)
+		if ap.has_animation(a):
+			var length: float = ap.get_animation(a).length
+			_check(is_equal_approx(length, expected_lengths[a]), "hero '%s' length %.3f, expected %.2f (balance is frozen)" % [a, length, expected_lengths[a]])
+	var hitbox_times := {"light_1": [0.08, 0.18], "light_2": [0.08, 0.18], "light_3": [0.12, 0.24], "heavy": [0.22, 0.36]}
+	for a in hitbox_times:
+		if not ap.has_animation(a):
+			continue
+		var anim: Animation = ap.get_animation(a)
+		var on_at: float = _method_time(anim, "HitboxOn")
+		var off_at: float = _method_time(anim, "HitboxOff")
+		_check(is_equal_approx(on_at, hitbox_times[a][0]) and is_equal_approx(off_at, hitbox_times[a][1]),
+			"hero '%s' HitboxOn/HitboxOff at %.3f/%.3f, expected %.2f/%.2f (balance is frozen)" % [a, on_at, off_at, hitbox_times[a][0], hitbox_times[a][1]])
+	for a in ["idle", "walk", "jump"]:
+		_check(ap.has_animation(a), "hero AnimationPlayer lacks the rig animation '%s'" % a)
+	if ap.has_animation("idle") and ap.has_animation("walk") and ap.has_animation("jump"):
+		_check(ap.get_animation("idle").loop_mode != Animation.LOOP_NONE, "hero 'idle' must loop (breathing)")
+		_check(ap.get_animation("walk").loop_mode != Animation.LOOP_NONE, "hero 'walk' must loop (step cycle)")
+		_check(ap.get_animation("jump").loop_mode == Animation.LOOP_NONE, "hero 'jump' must not loop (it holds the airborne pose)")
+	for a in ["idle", "walk", "jump"]:
+		if not ap.has_animation(a):
+			continue
+		for path in _value_paths(ap.get_animation(a)):
+			_check(path != "Visual:modulate" and path != "Visual:rotation",
+				"hero '%s' keys '%s'; Visual:modulate/rotation belong to hurt/ko and to SetDown/flash" % [a, path])
+	if ap.has_animation("RESET"):
+		var reset_paths: Array = _value_paths(ap.get_animation("RESET"))
+		for a in ap.get_animation_list():
+			if String(a) == "RESET":
+				continue
+			for path in _value_paths(ap.get_animation(a)):
+				_check(path in reset_paths, "hero RESET does not key '%s', written by '%s'" % [path, a])
 
 	# 16. Teardown: reset the run, make sure no freeze is pending, free the room.
 	gs.ResetRun()

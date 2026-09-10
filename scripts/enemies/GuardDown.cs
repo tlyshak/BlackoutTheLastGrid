@@ -11,6 +11,10 @@ public partial class GuardDown : GuardState
     public override void Enter(State? previous)
     {
         _elapsed = 0f;
+        // ResetPose() first, and never after: it stops the player (so a looping walk cannot keep
+        // the floored guard stepping) but its RESET keys Visual:rotation = 0, which would undo
+        // the knockdown pose set right below.
+        Guard.ResetPose();
         Guard.ReleaseAttackSlot();
         Guard.SetDown(true);
     }
