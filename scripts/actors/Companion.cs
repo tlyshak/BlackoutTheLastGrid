@@ -19,6 +19,8 @@ namespace BlackoutLastGrid.Actors;
 /// Three independent failsafes recover him from geometry without the player noticing:
 /// <see cref="WarpDistance"/> (too far), <see cref="StuckSeconds"/> (wants to walk and is not
 /// moving) and the explicit <see cref="WarpBehind"/> a level calls on a room change or a respawn.
+/// All three are live in <b>both</b> states — while he holds a scripted spot they aim at that spot
+/// instead of at the hero, and <see cref="WarpBehind"/> moves the spot with him.
 /// </remarks>
 public partial class Companion : CharacterBody2D
 {
@@ -239,6 +241,12 @@ public partial class Companion : CharacterBody2D
     /// so a door or a death never leaves him on the wrong side of a sealed drift. Without a target
     /// it does nothing.
     /// </summary>
+    /// <remarks>
+    /// While he is holding a scripted spot the hold moves with him: a hold is relative to the hero,
+    /// not to the world, so a respawn during a beat must not send him walking back across the level
+    /// (or into a drift a <see cref="Levels.CaveIn"/> has just sealed). A level that wants him at a
+    /// particular place again re-issues <see cref="HoldAt"/> from its respawn handler.
+    /// </remarks>
     public void WarpBehind()
     {
         if (!HasTarget)
@@ -246,7 +254,13 @@ public partial class Companion : CharacterBody2D
             return;
         }
 
-        WarpTo(FollowPoint);
+        Vector2 point = FollowPoint;
+        if (IsWaiting)
+        {
+            HoldPosition = point;
+        }
+
+        WarpTo(point);
     }
 
     /// <summary>Teleports him to <paramref name="position"/>, stops him and emits <see cref="WarpedEventHandler"/>.</summary>
@@ -294,6 +308,13 @@ public partial class Companion : CharacterBody2D
     /// <param name="delta">Physics step in seconds; 0 during hit-stop, when nothing moves anyway.</param>
     public void Move(Vector2 velocity, double delta)
     {
+        if (delta <= 0.0)
+        {
+            // Hit-stop: the step arrives with delta 0 and every velocity is zero, so writing the
+            // gait here would snap him to the idle pose for the freeze frames. Hold everything.
+            return;
+        }
+
         Velocity = velocity;
         MoveAndSlide();
         _walking = velocity.LengthSquared() >= WalkAnimationMinSpeed * WalkAnimationMinSpeed;

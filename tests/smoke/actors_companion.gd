@@ -7,9 +7,11 @@ extends SceneTree
 # point is past WarpDistance, a warp after StuckSeconds of "wants to walk, is not moving" (wedged
 # behind a wall) and the explicit warp a level does on a room change; HoldAt walks him to a
 # scripted spot, emits Arrived once and keeps him there while the hero leaves, and Resume() puts
-# him back on the hero; Say() shows a line for BubbleSeconds, a HUD prompt suppresses the bubble
-# without losing the line, and a paused tree freezes the countdown. Also checks the level wiring:
-# a gas warning makes TestMine put its GasLine in Dan's bubble. Needs physics frames.
+# him back on the hero; the failsafes cover the Wait state too — a level's warp takes the held spot
+# with him instead of sending him marching back, and a hold past WarpDistance is a teleport; Say()
+# shows a line for BubbleSeconds, a HUD prompt suppresses the bubble without losing the line, and a
+# paused tree freezes the countdown. Also checks the level wiring: a gas warning makes TestMine put
+# its GasLine in Dan's bubble. Needs physics frames.
 # Run: godot --headless --path . -s tests/smoke/actors_companion.gd
 #
 # Nothing is hit here, so Engine.time_scale stays 1 and movement is counted in physics frames; the
@@ -38,6 +40,8 @@ const WEDGE_POS := Vector2(0, 460)       # behind PH_WallLeft (x 20..60, y 250..
 const STUCK_CAP := 400         # frames the stuck watchdog is given before the test gives up
 const STUCK_EARLY := 6         # frames of slack below StuckSeconds (frame alignment)
 const STUCK_LATE := 90         # frames of slack above StuckSeconds (the walk before he wedges)
+const HOLD_FAR := Vector2(1700, 460)     # a scripted beat on the far side of the level (> WarpDistance from HERO_LEFT)
+const WAIT_WARP_CAP := 10      # physics frames the Wait state's warp failsafe is given
 const HOLD_NEAR := Vector2(380, 460)     # a held spot clear of the timber pile's blocker (412..468)
 const HOLD_KEEP_FRAMES := 40   # frames the hero is away while Dan must stay on the held spot
 const HERO_AWAY := Vector2(600, 450)     # where the hero goes while Dan holds
@@ -389,6 +393,34 @@ func _run() -> void:
 	_check(warps.size() > warps_before, "ApplyRoomBounds did not warp the companion along with the hero")
 	_check(dan.global_position.distance_to(dan.FollowPoint) <= dan.FollowDistance,
 		"after the room change Dan is %.0f px from his follow point" % dan.global_position.distance_to(dan.FollowPoint))
+
+	# 11. The same failsafes while he holds a scripted spot. A level's warp (a respawn during a beat)
+	# must take the hold with him, or he sets off walking back across the mine — possibly into a
+	# drift a cave-in has just sealed. And a hold farther away than WarpDistance is taken at once.
+	await _place(player, HERO_RIGHT)
+	dan.HoldAt(HOLD_FAR)
+	_check(dan.IsWaiting == true, "Companion.IsWaiting=%s after HoldAt, expected true" % dan.IsWaiting)
+	await _step(2)
+	await _place(player, HERO_LEFT)   # the hero died and came back at a checkpoint far from the beat
+	warps_before = warps.size()
+	room.ApplyRoomBounds(room.StartRoom)
+	_check(warps.size() > warps_before, "ApplyRoomBounds did not warp the waiting companion")
+	_check(dan.IsWaiting == true, "the level's warp knocked Dan out of the Wait state")
+	_check(dan.global_position.distance_to(dan.FollowPoint) <= dan.FollowDistance,
+		"after the warp the waiting Dan is %.0f px from the hero" % dan.global_position.distance_to(dan.FollowPoint))
+	await _step(HOLD_KEEP_FRAMES)
+	_check(dan.global_position.distance_to(dan.FollowPoint) <= dan.CatchUpDistance,
+		"the waiting Dan walked %.0f px away from the hero after the warp — the hold did not come with him"
+		% dan.global_position.distance_to(dan.FollowPoint))
+	# Failsafe 1 in the Wait state: a hold half the level away is a teleport, not a march.
+	warps_before = warps.size()
+	dan.HoldAt(HOLD_FAR)
+	var hold_warp: int = await _wait_until(func(): return warps.size() > warps_before, WAIT_WARP_CAP)
+	_check(hold_warp >= 0, "a hold %.0f px away (WarpDistance %.0f) was walked to instead of warped to"
+		% [HOLD_FAR.distance_to(dan.FollowPoint), dan.WarpDistance])
+	_check(dan.global_position.distance_to(HOLD_FAR) <= dan.ArriveDistance,
+		"after the hold warp Dan is %.1f px from the held spot" % dan.global_position.distance_to(HOLD_FAR))
+	dan.Resume()
 
 	room.queue_free()
 	_finish()

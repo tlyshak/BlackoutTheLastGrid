@@ -9,7 +9,9 @@ extends SceneTree
 # boarding a running hoist departs exactly once and the hoist cannot be switched off again.
 # Also characterises PowerPanel with its default CanPowerDown = false (an activated panel refuses
 # further use and shows ActivatedPromptText) and the dead-panel path (FailedNoPower -> permanent
-# NoPowerPromptText) — both must behave exactly as they did before this task. Needs physics frames.
+# NoPowerPromptText) — both must behave exactly as they did before this task — and locks in what a
+# refusal costs a machine whose panel still needs the repair sequence: the sequence again, until the
+# machine has really started once. Needs physics frames.
 # Run: godot --headless --path . -s tests/smoke/props_circuit.gd
 #
 # Nothing is hit here, so Engine.time_scale stays 1 and everything is counted in physics frames;
@@ -37,6 +39,9 @@ const EXPECTED_MACHINES := ["Pump", "Extractor", "Hoist"]
 const OVERLOAD_FORMAT := "Not enough power: {0} is running"
 const OVERLOAD_SHORT := 1.0    # OverloadPromptSeconds for the expiry check; must outlast FailResetDelay (0.5 s)
 const OVERLOAD_EXPIRY_WAIT := 0.7   # real seconds after the flash ended for the rest of the overload window to run out
+const REPAIR_POS := Vector2(1000, 200)   # out of the walk band: the toll case is driven through Begin(), not by walking
+const REPAIR_STEP := "move_up"      # a one-step repair sequence (a tracked action the panel polls)
+const WIDE_CAPACITY := 2            # the bus widened for one case, so a granted repair can be seen too
 
 var _started := false
 var _frames := 0
@@ -106,11 +111,21 @@ func _place(player: Node, pos: Vector2) -> void:
 # him again (a granted request finishes at once, a refused one after FailResetDelay).
 func _use(panel: Node, player: Node, label: String) -> void:
 	panel.Begin(player)
+	await _wait_released(panel, label)
+
+# Waits until the panel let the hero go again (a refused attempt holds him for FailResetDelay).
+func _wait_released(panel: Node, label: String) -> void:
 	for i in ATTEMPT_CAP:
 		await physics_frame
 		if not panel.IsActive:
 			return
 	_check(false, "%s: still IsActive %d frames after Begin() — the attempt never released the hero" % [label, ATTEMPT_CAP])
+
+# Presses `action` for exactly one physics frame; the panel sees it as just-pressed on the next one.
+func _tap(action: String) -> void:
+	Input.action_press(action)
+	await _step(1)
+	Input.action_release(action)
 
 # Checks the Interactable scene contract (root Area2D on the Interactable layer, passive).
 func _check_interactable(node: Node, label: String, radius: float) -> void:
@@ -433,6 +448,55 @@ func _run() -> void:
 	await _real_wait(OVERLOAD_EXPIRY_WAIT)
 	_check(extractor.CurrentPrompt == extractor.PromptText,
 		"Extractor prompt is still '%s' %.2f s after the overload window opened, expected PromptText '%s'" % [extractor.CurrentPrompt, OVERLOAD_SHORT, extractor.PromptText])
+
+	# 13. What a refusal costs a machine whose panel still needs the §4 repair sequence. The toll is
+	# locked in here, because T-07s-b is planning exactly such a panel: a refused sequence is NOT
+	# banked (the repair only counts once the machine really started), so the retry costs the whole
+	# sequence again — and once it has started once, every later toggle is a single press.
+	var repair: Node = machine_scene.instantiate()
+	repair.name = "RepairMachine"
+	repair.Sequence = PackedStringArray([REPAIR_STEP])
+	repair.DisplayName = "Fan"
+	repair.Circuit = circuit
+	repair.position = REPAIR_POS
+	room.add_child(repair)
+	await _step(2)
+	var repair_refused: Array = []
+	var repair_changes: Array = []
+	repair.ActivationRefused.connect(func(): repair_refused.append(true))
+	repair.PowerChanged.connect(func(on: bool): repair_changes.append(on))
+	_check(circuit.Used == 1 and hoist.IsPowered == true, "the toll case needs the bus held by the hoist (Used=%s)" % circuit.Used)
+
+	repair.Begin(player)
+	_check(repair.IsActive == true, "RepairMachine did not start its sequence on the first interact")
+	_check(repair.CurrentStep == 0, "RepairMachine.CurrentStep=%s at the start of the sequence, expected 0" % repair.CurrentStep)
+	await _tap(REPAIR_STEP)
+	await _step(1)
+	_check(repair_refused.size() == 1, "RepairMachine ActivationRefused fired %d times for a completed sequence on a full bus, expected 1" % repair_refused.size())
+	_check(repair.CurrentPrompt == hoist_overload, "RepairMachine prompt after the refusal is '%s', expected '%s'" % [repair.CurrentPrompt, hoist_overload])
+	_check(repair.IsPowered == false and repair.IsActivated == false, "RepairMachine started although the bus was full")
+	await _wait_released(repair, "RepairMachine after the refusal")
+
+	repair.Begin(player)
+	_check(repair.IsActive == true and repair.CurrentStep == 0,
+		"the retry of a refused repair did not restart the sequence (IsActive=%s, CurrentStep=%s) — the toll changed" % [repair.IsActive, repair.CurrentStep])
+	_check(repair.IsActivated == false, "the retry of a refused repair switched the machine on without the sequence")
+
+	# Room on the bus, so the same sequence now really starts the machine.
+	circuit.Capacity = WIDE_CAPACITY
+	await _tap(REPAIR_STEP)
+	await _step(1)
+	_check(repair.IsPowered == true, "RepairMachine.IsPowered=%s with room on the bus, expected true" % repair.IsPowered)
+	_check(repair_changes == [true], "RepairMachine.PowerChanged history is %s, expected [true]" % [repair_changes])
+	_check(repair_refused.size() == 1, "RepairMachine was refused again (%d times) with room on the bus" % repair_refused.size())
+	await _use(repair, player, "RepairMachine off")
+	_check(repair.IsPowered == false, "RepairMachine.IsPowered=%s after switching it off, expected false" % repair.IsPowered)
+	await _use(repair, player, "RepairMachine on again")
+	_check(repair.IsPowered == true, "a repaired machine did not switch back on with a single press (IsPowered=%s)" % repair.IsPowered)
+	_check(repair_changes == [true, false, true], "RepairMachine.PowerChanged history is %s, expected [true, false, true]" % [repair_changes])
+	circuit.Capacity = 1
+	repair.queue_free()
+	await _step(2)
 
 	room.queue_free()
 	_finish()

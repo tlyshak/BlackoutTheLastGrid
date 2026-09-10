@@ -1,6 +1,7 @@
 using BlackoutLastGrid.Actors;
 using BlackoutLastGrid.Art;
 using BlackoutLastGrid.Core;
+using BlackoutLastGrid.Levels;
 using Godot;
 
 namespace BlackoutLastGrid.Props;
@@ -22,6 +23,12 @@ namespace BlackoutLastGrid.Props;
 /// the floor band — the same trigger shape as <c>Door</c> and <c>TutorialPrompt</c>, so no new
 /// physics layer is needed. The haze, the warning light and the motes are optional placeholder
 /// children wired through the exports below.
+/// </para>
+/// <para>
+/// The shape has to cover the room's <b>whole</b> walk band, or the gate is not a gate: a pocket
+/// the hero can walk around in depth turns "power the extractor or cross it in the dark" into an
+/// optional detour. The prefab ships band-deep (320 px) and <see cref="Room"/> makes
+/// <c>_Ready</c> say so out loud when an instance was narrowed below its room's band.
 /// </para>
 /// <para>
 /// The lamp state is learned by subscribing to the hero's <see cref="Flashlight.Toggled"/> on
@@ -87,8 +94,15 @@ public partial class GasZone : Area2D, IClearable
     /// <summary>Light that flares while the warning counts down; off at rest.</summary>
     [Export] public PointLight2D? WarningLight { get; set; }
 
-    /// <summary>Still motes in the beam — "no draught here"; stopped once the pocket is cleared.</summary>
+    /// <summary>Still motes in the beam — "no draught here"; emitting while the pocket is dangerous, stopped once it is cleared.</summary>
     [Export] public GpuParticles2D? Motes { get; set; }
+
+    /// <summary>
+    /// Room this pocket sits in. Optional, and used for nothing but a sanity check: a pocket whose
+    /// trigger does not span the room's walk band can be walked around in depth, and
+    /// <c>_Ready</c> warns about it instead of letting the level ship a gate that is not one.
+    /// </summary>
+    [Export] public RoomBounds? Room { get; set; }
 
     private Player? _player;
     private bool _warning;
@@ -113,6 +127,14 @@ public partial class GasZone : Area2D, IClearable
             WarningLight.Enabled = false;
         }
 
+        if (Motes is not null)
+        {
+            // Still motes are the readability cue for "no draught here" (GAME_DESIGN §6): they run
+            // for as long as the pocket is dangerous, and Clear() is what stops them.
+            Motes.Emitting = !IsCleared;
+        }
+
+        WarnUnlessTheBandIsCovered();
         BodyEntered += OnBodyEntered;
         BodyExited += OnBodyExited;
     }
@@ -282,6 +304,40 @@ public partial class GasZone : Area2D, IClearable
 
         float side = player.GlobalPosition.X >= GlobalPosition.X ? 1f : -1f;
         player.TakeDamage(BlastDamage, BlastKnockback * side, true, BlastHitStopFrames);
+    }
+
+    /// <summary>
+    /// Warns when the pocket's trigger is shallower than <see cref="Room"/>'s walk band, i.e. when
+    /// the hero can simply walk past the gas in depth with the lamp on. Runs once, in
+    /// <c>_Ready</c>; a pocket without a room says nothing.
+    /// </summary>
+    private void WarnUnlessTheBandIsCovered()
+    {
+        if (Room is null)
+        {
+            return;
+        }
+
+        float top = float.MaxValue;
+        float bottom = float.MinValue;
+        foreach (Node child in GetChildren())
+        {
+            if (child is not CollisionShape2D { Disabled: false, Shape: RectangleShape2D rectangle } shape)
+            {
+                continue;
+            }
+
+            float centre = shape.GlobalPosition.Y;
+            top = Mathf.Min(top, centre - (rectangle.Size.Y * 0.5f));
+            bottom = Mathf.Max(bottom, centre + (rectangle.Size.Y * 0.5f));
+        }
+
+        if (top <= Room.FloorTop && bottom >= Room.FloorBottom)
+        {
+            return;
+        }
+
+        GD.PushWarning($"{Name}: the pocket covers Y {top}…{bottom} but {Room.Name}'s walk band is {Room.FloorTop}…{Room.FloorBottom}; the hero can walk around the gas in depth.");
     }
 
     /// <summary>Drops the subscription to the hero's lamp; safe to call when there is none.</summary>

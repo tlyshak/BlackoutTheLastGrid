@@ -168,17 +168,31 @@ public partial class PoweredMachine : PowerPanel
         EmitSignalPowerChanged(powered);
     }
 
+    /// <summary>
+    /// Puts the refusal line in the prompt for <see cref="OverloadPromptSeconds"/>. It notifies on
+    /// its own: the player must read the name of the blocking machine no matter which refusal path
+    /// called this, and never the previous prompt under a red flash.
+    /// </summary>
+    /// <param name="blocking">The machine occupying the circuit.</param>
     private void ShowOverload(PoweredMachine blocking)
     {
         _overloadText = string.Format(OverloadPromptFormat, blocking.DisplayName);
         _overloadTime = OverloadPromptSeconds;
         SetProcess(_overloadTime > 0f);
+        NotifyPromptChanged();
     }
 
+    /// <summary>Drops a refusal line early (the machine did start after all); notifies only when there was one.</summary>
     private void HideOverload()
     {
+        if (_overloadTime <= 0f)
+        {
+            return;
+        }
+
         _overloadTime = 0f;
         SetProcess(false);
+        NotifyPromptChanged();
     }
 
     private void ResolveTargets()

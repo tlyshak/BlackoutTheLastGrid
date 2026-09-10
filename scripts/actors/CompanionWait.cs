@@ -6,9 +6,12 @@ namespace BlackoutLastGrid.Actors;
 /// <summary>
 /// Holding a scripted position (<see cref="Companion.HoldAt"/>): walks to
 /// <see cref="Companion.HoldPosition"/>, emits <see cref="Companion.ArrivedEventHandler"/> once
-/// inside <see cref="Companion.ArriveDistance"/> and then stands there facing the hero. The same
-/// stuck watchdog applies, and it warps him onto the held position — a scripted beat must never
-/// stall because he caught a corner on the way.
+/// inside <see cref="Companion.ArriveDistance"/> and then stands there facing the hero. All three
+/// failsafes are live here too, each aimed at the held spot instead of the follow point: a hold
+/// farther away than <see cref="Companion.WarpDistance"/> is taken at once instead of walked to
+/// (the walk would cross whatever a <see cref="Levels.CaveIn"/> has sealed), the stuck watchdog
+/// warps him onto the spot, and <see cref="Companion.WarpBehind"/> moves the hold along with him.
+/// A scripted beat must never stall because he caught a corner on the way.
 /// </summary>
 public partial class CompanionWait : CompanionState
 {
@@ -26,8 +29,17 @@ public partial class CompanionWait : CompanionState
     {
         Vector2 point = Companion.HoldPosition;
         Vector2 offset = point - Companion.GlobalPosition;
+        float distanceSquared = offset.LengthSquared();
 
-        if (offset.LengthSquared() <= Companion.ArriveDistance * Companion.ArriveDistance)
+        // Failsafe 1: the held spot is half a screen away (the level warped him, or the hold was
+        // issued from across the mine) — appear there instead of walking through sealed geometry.
+        if (distanceSquared > Companion.WarpDistance * Companion.WarpDistance)
+        {
+            Companion.WarpTo(point);
+            return;
+        }
+
+        if (distanceSquared <= Companion.ArriveDistance * Companion.ArriveDistance)
         {
             Companion.Stop();
 

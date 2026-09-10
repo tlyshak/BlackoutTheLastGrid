@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/props/DebrisPile.cs" id="1_debris"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_blocker"]
-size = Vector2(56, 40)
+size = Vector2(56, 320)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_hurt"]
 size = Vector2(72, 72)
@@ -45,6 +45,16 @@ monitoring = false
 shape = SubResource("RectangleShape2D_hurt")
 
 [node name="PH_Rubble" type="Node2D" parent="."]
+
+[node name="PH_RockFar" type="Polygon2D" parent="PH_Rubble"]
+position = Vector2(0, -104)
+color = Color(0.0705882, 0.0862745, 0.113725, 1)
+polygon = PackedVector2Array(-28, 58, -28, -14, -16, -34, 12, -38, 28, -16, 28, 58)
+
+[node name="PH_RockNear" type="Polygon2D" parent="PH_Rubble"]
+position = Vector2(0, 152)
+color = Color(0.0705882, 0.0862745, 0.113725, 1)
+polygon = PackedVector2Array(-28, 8, -26, -136, -8, -152, 16, -146, 28, -128, 28, 8)
 
 [node name="PH_Rock" type="Polygon2D" parent="PH_Rubble"]
 color = Color(0.145098, 0.176471, 0.227451, 1)

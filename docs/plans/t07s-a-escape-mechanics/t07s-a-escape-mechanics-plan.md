@@ -425,7 +425,7 @@ its shape and haze polygon are level geometry). `partial class GasZone : Area2D,
 ```
 GasZone               Area2D            layer 0, mask 2 (Player), monitoring = true,
                                         monitorable = false, script = GasZone.cs
-  CollisionShape2D    RectangleShape2D  the pocket, across the floor band
+  CollisionShape2D    RectangleShape2D  the pocket, 180×320 — across the WHOLE floor band
   PH_Haze             Polygon2D         z_index +18, HazeColor a = HazeAlpha (§6: колір повітря)
   PH_HazeGlow         PointLight2D      enabled = false; flares during the warning
   PH_Motes            GpuParticles2D    optional; still motes = «немає тяги» (§6)
@@ -443,7 +443,8 @@ GasZone               Area2D            layer 0, mask 2 (Player), monitoring = t
 | `HazeWarningColor` | `Color` | `#e0d24a` @ 0.42 | haze during the warning |
 | `HazeFadeSeconds` | `float` | `0.9` | s the haze takes to disappear when cleared |
 | `WarningLight` | `PointLight2D?` | `null` | flares while the warning counts down |
-| `Motes` | `GpuParticles2D?` | `null` | stopped emitter once cleared |
+| `Motes` | `GpuParticles2D?` | `null` | emitting while the pocket is dangerous, stopped once cleared |
+| `Room` | `RoomBounds?` | `null` | only for the `_Ready` sanity check "does the trigger span the walk band" |
 
 | Signal | Parameters | When |
 |---|---|---|
@@ -472,7 +473,7 @@ Wiring and lifetime:
 
 ```
 DebrisPile            StaticBody2D      layer 1 (World), mask 0, script = DebrisPile.cs
-  CollisionShape2D    RectangleShape2D 56×40   → [Export] BlockerShape (the wall)
+  CollisionShape2D    RectangleShape2D 56×320  → [Export] BlockerShape (the wall, band-deep)
   Hurtbox             Area2D            layer 4 (3 Enemy — "a Hitbox may hit this"), mask 0,
                                         monitoring = false, monitorable = true
     CollisionShape2D  RectangleShape2D 72×72
@@ -485,6 +486,7 @@ DebrisPile            StaticBody2D      layer 1 (World), mask 0, script = Debris
 | `HeavyHitsToClear` | `int` | `2` | heavy hits needed; `0` ⇒ hands cannot clear it (machine only) |
 | `RequiresKnockdown` | `bool` | `true` | only a hit with `HitInfo.Knockdown` counts — i.e. only `heavy_attack` (light 1–3 have `Knockdown = false`; light 3 shares `HitStopFrames = 5`, so frames are **not** a usable discriminator) |
 | `BlockerShape` | `CollisionShape2D` | `null!` | disabled when cleared |
+| `BlockerDepth` | `float` | `320` | px of Y the blocker is stretched to in `_Ready`; spans the 300 px walk band, so one pile is one body. `0` keeps the scene's own size |
 | `Rubble` | `Node2D?` | `null` | hidden / dropped when cleared |
 | `Dust` | `GpuParticles2D?` | `null` | one-shot per hit |
 | `StartsCleared` | `bool` | `false` | a pile a `CaveIn` will later create starts cleared+hidden |
@@ -827,10 +829,13 @@ to put in the commit body. If `/coder` finds it cannot avoid a `project.godot` e
 ## Acceptance criteria
 
 Circuit:
-1. Given `Circuit.Capacity = 1` and `Насос` powered, when the hero completes `Витяжка`'s panel,
-   then `Витяжка.IsPowered == false`, `Насос.IsPowered` is still `true`, `Circuit.Used == 1`,
-   `RequestRefused(Витяжка, Насос)` was emitted exactly once, and the HUD prompt reads
-   `Не хватає потужності: працює Насос`.
+1. Given `Circuit.Capacity = 1` and `Pump` powered, when the hero completes `Extractor`'s panel,
+   then `Extractor.IsPowered == false`, `Pump.IsPowered` is still `true`, `Circuit.Used == 1`,
+   `RequestRefused(Extractor, Pump)` was emitted exactly once, `machine.CurrentPrompt` is exactly
+   `Not enough power: Pump is running`, and the HUD shows that line through the level's usual
+   `PromptFormat` — i.e. `E: Not enough power: Pump is running`, because a refused panel is
+   retryable and the key hint belongs there (author's call whether to suppress the prefix; see the
+   Nits of Round 1).
 2. Given the refusal above, when the hero interacts with `Насос` again (`CanPowerDown = true`),
    then `Насос.IsPowered == false`, `Deactivated` was emitted once, `Circuit.Used == 0`, and a
    second attempt at `Витяжка` now succeeds (`MachinePowered(Витяжка)`, `Circuit.Used == 1`).
@@ -1013,13 +1018,17 @@ Self-contained: scene paths and key names only. Keys — WASD move, Space jump, 
 4. Розетка на x≈300 (**E**). Очікується: `E: Charge`, енергія в HUD росте, далі `Drained` — як і
    до цієї задачі.
 5. Завал із кріпильного лісу на x≈440 (підпис `TIMBER PILE (K x2)`, під ним світла смуга ±12 px).
-   Стань на смугу й натисни **J** тричі. Очікується: **нічого** — ні іскор, ні hit-stop, завал
-   стоїть. Тепер **K** двічі. Очікується: пил і тряска на кожному, після другого завал зникає.
+   **Спершу спробуй обійти:** пройди праворуч попід дальньою стіною (y≈320), потім по самому краю
+   підлоги (y≈580). Очікується: завал не пускає ні там, ні там — він перекриває всю смугу ходьби,
+   бо це і є ворота. Тепер стань на смугу й натисни **J** тричі. Очікується: **нічого** — ні іскор,
+   ні hit-stop, завал стоїть. Тепер **K** двічі. Очікується: пил і тряска на кожному, після другого
+   завал зникає — і та сама хода вздовж дальньої стіни тепер проходить.
 6. Стань на два-три кроки вище або нижче світлої смуги і натисни **K**. Очікується: удар не
-   влучає — це правило глибини belt-scroll, а не баг. (Цей завал перекриває лише саму смугу, тому
-   в широкій кімнаті його можна й обійти по глибині; у пролозі штрек буде вузький.)
-7. Синювате перекриття на x≈700 (`FLOODED DRIFT`) між двома брилами породи. Спробуй **K** і
-   спробуй обійти його по глибині. Очікується: ні руками, ні в обхід — штрек справді перекритий.
+   влучає — це правило глибини belt-scroll, а не баг. Стояти можна де завгодно, але **бити** —
+   лише зі смуги; обійти завал при цьому все одно не можна (п. 5).
+7. Синювате перекриття на x≈700 (`FLOODED DRIFT`). Спробуй **K** і спробуй обійти його по глибині —
+   і попід дальньою стіною, і по краю підлоги. Очікується: ні руками, ні в обхід — штрек справді
+   перекритий, і одним тілом, а не трьома.
    Панель на x≈600 (`PUMP`), **E**. Очікується: екран зеленіє, лампа над панеллю горить, вода
    зникає, прохід відкривається, рядок `Circuit 1/1`, подія `Pump running`.
 8. Панель на x≈1180 (`EXTRACTOR`), **E**. Очікується: панель **не** вмикається, екран блимає
@@ -1061,10 +1070,13 @@ Self-contained: scene paths and key names only. Keys — WASD move, Space jump, 
     секунди. Очікується: він з'являється просто позаду тебе, а не лишається в геометрії; він
     ніколи не блокує підказку панелі й не спрацьовує замість тебе на контрольній точці, обвалі
     чи газі.
-21. Відкрий `scenes/levels/TestRoom.tscn` (**F6**). Очікується: усе як до цієї задачі — манекени,
+22. Іди праворуч так, щоб Дан ішов за тобою, і в русі вдар **K** по завалу (або по свіжому завалу
+    після обвалу). Очікується: під час hit-stop Дан **застигає в кроці**, а не сідає в позу
+    спокою й не починає ходьбу з нуля після розморозки.
+23. Відкрий `scenes/levels/TestRoom.tscn` (**F6**). Очікується: усе як до цієї задачі — манекени,
     охоронець, хвиля, розетка, панель, пауза, ліхтар. Дай охоронцю збити енергію в нуль: рівень
     **перезавантажується** (контрольних точок тут немає), як і раніше.
-22. Відкрий `scenes/Main.tscn` (**F5**) і пройди пролог до панелі вентилятора. Очікується: жодних
+24. Відкрий `scenes/Main.tscn` (**F5**) і пройди пролог до панелі вентилятора. Очікується: жодних
     змін — ті самі тексти, та сама тривога, ті самі двері, той самий штраф.
 
 ---
@@ -1365,3 +1377,377 @@ Routine forks decided by the agent while planning, in the spirit of
 ## Review findings
 
 *filled in by /reviewer*
+
+### Round 1 — Ship: yes
+
+Reviewed delta: `git diff 6028890..HEAD` on `task/t-07s-a-escape-mechanics` (`e40bf60`), i.e. the
+four parallel worktree blocks (companion / hazards / circuit / integration) plus the integration
+commits. 48 files, +4907/−66. Working tree clean; nothing staged or untracked outside the diff.
+Verified independently: `dotnet build` → 0 Warning / 0 Error; `godot --headless --path . --quit` →
+no `ERROR:`/`WARNING:`; `godot --headless --path . res://scenes/levels/TestMine.tscn --quit` → no
+`ERROR:`; `tools/smoke.ps1` → **19 passed, 0 failed** (no `combat_dummy` flake this run).
+`project.godot`, `.csproj`, `.sln`, `assets/`, `scenes/levels/TestRoom.tscn`,
+`scenes/levels/Level00_Prologue.tscn`, `scripts/levels/Level00_Prologue.cs` and every existing
+`tests/smoke/*.gd` are byte-identical — confirmed with `git diff --stat` restricted to those paths.
+
+#### Plan conformance
+
+Plan: `docs/plans/t07s-a-escape-mechanics/t07s-a-escape-mechanics-plan.md`, read in full, with
+`## Author decisions (2026-09-11)` taken as overriding everything above it.
+TASKS.md: T-07s-a is `done` with a truthful «Зроблено / Не зроблено / Плейтест» block, but the
+status was set **before** this review and there is no «Рев'ю» line yet, and the three backlog lines
+the plan promised (T-B14 / T-B15 / T-B16) were never added — see **S7**.
+
+- **Implemented as planned:** all eight mechanics and their prefabs — `PowerCircuit` (capacity 1,
+  never preempts, refuses and names the blocker), `IClearable`, `PoweredMachine`, `Hoist`
+  (`RequiresWholeCircuit`, `BoardingArea`, `Departed`), `GasZone` (haze → warning window → cancel →
+  ignition → permanent clear), `DebrisPile` (`Knockdown` as the light/heavy discriminator), `CaveIn`
+  (never lethal, delayed, one-shot), `Checkpoint` + `LevelBase.RespawnAtCheckpoint`,
+  `Player.Kill()`/`Revive()`, `Companion` with a two-state machine and three failsafes, plus
+  `TestMine.tscn`/`.cs` and the four smoke scripts. All author decisions are honoured: three
+  machines, no back-run, the full gas-fairness set (1.5 s rehearsal pocket at x 920 + 0.8 s pocket
+  at x 1340, checkpoint at x 1080, Dan shouting on `WarningStarted`, air tinted before entry),
+  refuse-and-name, and **every player-facing string is English** — the only Cyrillic left anywhere in
+  the new `.cs`/`.tscn` delta is one doc-comment citation of GAME_DESIGN §1 in `PowerCircuit.cs:9`.
+- **Deviations (all defensible, but the plan is now stale on them):**
+  - `IClearable` lives in `scripts/core/IClearable.cs`, not `scripts/props/` (plan §Scope, §File list).
+  - `GasZone`, `CaveIn` and `Checkpoint` each got a real `.tscn` prefab; the plan specified them as
+    script-only, composed inline per level. This is better for T-07s-b and is why the prefab default
+    shapes now matter — see **S1**/**S2**.
+  - `PowerCircuit.FreeCapacity` instead of `Free` (`Free()` is a `GodotObject` method), and
+    `Machines` is a mutable `Godot.Collections.Array<PoweredMachine>` instead of
+    `IReadOnlyList<>` (needed by the GDScript smoke tests) — see the Nits.
+  - `PowerPanel` gained an extra field, `_repaired` (`PowerPanel.cs:112,209,287`), so a panel that
+    was completed once switches back on with a single press even with a non-empty `Sequence`. Not in
+    the plan; it is the right call and the done-note records it, but note the consequence for
+    T-07s-b in the Tests block.
+  - `TryPower`'s `blocking` is the **longest-powered** machine (`_powered[0]`,
+    `PowerCircuit.cs:123`), not «registration order» as the plan's pseudo-code says. The code is
+    right; the plan line is wrong.
+  - `Player.KnockOut()` adds a `HitboxOff()` the old KO branch did not have
+    (`Player.cs:372-373`). Checked: `PlayerAttack.Exit` already calls it and no other state can have
+    the hitbox open, so it is a no-op in every reachable case. **The no-checkpoint KO path is
+    behaviourally unchanged** — `LevelBase.OnPlayerKnockedOut` picks `RestartDelay` and
+    `RestartLevel()` whenever `_checkpoint is null`, and `level_mine.gd` §11 proves it on `TestRoom`
+    (no `Respawned`, hero stays down, `ResetRun` refilled energy).
+- **Accepted limitation (per the done-note in `docs/TASKS.md`):** «Газові кишені у широкій кімнаті
+  фікстури можна обійти по глибині». Residual risk: the fixture therefore cannot demonstrate the
+  extractor-vs-darkness choice at all, and the prefab default that causes it will be copied into the
+  prologue. Raised to **S1** rather than passed silently.
+
+#### Code
+
+- [x] **B — none**
+
+- [x] **S1. A `GasZone` does not span the walk band, so the gas gate can be walked around** —
+  `scenes/props/GasZone.tscn:6` (`RectangleShape2D_pocket` `size = Vector2(180, 120)`),
+  `scenes/props/GasZone.tscn:48` (`PH_Haze` polygon ±60 in Y),
+  `scenes/levels/TestMine.tscn:180,191` — Should-fix
+  **Problem:** the pocket trigger is 120 px deep. Every room in the project uses a 300 px walk band
+  (`TestMine.tscn:88-89` FloorTop 300 / FloorBottom 600, same as `TestRoom`). A pocket at Y 450
+  therefore only covers Y 390…510; the hero walks past at Y 320 or Y 580 with the lamp on and
+  nothing fires. Compare the two triggers written by the same task that *do* get it right —
+  `Checkpoint.tscn` `80×320` and `CaveIn.tscn` `48×320`. This is a seam: two of the four new trigger
+  prefabs assume the band, two do not.
+  **Why it matters:** the whole point of the pocket is a decision — power the extractor, or cross it
+  in the dark. With a depth detour there is no decision, and the hazard the level is built around is
+  optional. Concretely: in `TestMine`, walk from x 1250 to x 1430 at Y 330 with `F` on → no
+  `WarningStarted`, no death, and the extractor never has to be touched.
+  **Solution options:**
+  - Option A (correct): make the prefab band-spanning — `RectangleShape2D_pocket` `Vector2(180, 320)`
+    and `PH_Haze` polygon ±160 in Y — and add a one-line `_Ready` sanity check in `GasZone.cs` that
+    `GD.PushWarning`s when the shape's Y extent is smaller than the owning room's band (the zone can
+    reach it via an optional `[Export] RoomBounds? Room`, the same export `Checkpoint` already has).
+  - Option B (quick, level-side only): leave the class and prefab alone and make it T-07s-b's
+    discipline to resize every instance. Cheaper now, but the wrong value stays the default and the
+    fixture keeps a hole that no test can see.
+  **Fixed:** Option A — `GasZone.tscn`'s trigger is `180×320` and `PH_Haze` spans ±160 in Y (the
+  motes' emission box and visibility rect with it), plus a new optional `[Export] RoomBounds?
+  Room` and a `_Ready` check that `GD.PushWarning`s when the shape does not cover the room's band;
+  both `TestMine` pockets wire `Room`, and `props_gaszone.gd` §9 proves the lamp is lethal at
+  `FloorTop + 20` and `FloorBottom − 20` as well as in the middle.
+
+- [x] **S2. A `DebrisPile`'s blocker is 40 px deep; the fixture's two real gates only hold because of
+  three hand-placed, undocumented, untested shoulder bodies** — `scenes/props/DebrisPile.tscn:6`
+  (`Vector2(56, 40)`), `scenes/levels/TestMine.tscn:117-118` (`DebrisPile_Hand`),
+  `scenes/levels/TestMine.tscn:132-178` (`PH_DriftFloodFar/Near`, `PH_DriftBackFar/Near`) —
+  Should-fix
+  **Problem:** the pile's blocking shape covers 40 px of a 300 px band. I verified the fixture's two
+  *gating* piles are in fact sealed, but only because the integration pass stacked two extra
+  `StaticBody2D` "shoulders" (`60×130` at Y 365 and Y 535) around each of them, which together with
+  the pile's 40 px give exactly 300…600. That technique is: (a) invisible in the class and its
+  prefab, (b) nowhere in the plan, (c) not asserted by any test. `DebrisPile_Hand` at x 440 — the
+  heavy-attack lesson — got **no** shoulders and is fully bypassable in depth.
+  **Why it matters:** the heavy-attack tutorial teaches nothing if the pile can be sidestepped, and
+  T-07s-b will copy the prefab (40 px) rather than the shoulder trick, reproducing the hole in the
+  prologue. Concretely: in `TestMine`, walk from x 400 to x 480 at Y 340 → straight past
+  `DebrisPile_Hand` with no attack at all, while `PH_HitStrip` still tells the player to stand at
+  Y 450.
+  **Why it is *not* a Blocker:** the flooded drift and the cave-in seal *do* hold, so the puzzle
+  chain (pump → drift, hoist → whole circuit) is not bypassable today; only the teaching pile is.
+  **Solution options:**
+  - Option A (correct): give `DebrisPile` an `[Export] float BlockerDepth` (default = the room band,
+    320) that `_Ready` applies to `BlockerShape`'s `RectangleShape2D`, so one pile is one body and a
+    designer cannot forget the shoulders; keep the 72×72 `Hurtbox` and the documented 12 px hit strip
+    as they are. Then drop the four `PH_Drift*` bodies from `TestMine` and add shoulders to
+    `DebrisPile_Hand` — or nothing, since the pile now spans the band itself.
+  - Option B (quick): keep the 40 px shape, but raise the prefab's blocker to `56×320` and add a
+    `GD.PushWarning` when a pile that is not `StartsCleared` has a blocker shallower than its room's
+    band. Leaves the shoulder bodies in `TestMine` as dead weight.
+  - Option C (level-only, cheapest): document the shoulder technique in the plan and add shoulders to
+    `DebrisPile_Hand`, leaving the class untouched. Solves the fixture; leaves the trap for T-07s-b.
+  **Fixed:** Option A — `[Export] float BlockerDepth = 320` stretches the blocker in `_Ready` (on
+  its own duplicate of the shape, since `.tscn` sub-resources are shared between instances) and
+  the prefab ships `56×320` with far/near placeholder rubble, so one pile is one body; the four
+  `PH_Drift*` shoulder bodies are gone from `TestMine`, and `level_mine.gd` §2b asserts the
+  blocker covers the band and that a walk along both edges is stopped by *both* gating piles —
+  including `DebrisPile_Hand`, which the shoulders never protected.
+
+- [x] **S3. `GasZone.Motes` never emit — the effect is wired and dead** — `scripts/props/GasZone.cs:91,164-166`,
+  `scenes/props/GasZone.tscn:59` (`emitting = false`) — Should-fix
+  **Problem:** the prefab ships the emitter switched off and no line in `GasZone.cs` ever sets
+  `Emitting = true`; `Clear()` only sets it to `false`. GAME_DESIGN §6 asks for still motes as the
+  readability cue for "no draught here", and the plan's contract lists `Motes` as "stopped emitter
+  once cleared" — implying it runs before that.
+  **Why it matters:** one of the four layers that teach the gas rule before the first death is simply
+  absent in play. And `tests/smoke/props_gaszone.gd:311-312` **masks** it: the test sets
+  `pocket.Motes.emitting = true` itself before calling `Clear()`, so it only ever proves the shutoff.
+  **Fix:** set `Motes.Emitting = true` in `GasZone._Ready()` when `!IsCleared` (and flip the prefab
+  to `emitting = true` so the editor preview matches), then change the smoke assertion to read the
+  flag on a fresh pocket instead of writing it.
+  **Fixed:** `GasZone._Ready` sets `Motes.Emitting = !IsCleared` and the prefab no longer ships
+  the emitter off; `props_gaszone.gd` now *reads* the flag on a dangerous pocket instead of
+  writing it, so the shutoff and the start-up are both real assertions.
+
+- [x] **S4. `ShowOverload()` does not notify the prompt; the refusal text reaching the HUD depends on
+  call order** — `scripts/props/PoweredMachine.cs:171-176` and `:119-129` — Should-fix
+  **Problem / why it matters:** `ShowOverload` sets `_overloadText`/`_overloadTime` and starts the
+  countdown but never calls `NotifyPromptChanged()`. It works today only because `Complete()` calls
+  `RefuseActivation()` on the very next line, and `PowerPanel.RefuseActivation` →
+  `StartFailFlash()` → `NotifyPromptChanged()` (`PowerPanel.cs:308-318`). Swap those two lines, or
+  add any second refusal path in a subclass (a `Hoist` variant, a machine that refuses for a reason
+  other than the circuit), and the player gets a red flash with the *old* prompt text — the exact
+  dead-end message the plan's Option C rejected. Note the countdown's own expiry *does* notify
+  (`:103`), so the asymmetry is the tell.
+  **Fix:** call `NotifyPromptChanged()` at the end of `ShowOverload` (and in `HideOverload`, which
+  has the mirror-image gap — it is currently saved by `base.Complete()` notifying afterwards).
+  `NotifyPromptChanged` is idempotent, so the extra emit costs nothing.
+  **Fixed:** `ShowOverload` ends with `NotifyPromptChanged()`, and `HideOverload` does the same
+  when there was a line to drop (so a plain power-on still emits nothing extra). Neither depends
+  on what the caller does next any more.
+
+- [x] **S5. `LevelBase` warps Dan behind the hero, and the `Wait` state undoes it on the next physics
+  frame** — `scripts/levels/LevelBase.cs:214,256`, `scripts/actors/CompanionWait.cs:108-138` —
+  Should-fix
+  **Problem / why it matters:** `ApplyRoomBounds` and `RespawnAtCheckpoint` call
+  `Companion?.WarpBehind()` as the plan's third anti-stuck failsafe, but `WarpBehind` only moves him
+  — it does not change state. If he is in `Wait` (a scripted beat: segment 0 chatter, the final
+  collapse), `CompanionWait.PhysicsUpdate` immediately walks him from the hero back towards
+  `HoldPosition`, possibly across the whole level or into a drift a `CaveIn` has just sealed, and
+  failsafe 1 (`WarpDistance`) does **not** cover him because it lives only in `CompanionFollow`. So
+  of the "three independent failsafes", exactly one is active while he waits. Concretely for
+  T-07s-b: hero dies to gas during a scripted hold → respawn at the checkpoint → Dan sets off
+  walking back to the beat's spot, arriving late or wedged.
+  **Fix:** either have `WarpBehind()` move `HoldPosition` along with him when `IsWaiting` (a hold is
+  relative to the hero, not to the world), or make `LevelBase` call `Resume()` before the warp and
+  let the level re-issue `HoldAt` from its `Respawned` handler. Either way, add the `WarpDistance`
+  failsafe to `CompanionWait` too, or say in the class docs that a waiting Dan has only one.
+  **Fixed:** `WarpBehind()` moves `HoldPosition` to the follow point while `IsWaiting` (a hold is
+  relative to the hero), and `CompanionWait` now runs the `WarpDistance` failsafe too, aimed at
+  the held spot — so all three failsafes are live in both states. `actors_companion.gd` §11 covers
+  the level-driven warp during a hold and the far-hold teleport; `LevelBase` needed no change.
+
+- [x] **S6. Dan snaps to the `idle` pose during every hit-stop** — `scripts/actors/Companion.cs:295-301,374-399`,
+  `scripts/actors/CompanionFollow.cs:73-75` — Should-fix
+  **Problem / why it matters:** during a hit-stop `Engine.TimeScale = 0`, so physics steps arrive
+  with `delta == 0` (session-01 §5) and `VelocityTowards` correctly returns `Vector2.Zero`
+  (`Companion.cs:326-329`). But `Move()` then sets `_walking = false` from that zero velocity, and
+  `_Process` → `UpdateGait()` → `PlayAnimation(AnimIdle)` + `Seek(0, update: true)` forces the rest
+  pose *immediately*, because the seek update is not gated by the time scale. Repro: walk right in
+  `TestMine` with Dan trailing, land a `heavy_attack` on `DebrisPile_Hand` — Dan visibly pops to the
+  idle pose for the 5-6 freeze frames and restarts `walk` from frame 0 afterwards. Every heavy hit in
+  the game does this, and the fight in prologue segment 7 is full of them.
+  **Fix:** return early from `Companion.Move` when `delta <= 0` without touching `_walking` (the
+  same guard `VelocityTowards` and `UpdateStuckWatchdog` already have), so the gait is simply held
+  through the freeze.
+  **Fixed:** `Companion.Move` returns early on `delta <= 0` without touching `_walking`, so the
+  gait — and the pose — is held through the freeze frames instead of snapping to `idle` and
+  restarting `walk` from frame 0.
+
+- [x] **S7. `docs/TASKS.md` bookkeeping is incomplete and one done-note claim is not true** —
+  `docs/TASKS.md:149,157,161-163` — Should-fix
+  **Problem / why it matters:** three things the plan committed to are missing or wrong, and the next
+  task reads this file, not the plan:
+  1. The backlog lines **T-B14** (`ConveyorPlatform` as a carrying platform), **T-B15** (on-screen
+     circuit readout) and **T-B16** (share rig animations via an `AnimationLibrary`) were never
+     added — `grep 'T-B1[4-9]' docs/TASKS.md` finds nothing past T-B13. The plan's §File-level change
+     list and three separate «Out of scope» bullets all promise them, and `Companion.tscn`'s copied
+     `RESET`/`idle`/`walk` tracks are a real rot risk with no ticket behind them.
+  2. The status is `done` and the «Рев'ю» line is absent, but CLAUDE.md step 4 allows `done` only
+     after a green post-fix `/verify` **and** `Ship: yes`.
+  3. The done-note says «пункт "конвеєр несе героя" із "Готово, коли" знятий» — that line
+     (`docs/TASKS.md:157`) still contains "конвеєр несе героя" verbatim.
+  **Fix:** add the three `backlog` lines, delete the conveyor clause from the «Готово, коли» line (or
+  drop the claim from the done-note), and add the «Рев'ю» line after this round's fix pass.
+  **Fixed:** `docs/TASKS.md` — the conveyor clause is really gone from «Готово, коли» (so the
+  done-note is true), the «Рев'ю» line records this round, the depth-bypass limitation is dropped
+  from «Не зроблено» because it is closed, and T-B14 / T-B15 / T-B16 are in the backlog with their
+  reasons.
+
+#### Tests
+
+- [x] **A `DebrisPile` gate is never tested for what makes it a gate.** `tests/smoke/level_mine.gd`
+  §3-§5 proves the light/heavy discrimination and the 12/13 px `DepthTolerance` boundary beautifully,
+  but nothing asserts the pile *blocks movement*. Add to `level_mine.gd`: place the hero left of
+  `Flood` at Y 340 and Y 560, hold `move_right` for ~40 frames, assert his X did not pass the pile —
+  and the same for `DebrisPile_Hand`, which currently would fail (**S2**). This is the one assertion
+  that would have caught the seam.
+  **Done:** `level_mine.gd` §2b — the blocker's Y span against the room's band, plus a held
+  `move_right` at `FloorTop + 20` and `FloorBottom − 20` into `DebrisPile_Hand` and into `Flood`,
+  both stopped short of the pile; the same walk after the two heavy hits (and after the pump) goes
+  through, which is the control that the walk itself works. Both halves were verified to fail with
+  the old 40 px blocker.
+- [x] **A `GasZone` is never tested for depth coverage.** Add to `tests/smoke/props_gaszone.gd`:
+  walk the hero through the pocket's X range at `FloorTop + 20` with the lamp on and assert
+  `WarningStarted` fired. It currently would fail (**S1**).
+  **Done:** `props_gaszone.gd` §9 — the trigger's Y span against the band, and the lamp switched
+  on at both band edges really starts the window. Verified to fail with the old `180×120` shape.
+- [x] **`props_gaszone.gd:311-312` writes the flag it then asserts on.** Setting
+  `pocket.Motes.emitting = true` before `Clear()` means nothing proves the motes ever start. Replace
+  with `_check(pocket.Motes.emitting == true, ...)` on a fresh pocket, plus the existing
+  `== false` after `Clear()` (**S3**).
+  **Done:** the write is gone; the test asserts `Motes.emitting == true` on a dangerous pocket and
+  `== false` after `Clear()`.
+- [x] **No coverage for `WarpBehind()` while `IsWaiting`.** `actors_companion.gd` covers `HoldAt` /
+  `Arrived` / `Resume` and both in-state failsafes, but not the level-driven warp during a hold —
+  the case **S5** describes. Add: `HoldAt(far_point)`, wait for `Arrived`, move the hero, call
+  `room.ApplyRoomBounds(...)`, then assert where he is one and thirty frames later.
+  **Done:** `actors_companion.gd` §11 — `HoldAt` far away, the hero moved, `ApplyRoomBounds`, then
+  assertions one frame and 40 frames later that he stayed with the hero and kept waiting; plus the
+  Wait state's own `WarpDistance` failsafe.
+- [x] **No coverage for a refused `PoweredMachine` with a non-empty `Sequence`.** `_repaired` is only
+  set inside `base.Complete()`, so a machine whose panel needs the §4 «3–4 кнопки» repair and is then
+  refused by the circuit makes the player re-enter the whole sequence on the retry. T-07s-b is
+  explicitly planning such a panel. Add a case in `props_circuit.gd` that gives a machine a
+  `Sequence`, completes it into a refusal, and asserts what the second attempt costs — then decide
+  whether that is the intended toll.
+  **Done:** `props_circuit.gd` §13 — a machine with a one-step `Sequence` refused by the full bus,
+  and the toll is locked in: the retry costs the sequence again (the repair is banked only once
+  the machine really starts), after which every toggle is a single press. Left as the intended
+  behaviour — a refusal must not sell the repair.
+
+#### Nits
+
+- HUD adds the `E: ` prefix to the refusal line once the red flash ends, so the player reads
+  `E: Not enough power: Pump is running` while the plan's acceptance criterion 1 expected the bare
+  string — `scripts/levels/LevelBase.cs:326` (`FormatPrompt` keys off `IsActive`, which
+  `Finish(false)` clears at the end of `AbortAttempt`). Verdict: cosmetic, and arguably an
+  improvement — the prefix is exactly the "you may retry" hint the refusal wants. The stale side is
+  the plan, not the code; `machine.CurrentPrompt` is clean and `props_circuit.gd:354-356` already
+  asserts both forms. Author's call whether to suppress the prefix while `_overloadTime > 0`.
+- `PowerCircuit.Machines` is a mutable `Godot.Collections.Array<PoweredMachine>` and "read-only"
+  only in the docstring — `scripts/core/PowerCircuit.cs:62-65`. A caller could `Add`/`Clear` it and
+  desync `_powered` and `Used`. No caller does, and the GDScript tests need `.size()`, so a true
+  `IReadOnlyList` is not free; if it is worth closing, expose `MachineCount` + `GetMachine(int)` and
+  keep the array private.
+- `DebrisPile.SetBlocked(true)` sets `IsCleared = false`, which contradicts `IClearable`'s
+  «never goes back to `false`» — `scripts/props/DebrisPile.cs:150-152` vs
+  `scripts/core/IClearable.cs:11-12`. Harmless today (only `CaveIn` calls it, on a pile that starts
+  cleared and was never a target of a machine), but a `CaveIn` pointed at a pile the player had
+  already broken through, or at a pile in some machine's `ClearTargets`, would silently re-seal it.
+  Worth one sentence in the interface doc naming `SetBlocked` as the deliberate exception.
+- `GasZone.Clear()` stops a live warning with `notify: false`, so a level that reacts to
+  `WarningStopped` never learns the window ended — `scripts/props/GasZone.cs:159`. Unreachable in
+  `TestMine` (the extractor's reach at x 1132…1228 does not overlap the pocket at x 1250…1430) but a
+  narrow prologue drift may well overlap.
+- `HazeWarningColor`'s default is a literal `Color.FromHtml("#e0d24a")` — `scripts/props/GasZone.cs:82` —
+  while the plan's §Scene & signal contract says colours come from `Palette`, never as a literal in
+  a script. The plan itself gave the literal and only added `Palette.GasHaze`, so this is per-plan;
+  a second `Palette.GasWarning` entry would close it.
+- `DebrisPile.BlockerShape` is `null!` and dereferenced unguarded in `_Ready` →
+  `SetBlocked` — `scripts/props/DebrisPile.cs:54,98,158`. A pile composed without wiring it
+  throws a `NullReferenceException` from `_Ready` with no hint of which node. One
+  `GD.PushError($"{Name}: BlockerShape is not wired")` + early return would make the failure legible.
+- `PoweredMachine._ExitTree` calls `Circuit?.Unregister(this)` without `IsInstanceValid(Circuit)` —
+  `scripts/props/PoweredMachine.cs:87`. Safe under normal teardown (children exit before the parent
+  and nothing is freed until the whole subtree is out), but a level that frees its circuit node
+  explicitly would throw. Same shape as the `IsInstanceValid` guards `LevelBase` already uses.
+- Once the hoist runs in `TestMine`, `CanPowerDown == false` means the bus stays at 1/1 for ever and
+  neither the pump nor the extractor can be tried again — `scenes/props/Hoist.tscn:23-35`. Correct
+  for the prologue's final beat, mildly annoying in a fixture whose purpose is poking at things; a
+  `CanPowerDown = true` override on the `TestMine` instance only would fix it without touching the
+  prefab.
+- `TestMine._Process` converts `StringName`→`string` every idle frame via
+  `Companion.CurrentStateName` (`scripts/levels/TestMine.cs:124`). One small allocation per frame,
+  and the plan's §Performance claims none — but `TestRoom.cs:48` and `Level00_Prologue.cs:176` do
+  exactly the same thing, so this is the established repo idiom and not a regression. Listed only so
+  it is not mistaken for one.
+
+#### What's done well
+
+- **The refuse-and-name loop is the best-implemented thing in the branch.** The circuit is asked
+  *before* the panel commits (`PoweredMachine.cs:111-132`), so there is no half-activated state and
+  no reentrancy window; `Release` is idempotent; the overload prompt rides the existing
+  `PromptChanged` → `LevelBase.OnPromptChanged` chain with **zero** new UI wiring; and the panel
+  stays retryable because `RefuseActivation` deliberately does not set `_deadNoPower`. Do not
+  refactor this into an auto-preempt "convenience" later.
+- **The additive `PowerPanel` change really is additive.** `CanInteract` collapses to the old
+  expression when `CanPowerDown == false`, `Complete()`'s `!Powered` branch is untouched, and
+  `props_interact.gd` (855 lines) plus `props_circuit.gd` §1's explicit defaults characterisation
+  both stay green. The `SetPhysicsProcess(true)` added inside `StartFailFlash` with its comment is
+  precisely the bug a sequence-less panel would otherwise have had (the hero held for ever).
+- **The KO path was preserved with real discipline.** One private `KnockOut()`, `_checkpoint is null`
+  selecting delay *and* route, and `level_mine.gd` §11 proving the old behaviour on `TestRoom` by
+  three independent signals (no `Respawned`, hero still down, `ResetRun` refilled energy). This is
+  the right way to change a shared base class.
+- **Time-scale and pause hygiene is right everywhere.** Every new timer is
+  `processAlways: false, ignoreTimeScale: true` with the handle kept in a field and unsubscribed in
+  `_ExitTree` (`CaveIn.cs:56,71-77`, the session-01 §5 trap); `GasZone._PhysicsProcess` runs only
+  while a window counts and deliberately freezes on `delta == 0`; the only new `HitStop.Trigger` goes
+  through the wall-clock autoload that cannot stick. `level_mine.gd` §10 and
+  `actors_companion.gd` §9 both assert the pause behaviour rather than assuming it.
+- **`GasZone`'s lamp subscription is leak-free.** `ForgetPlayer()` is called from `BodyExited`,
+  `Clear()` and `_ExitTree`, always behind `IsInstanceValid`, and `OnBodyEntered` guards on
+  `ReferenceEquals` so a re-entry cannot double-subscribe. I walked the respawn case specifically:
+  `Revive()`'s forced `SetOn(false)` reaches a still-subscribed zone, hits `StopWarning`'s
+  `!_warning` early return, and the teleport then fires `BodyExited` — no spurious `WarningStopped`,
+  no dangling handler.
+- **The four new smoke scripts assert behaviour, not defaults.** Driving real `attack`/`heavy_attack`
+  taps so the `Knockdown` discriminator is genuinely exercised, proving a whiff by "`Engine.time_scale`
+  never dropped", checking the level instance id to prove no reload happened, measuring the stuck
+  warp against `StuckSeconds` in frames — this is a much higher bar than the repo's average.
+- **`Companion` is scenery by construction, and it is asserted.** `collision_layer = 0` /
+  `mask = 1` on the scene root plus `actors_companion.gd:160-161` prevent the entire escort-bug
+  class in two lines.
+
+#### Verdict
+
+Ship: yes — no Blockers. Build, headless load, `TestMine.tscn` load and all 19 smoke scripts are
+green on my own run, the shared `PowerPanel`/`Player`/`LevelBase` edits are genuinely additive, and
+the no-checkpoint KO path is verifiably unchanged. The mechanics themselves are sound: the circuit's
+refuse-and-name, the permanent clearing, the gas warning window, the soft respawn and the
+never-lethal collapse all behave as the plan and the author's decisions specify. What the fix pass
+has to close is that **two of the five obstacles are not obstacles at the depth the prefabs ship
+with** (S1, S2) — the flooded drift and the cave-in seal do hold, but only via undocumented shoulder
+bodies, so the gas pocket and the timber pile can both be sidestepped in Y and no test can see it.
+First: S1 (gas pocket depth) → S2 (debris blocker depth + the shoulder technique) → S3 (dead motes,
+and the test that hides them).
+
+#### Fix pass (2026-09-11)
+
+All seven Should-fix closed, no Blockers to close, the eight Nits deliberately left to the author.
+The point of the pass is the first two: **a gas pocket and a timber pile can no longer be walked
+around in depth**, and that is now asserted rather than asserted-in-a-comment — `level_mine.gd` §2b
+(blocker span + a held walk along the far and the near edge of the band into both gating piles, with
+the same walk going through once they are cleared) and `props_gaszone.gd` §9 (trigger span + the lamp
+switched on at both band edges). Both were checked against the old geometry and both fail on it, so
+they are real tests and not decoration. Files touched: `scripts/props/GasZone.cs`,
+`scripts/props/DebrisPile.cs`, `scripts/props/PoweredMachine.cs`, `scripts/actors/Companion.cs`,
+`scripts/actors/CompanionWait.cs`, `scenes/props/GasZone.tscn`, `scenes/props/DebrisPile.tscn`,
+`scenes/levels/TestMine.tscn`, the four smoke scripts, `docs/TASKS.md` and this plan.
+Post-fix verification: `dotnet build` 0 Warning / 0 Error; `godot --headless --path . --import`;
+`godot --headless --path . --quit` and `godot --headless --path . res://scenes/levels/TestMine.tscn
+--quit` with no `ERROR:` and no `WARNING:` (the new band check stays quiet on the fixture);
+`tools/smoke.ps1` → **19 passed, 0 failed**. `project.godot`, `.csproj`, `.sln`, `assets/`,
+`scenes/levels/TestRoom.tscn`, `scenes/levels/Level00_Prologue.tscn`,
+`scripts/levels/Level00_Prologue.cs` and `tests/smoke/level_prologue.gd` are still untouched.

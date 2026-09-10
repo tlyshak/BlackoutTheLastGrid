@@ -7,7 +7,9 @@ extends SceneTree
 # window; letting it run out ignites the pocket (hit-stop, Ignited once, Player.Kill -> KnockedOut,
 # and Engine.time_scale back to 1 on its own); leaving the pocket makes it deaf to the lamp; and a
 # pocket cleared for good (the extractor's Clear()) stops monitoring, fades its haze out, stops the
-# motes and can never warn or ignite again. Needs physics frames.
+# motes (which a dangerous pocket really does emit) and can never warn or ignite again; and the
+# pocket spans the room's whole walk band, so the lamp is just as lethal along its far and near edge
+# as in the middle — there is no depth lane around the gas. Needs physics frames.
 # Run: godot --headless --path . -s tests/smoke/props_gaszone.gd
 #
 # The ignition triggers a hit-stop (Engine.time_scale = 0), which stops physics frames, so the
@@ -23,7 +25,7 @@ const SETTLE_CAP := 10         # idle frames allowed for the post-load physics c
 const SETTLE_DELTA := 0.05     # process delta (s) below which the loop is back to normal pacing
 const PLAYER_LAYER := 2        # physics layer 2 "Player"
 const OVERLAP_FRAMES := 4      # physics frames for Area2D overlaps to refresh after a teleport
-const REHEARSAL_POS := Vector2(920, 450)   # centre of the rehearsal pocket (180x120 around it)
+const REHEARSAL_POS := Vector2(920, 450)   # centre of the rehearsal pocket (180x320 around it)
 const POCKET_POS := Vector2(1340, 450)     # centre of the normal pocket
 const SAFE_POS := Vector2(560, 450)        # clear of every pocket, trigger and blocker
 const SAFE_FRAMES := 100       # frames the hero stands in the gas with the lamp off (> 1.5 s window)
@@ -36,6 +38,7 @@ const BLAST_HIT_STOP := 6      # GasZone.BlastHitStopFrames default
 const FADE_MARGIN := 0.4       # extra real seconds on top of HazeFadeSeconds for the tween to end
 const SAFE_DELAY := 60.0       # RestartDelay/RespawnDelay pushed out of the way for this test
 const COLOR_EPS := 0.01        # tolerance for a colour read back from a .tscn
+const BAND_MARGIN := 20.0      # px inside the walk band's far and near edge the depth probes stand at
 const REHEARSAL_WINDOW := 1.5
 const POCKET_WINDOW := 0.8
 
@@ -204,6 +207,10 @@ func _run() -> void:
 	_check(is_equal_approx(rehearsal.WarningSeconds, REHEARSAL_WINDOW),
 		"GasZone_Rehearsal.WarningSeconds=%s, expected %s (the first contact is a scare, not a corpse)" % [rehearsal.WarningSeconds, REHEARSAL_WINDOW])
 	_check(is_equal_approx(pocket.WarningSeconds, POCKET_WINDOW), "GasZone_Pocket.WarningSeconds=%s, expected %s" % [pocket.WarningSeconds, POCKET_WINDOW])
+	# Both pockets know their room, so the _Ready check "does the trigger span the walk band" runs.
+	var main_room: Node = room.get_node_or_null("Rooms/Room_Main")
+	_check(rehearsal.get("Room") == main_room, "GasZone_Rehearsal.Room does not point at Room_Main — the walk-band check would never run")
+	_check(pocket.get("Room") == main_room, "GasZone_Pocket.Room does not point at Room_Main — the walk-band check would never run")
 	# Nothing in this test may reload or respawn: the hero's KO is the point, not its aftermath.
 	room.RestartDelay = SAFE_DELAY
 	room.RespawnDelay = SAFE_DELAY
@@ -308,8 +315,10 @@ func _run() -> void:
 	var pocket_haze: Polygon2D = pocket.Haze
 	_check(pocket_haze != null and pocket_haze.color.a > 0.0, "GasZone_Pocket haze is invisible before it is cleared")
 	_check(pocket.monitoring == true, "GasZone_Pocket does not monitor bodies before it is cleared")
-	if pocket.Motes != null:
-		pocket.Motes.emitting = true   # headless never simulates particles; only the flag is checked
+	# The motes are read, never written: headless does not simulate particles, but the flag proves
+	# the emitter was switched on for a dangerous pocket instead of shipping dead.
+	_check(pocket.Motes != null and pocket.Motes.emitting == true,
+		"the motes of a dangerous pocket are not emitting — the 'no draught here' cue is dead")
 	pocket.Clear()
 	_check(pocket.IsCleared == true, "GasZone_Pocket.IsCleared=%s after Clear(), expected true" % pocket.IsCleared)
 	_check(pocket_cleared.size() == 1, "GasZone_Pocket.Cleared fired %d times, expected 1" % pocket_cleared.size())
@@ -328,6 +337,34 @@ func _run() -> void:
 	_check(pocket_ignited.is_empty(), "a cleared pocket ignited")
 	_check(player.IsKnockedOut == false, "the hero died in a cleared gas pocket")
 	lamp.SetOn(false)
+
+	# 9. The pocket is a gate at EVERY depth: the trigger spans the room's whole walk band, so there
+	# is no lane along its far or near edge where the lamp costs nothing. Without this the choice
+	# "power the extractor or cross in the dark" is optional and the whole mechanic is decoration.
+	var band: CollisionShape2D = rehearsal.get_node_or_null("CollisionShape2D")
+	_check(band != null and band.shape is RectangleShape2D, "GasZone_Rehearsal has no rectangular trigger shape")
+	if band != null and band.shape is RectangleShape2D:
+		var top: float = band.global_position.y - band.shape.size.y * 0.5
+		var bottom: float = band.global_position.y + band.shape.size.y * 0.5
+		_check(top <= player.FloorTop and bottom >= player.FloorBottom,
+			"the pocket covers Y %.0f..%.0f, expected the whole walk band %.0f..%.0f — the hero could walk around the gas in depth"
+			% [top, bottom, player.FloorTop, player.FloorBottom])
+	for depth in [player.FloorTop + BAND_MARGIN, player.FloorBottom - BAND_MARGIN]:
+		var probe: Vector2 = Vector2(REHEARSAL_POS.x, depth)
+		await _place(player, probe)
+		_check(rehearsal.get_overlapping_bodies().has(player),
+			"the hero at %s is not inside GasZone_Rehearsal — the pocket leaves a lane at that depth" % probe)
+		started_before = started.size()
+		lamp.SetOn(true)
+		await _step(2)
+		_check(started.size() > started_before,
+			"the lamp came on inside the pocket at Y %.0f and no warning started — that depth is a free pass" % depth)
+		_check(rehearsal.IsWarning == true, "IsWarning=%s at Y %.0f with the lamp on inside the gas" % [rehearsal.IsWarning, depth])
+		lamp.SetOn(false)
+		await _step(2)
+		_check(rehearsal.IsWarning == false, "the window kept running at Y %.0f after the lamp went off" % depth)
+	_check(ignited.size() == 1, "the pocket ignited again during the depth probes (%d times in total)" % ignited.size())
+	_check(player.IsKnockedOut == false, "the hero died during the depth probes")
 
 	room.queue_free()
 	_finish()

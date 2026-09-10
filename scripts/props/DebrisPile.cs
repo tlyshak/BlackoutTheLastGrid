@@ -25,6 +25,12 @@ namespace BlackoutLastGrid.Props;
 /// pile's root at the centre of the room's floor band and mark the strip with a <c>PH_</c> decal, or
 /// heavy attacks will read as "nothing happens".
 /// </para>
+/// <para>
+/// Blocking rule: the pile blocks the <b>whole</b> walk band on its own
+/// (<see cref="BlockerDepth"/>), so one pile is one body. Never build a gate out of a shallow pile
+/// plus extra bodies at its shoulders: the trick is invisible in the prefab, and the next level
+/// copies the prefab.
+/// </para>
 /// </remarks>
 public partial class DebrisPile : StaticBody2D, IHittable, IClearable
 {
@@ -52,6 +58,15 @@ public partial class DebrisPile : StaticBody2D, IHittable, IClearable
 
     /// <summary>The blocking shape of this body; disabled while the pile is cleared.</summary>
     [Export] public CollisionShape2D BlockerShape { get; set; } = null!;
+
+    /// <summary>
+    /// Depth (Y extent) of <see cref="BlockerShape"/> in px, applied in <c>_Ready</c> when the shape
+    /// is a rectangle; the default spans a room's whole 300 px walk band with a margin. This is what
+    /// makes one pile <b>one body</b>: a blocker shallower than the band leaves a lane the hero
+    /// walks through, and then the pile teaches nothing and gates nothing. <c>0</c> keeps whatever
+    /// the scene set (a pile that is deliberately not a gate — a decorative heap).
+    /// </summary>
+    [Export] public float BlockerDepth { get; set; } = 320f;
 
     /// <summary>The pile's hurtbox; stops being monitorable once the pile is cleared.</summary>
     [Export] public Area2D? Hurtbox { get; set; }
@@ -95,7 +110,11 @@ public partial class DebrisPile : StaticBody2D, IHittable, IClearable
     public int HitsLeft => IsCleared ? 0 : Mathf.Max(0, HeavyHitsToClear - _hits);
 
     /// <inheritdoc/>
-    public override void _Ready() => SetBlocked(!StartsCleared);
+    public override void _Ready()
+    {
+        ApplyBlockerDepth();
+        SetBlocked(!StartsCleared);
+    }
 
     /// <inheritdoc/>
     public bool TakeHit(in HitInfo hit)
@@ -161,6 +180,26 @@ public partial class DebrisPile : StaticBody2D, IHittable, IClearable
         {
             Rubble.Visible = blocked;
         }
+    }
+
+    /// <summary>
+    /// Stretches <see cref="BlockerShape"/> to <see cref="BlockerDepth"/> across the walk band. The
+    /// pile works on its own copy of the shape: sub-resources of a <c>.tscn</c> are shared between
+    /// instances of that scene, so two piles with different depths must not fight over one
+    /// rectangle.
+    /// </summary>
+    private void ApplyBlockerDepth()
+    {
+        if (BlockerDepth <= 0f
+            || BlockerShape.Shape is not RectangleShape2D rectangle
+            || Mathf.IsEqualApprox(rectangle.Size.Y, BlockerDepth))
+        {
+            return;
+        }
+
+        RectangleShape2D own = (RectangleShape2D)rectangle.Duplicate();
+        own.Size = new Vector2(rectangle.Size.X, BlockerDepth);
+        BlockerShape.Shape = own;
     }
 
     private void BurstDust()

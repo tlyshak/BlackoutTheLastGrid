@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3 uid="uid://bwp0vctrh1hxg"]
+[gd_scene load_steps=19 format=3 uid="uid://bwp0vctrh1hxg"]
 
 [ext_resource type="Script" path="res://scripts/levels/TestMine.cs" id="1_mine"]
 [ext_resource type="Script" path="res://scripts/levels/RoomBounds.cs" id="2_room"]
@@ -20,9 +20,6 @@
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
 size = Vector2(40, 400)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_shoulder"]
-size = Vector2(60, 130)
 
 [node name="TestMine" type="Node2D" node_paths=PackedStringArray("Player", "Camera", "Pause", "Hud", "Companion", "Checkpoints", "StartRoom", "Circuit", "DebugLabel", "EventLabel", "Cage", "GasPockets", "Collapse")]
 y_sort_enabled = true
@@ -129,57 +126,10 @@ modulate = Color(0.45, 0.72, 1, 1)
 position = Vector2(700, 450)
 HeavyHitsToClear = 0
 
-[node name="PH_DriftFloodFar" type="StaticBody2D" parent="."]
-position = Vector2(700, 365)
-collision_layer = 1
-collision_mask = 0
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="PH_DriftFloodFar"]
-shape = SubResource("RectangleShape2D_shoulder")
-
-[node name="PH_Rock" type="Polygon2D" parent="PH_DriftFloodFar"]
-color = Color(0.0705882, 0.0862745, 0.113725, 1)
-polygon = PackedVector2Array(-30, -65, 30, -65, 30, 65, -30, 65)
-
-[node name="PH_DriftFloodNear" type="StaticBody2D" parent="."]
-position = Vector2(700, 535)
-collision_layer = 1
-collision_mask = 0
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="PH_DriftFloodNear"]
-shape = SubResource("RectangleShape2D_shoulder")
-
-[node name="PH_Rock" type="Polygon2D" parent="PH_DriftFloodNear"]
-color = Color(0.0705882, 0.0862745, 0.113725, 1)
-polygon = PackedVector2Array(-30, -65, 30, -65, 30, 65, -30, 65)
-
-[node name="PH_DriftBackFar" type="StaticBody2D" parent="."]
-position = Vector2(1500, 365)
-collision_layer = 1
-collision_mask = 0
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="PH_DriftBackFar"]
-shape = SubResource("RectangleShape2D_shoulder")
-
-[node name="PH_Rock" type="Polygon2D" parent="PH_DriftBackFar"]
-color = Color(0.0705882, 0.0862745, 0.113725, 1)
-polygon = PackedVector2Array(-30, -65, 30, -65, 30, 65, -30, 65)
-
-[node name="PH_DriftBackNear" type="StaticBody2D" parent="."]
-position = Vector2(1500, 535)
-collision_layer = 1
-collision_mask = 0
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="PH_DriftBackNear"]
-shape = SubResource("RectangleShape2D_shoulder")
-
-[node name="PH_Rock" type="Polygon2D" parent="PH_DriftBackNear"]
-color = Color(0.0705882, 0.0862745, 0.113725, 1)
-polygon = PackedVector2Array(-30, -65, 30, -65, 30, 65, -30, 65)
-
-[node name="GasZone_Rehearsal" parent="." instance=ExtResource("14_gas")]
+[node name="GasZone_Rehearsal" parent="." node_paths=PackedStringArray("Room") instance=ExtResource("14_gas")]
 position = Vector2(920, 450)
 WarningSeconds = 1.5
+Room = NodePath("../Rooms/Room_Main")
 
 [node name="Extractor" parent="." node_paths=PackedStringArray("Circuit", "ClearTargets") instance=ExtResource("12_machine")]
 position = Vector2(1180, 450)
@@ -188,8 +138,9 @@ Circuit = NodePath("../Circuit")
 DisplayName = "Extractor"
 ClearTargets = [NodePath("../GasZone_Pocket")]
 
-[node name="GasZone_Pocket" parent="." instance=ExtResource("14_gas")]
+[node name="GasZone_Pocket" parent="." node_paths=PackedStringArray("Room") instance=ExtResource("14_gas")]
 position = Vector2(1340, 450)
+Room = NodePath("../Rooms/Room_Main")
 
 [node name="DebrisPile_Back" parent="." instance=ExtResource("15_debris")]
 position = Vector2(1500, 450)

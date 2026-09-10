@@ -1,13 +1,16 @@
 extends SceneTree
 # Smoke: the TestMine fixture and the level-side mechanics of the escape (T-07s-a) — the scene
-# loads with TestMine.cs and every export wired; DebrisPile.tscn's contract and defaults; the pile
-# discriminates hands from tools with real attacks (three light attacks only get Resisted, a heavy
-# 13 px off the pile's depth line lands nothing at all, at 12 px it registers Damaged, and the
-# second qualifying heavy Clears it and opens the way); the cave-in fires once, seals the drift
-# behind the hero after its delay and never fires again; a reached Checkpoint turns a death into a
-# soft respawn that keeps the whole world (cleared pile, collapsed drift, powered machine) and
-# hands the checkpoint's energy back; a respawn never happens behind an open pause menu; and a
-# level with no checkpoints (TestRoom) still takes the old reload path, unchanged by this task.
+# loads with TestMine.cs and every export wired; DebrisPile.tscn's contract and defaults; a pile is a
+# gate at every depth (its blocker spans the whole walk band, and a walk along the far and the near
+# edge of the band is stopped by both the timber pile and the flooded drift — the same walk goes
+# through once they are cleared); the pile discriminates hands from tools with real attacks (three
+# light attacks only get Resisted, a heavy 13 px off the pile's depth line lands nothing at all, at
+# 12 px it registers Damaged, and the second qualifying heavy Clears it and opens the way); the
+# cave-in fires once, seals the drift behind the hero after its delay and never fires again; a reached
+# Checkpoint turns a death into a soft respawn that keeps the whole world (cleared pile, collapsed
+# drift, powered machine) and hands the checkpoint's energy back; a respawn never happens behind an
+# open pause menu; and a level with no checkpoints (TestRoom) still takes the old reload path,
+# unchanged by this task.
 # Needs physics frames.
 # Run: godot --headless --path . -s tests/smoke/level_mine.gd
 #
@@ -37,6 +40,11 @@ const NEAR_PUMP := Vector2(555, 450)    # inside the pump's reach
 const CP_GAS_POS := Vector2(1080, 450)  # centre of Checkpoint_Gas
 const CAVEIN_POS := Vector2(1550, 450)  # centre of the cave-in trigger
 const OFF_TRIGGER_POS := Vector2(1660, 450)   # right of the cave-in, clear of the fresh pile
+const BLOCK_FRAMES := 50       # frames of move_right: 220 px/s x 0.83 s = 183 px, past any pile
+const BLOCK_APPROACH := 90.0   # px left of a pile the blocked walk starts from
+const BLOCK_MARGIN := 20.0     # px short of the pile's root X the hero must still be
+const PASS_MARGIN := 30.0      # px past the pile's root X a cleared pile lets him reach
+const BAND_MARGIN := 20.0      # px inside the walk band's far and near edge the probes walk along
 const CHECKPOINT_ENERGY := 55.0
 const DELAY_MARGIN := 0.4      # extra real seconds on top of a level timer
 const RESPAWN_EPS := 2.0       # px the respawn may miss the checkpoint's respawn point by
@@ -108,6 +116,16 @@ func _wait_until(cond: Callable, cap: int) -> int:
 			return i
 		await physics_frame
 	return -1
+
+# Walks the hero right from `from` for BLOCK_FRAMES frames and returns the X he ended at.
+func _walk_right(player: Node, from: Vector2) -> float:
+	player.global_position = from
+	await _step(2)
+	Input.action_press("move_right")
+	await _step(BLOCK_FRAMES)
+	Input.action_release("move_right")
+	await _step(2)
+	return player.global_position.x
 
 # Presses `action` for exactly one physics frame.
 func _tap(action: String) -> void:
@@ -206,16 +224,17 @@ func _run() -> void:
 
 	var player: Node = room.get_node_or_null("Player")
 	var pile: Node = room.get_node_or_null("DebrisPile_Hand")
+	var flood: Node = room.get_node_or_null("Flood")
 	var back: Node = room.get_node_or_null("DebrisPile_Back")
 	var cavein: Node = room.get_node_or_null("CaveIn_Mid")
 	var pump: Node = room.get_node_or_null("Pump")
 	var circuit: Node = room.get_node_or_null("Circuit")
 	var cp_start: Node = room.get_node_or_null("Checkpoints/Checkpoint_Start")
 	var cp_gas: Node = room.get_node_or_null("Checkpoints/Checkpoint_Gas")
-	for pair in [[player, "Player"], [pile, "DebrisPile_Hand"], [back, "DebrisPile_Back"], [cavein, "CaveIn_Mid"],
+	for pair in [[player, "Player"], [pile, "DebrisPile_Hand"], [flood, "Flood"], [back, "DebrisPile_Back"], [cavein, "CaveIn_Mid"],
 			[pump, "Pump"], [circuit, "Circuit"], [cp_start, "Checkpoints/Checkpoint_Start"], [cp_gas, "Checkpoints/Checkpoint_Gas"]]:
 		_check(pair[0] != null, "TestMine has no '%s' child" % pair[1])
-	if player == null or pile == null or back == null or cavein == null or pump == null or circuit == null or cp_start == null or cp_gas == null:
+	if player == null or pile == null or flood == null or back == null or cavein == null or pump == null or circuit == null or cp_start == null or cp_gas == null:
 		room.queue_free()
 		_finish()
 		return
@@ -270,6 +289,32 @@ func _run() -> void:
 		room.queue_free()
 		_finish()
 		return
+
+	# 2b. A pile is a gate at EVERY depth. The blocking shape spans the room's whole walk band, so
+	# there is no lane along its far or near edge — without this the timber pile teaches nothing and
+	# the flooded drift is not a reason to switch the pump on. Structure first, then the walk.
+	var band_top: float = player.FloorTop + BAND_MARGIN
+	var band_bottom: float = player.FloorBottom - BAND_MARGIN
+	for pair in [[pile, "DebrisPile_Hand"], [flood, "Flood"]]:
+		var gate: Node = pair[0]
+		var gate_name: String = pair[1]
+		_check(is_equal_approx(gate.BlockerDepth, 320.0),
+			"%s.BlockerDepth=%s, expected 320 (the 300 px walk band with a margin)" % [gate_name, gate.BlockerDepth])
+		var box: Shape2D = gate.BlockerShape.shape
+		_check(box is RectangleShape2D, "%s's blocker is a %s, expected a RectangleShape2D" % [gate_name, box.get_class()])
+		if box is RectangleShape2D:
+			var top: float = gate.BlockerShape.global_position.y - box.size.y * 0.5
+			var bottom: float = gate.BlockerShape.global_position.y + box.size.y * 0.5
+			_check(top <= player.FloorTop and bottom >= player.FloorBottom,
+				"%s blocks Y %.0f..%.0f, expected to cover the whole walk band %.0f..%.0f — the hero could walk around it in depth"
+				% [gate_name, top, bottom, player.FloorTop, player.FloorBottom])
+		for depth in [band_top, band_bottom]:
+			var start: Vector2 = Vector2(gate.global_position.x - BLOCK_APPROACH, depth)
+			var reached: float = await _walk_right(player, start)
+			_check(reached <= gate.global_position.x - BLOCK_MARGIN,
+				"walking right at Y %.0f the hero reached x %.0f, past %s at x %.0f — the pile can be bypassed in depth"
+				% [depth, reached, gate_name, gate.global_position.x])
+	_release_all()
 
 	var resisted: Array = []
 	var damaged: Array = []
@@ -336,6 +381,13 @@ func _run() -> void:
 	_check(pile.Rubble != null and pile.Rubble.visible == false, "the cleared pile is still visible")
 	_check(pile.Hurtbox == null or pile.Hurtbox.monitorable == false, "the cleared pile is still hittable")
 	await _wait_until(func(): return player.CurrentStateName == "Idle", IDLE_CAP)
+	# The control for §2b: the very walk that was stopped along the far edge of the band now goes
+	# straight through, so what stopped it was the pile and not the test.
+	var pile_open: float = await _walk_right(player, Vector2(PILE_POS.x - BLOCK_APPROACH, band_top))
+	_check(pile_open >= PILE_POS.x + PASS_MARGIN,
+		"after two heavy hits the hero only reached x %.0f walking at Y %.0f, expected past x %.0f" % [pile_open, band_top, PILE_POS.x + PASS_MARGIN])
+	_release_all()
+	await _wait_until(func(): return player.CurrentStateName == "Idle", IDLE_CAP)
 
 	# 6. One powered machine, so the respawn has some world state to preserve.
 	await _place(player, NEAR_PUMP)
@@ -343,6 +395,13 @@ func _run() -> void:
 	await _step(4)
 	_check(pump.IsPowered == true, "the pump did not start (IsPowered=%s)" % pump.IsPowered)
 	_check(circuit.Used == 1, "Circuit.Used=%s with the pump running, expected 1" % circuit.Used)
+	# ... and the drained drift stops blocking at every depth, not only at the band's centre.
+	_check(flood.IsCleared == true, "Flood.IsCleared=%s with the pump running, expected true" % flood.IsCleared)
+	var flood_open: float = await _walk_right(player, Vector2(flood.global_position.x - BLOCK_APPROACH, band_bottom))
+	_check(flood_open >= flood.global_position.x + PASS_MARGIN,
+		"after the pump the hero only reached x %.0f walking at Y %.0f, expected past x %.0f" % [flood_open, band_bottom, flood.global_position.x + PASS_MARGIN])
+	_release_all()
+	await _wait_until(func(): return player.CurrentStateName == "Idle", IDLE_CAP)
 
 	# 7. The checkpoint arms once and snapshots the energy the hero has (acceptance 14).
 	var armed: Array = []
