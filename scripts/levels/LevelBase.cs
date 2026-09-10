@@ -45,6 +45,14 @@ public partial class LevelBase : Node2D
     /// <summary>HUD showing the energy bar and the interaction prompt; optional for a level instanced by a test.</summary>
     [Export] public HUD? Hud { get; set; }
 
+    /// <summary>
+    /// The brother escorting the hero through this level, when it has one. The level owns the two
+    /// places a follower cannot recover from on its own — a room change and a respawn, both of
+    /// which teleport the hero — and warps him behind the hero there (the third anti-stuck
+    /// safeguard from the plan; the other two live in <see cref="Actors.Companion"/> itself).
+    /// </summary>
+    [Export] public Companion? Companion { get; set; }
+
     /// <summary>Prompt shown for a ready interactable; {0} is its prompt text.</summary>
     [Export] public string PromptFormat { get; set; } = "E: {0}";
 
@@ -203,6 +211,7 @@ public partial class LevelBase : Node2D
         state.Energy = _checkpoint.RestoresFullEnergy
             ? state.MaxEnergy
             : Mathf.Max(_checkpointEnergy, MinRespawnEnergy);
+        Companion?.WarpBehind();   // the hero jumped back to the checkpoint; bring the brother along
         EmitSignalRespawned();
     }
 
@@ -244,6 +253,7 @@ public partial class LevelBase : Node2D
         Player.FloorTop = room.FloorTop;
         Player.FloorBottom = room.FloorBottom;
         SwitchRoomFx(room.Fx);
+        Companion?.WarpBehind();   // a door hop teleports the hero; walking there would strand him
         if (Camera is null)
         {
             return;
@@ -286,6 +296,9 @@ public partial class LevelBase : Node2D
     /// <param name="text">Prompt text, already formatted.</param>
     protected void ShowPrompt(string? text)
     {
+        // Author's rule: a speech bubble that would collide with a HUD prompt loses to the prompt.
+        // Suppressing only hides it — the line is not lost and reappears when the prompt clears.
+        Companion?.SetBubbleSuppressed(text is not null);
         if (Hud is null)
         {
             return;
@@ -308,7 +321,7 @@ public partial class LevelBase : Node2D
     /// </summary>
     protected virtual void RefreshPrompt() => ShowPrompt(_interactablePrompt);
 
-    /// <summary>A ready prop gets the key hint ("E: Зарядити"); a busy or unusable one shows its text as is.</summary>
+    /// <summary>A ready prop gets the key hint ("E: Charge"); a busy or unusable one shows its text as is.</summary>
     private string FormatPrompt(Interactable interactable, string text) =>
         interactable.IsActive || !interactable.CanInteract ? text : string.Format(PromptFormat, text);
 

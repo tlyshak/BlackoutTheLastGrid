@@ -26,7 +26,7 @@ namespace BlackoutLastGrid.Props;
 /// heavy attacks will read as "nothing happens".
 /// </para>
 /// </remarks>
-public partial class DebrisPile : StaticBody2D, IHittable
+public partial class DebrisPile : StaticBody2D, IHittable, IClearable
 {
     /// <summary>Emitted when a qualifying hit landed but the pile still stands; carries the hits left.</summary>
     [Signal]

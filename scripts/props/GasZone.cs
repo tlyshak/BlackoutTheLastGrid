@@ -29,7 +29,7 @@ namespace BlackoutLastGrid.Props;
 /// <c>_PhysicsProcess</c> runs only while a warning is actually counting down.
 /// </para>
 /// </remarks>
-public partial class GasZone : Area2D
+public partial class GasZone : Area2D, IClearable
 {
     /// <summary>Alpha of the resting haze — visible enough to read as "the air is wrong", not enough to hide the floor.</summary>
     private const float HazeRestingAlpha = 0.2f;
