@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3 uid="uid://c5as8u6w2way2"]
+[gd_scene load_steps=18 format=3 uid="uid://c5as8u6w2way2"]
 
 [ext_resource type="Script" path="res://scripts/levels/TestRoom.cs" id="1_room"]
 [ext_resource type="PackedScene" uid="uid://ct2db4jsifoal" path="res://scenes/player/Player.tscn" id="2_player"]
@@ -11,6 +11,8 @@
 [ext_resource type="PackedScene" uid="uid://bhku23d0vfuqb" path="res://scenes/props/Outlet.tscn" id="5_outlet"]
 [ext_resource type="PackedScene" uid="uid://dmtttbck25go3" path="res://scenes/props/PowerPanel.tscn" id="6_panel"]
 [ext_resource type="PackedScene" uid="uid://b01co21wm8ogb" path="res://scenes/ui/PauseMenu.tscn" id="9_pause"]
+[ext_resource type="Script" path="res://scripts/levels/LevelFx.cs" id="10_levelfx"]
+[ext_resource type="PackedScene" uid="uid://yok8kunrm1id" path="res://scenes/fx/ImpactFx.tscn" id="11_impactfx"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
 size = Vector2(40, 400)
@@ -170,3 +172,9 @@ offset_bottom = 104.0
 text = "State: -  z: 0"
 
 [node name="PauseMenu" parent="." instance=ExtResource("9_pause")]
+
+[node name="LevelFx" type="Node" parent="." node_paths=PackedStringArray("Level", "Player")]
+script = ExtResource("10_levelfx")
+Level = NodePath("..")
+Player = NodePath("../Player")
+ImpactFxScene = ExtResource("11_impactfx")

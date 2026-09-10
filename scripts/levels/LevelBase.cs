@@ -1,17 +1,21 @@
 using BlackoutLastGrid.Actors;
 using BlackoutLastGrid.Core;
+using BlackoutLastGrid.Props;
 using BlackoutLastGrid.Ui;
 using Godot;
 
 namespace BlackoutLastGrid.Levels;
 
 /// <summary>
-/// Common behaviour of a playable level: the camera follows the hero along X (clamped by the
-/// camera's own limits, which a <see cref="WaveSpawner"/> may tighten while a wave is locked, or
-/// which <see cref="ApplyRoomBounds"/> moves from room to room), the hero's KO restarts the level
-/// after <see cref="RestartDelay"/> — hit-stop cancelled, run state reset, current scene reloaded
-/// (with <c>Main</c> as the current scene that re-instantiates the level) — and
-/// <see cref="GoToLevel"/> hands the run over to the next level. The level also owns the
+/// Common behaviour of a playable level: the camera follows the hero along X with a lookahead
+/// (clamped by the camera's own limits, which a <see cref="WaveSpawner"/> may tighten while a
+/// wave is locked, or which <see cref="ApplyRoomBounds"/> moves from room to room) and can be
+/// shaken by <see cref="ShakeCamera"/>; the prop in reach is forwarded to the <see cref="Hud"/>
+/// as a prompt (<see cref="RefreshPrompt"/>, which levels with several prompt sources override);
+/// each room's ambient FX group runs only while that room is the active one; the hero's KO
+/// restarts the level after <see cref="RestartDelay"/> — hit-stop cancelled, run state reset,
+/// current scene reloaded (with <c>Main</c> as the current scene that re-instantiates the level)
+/// — and <see cref="GoToLevel"/> hands the run over to the next level. The level also owns the
 /// <see cref="Pause"/> menu instanced in its scene and the way out of the run
 /// (<see cref="GoToMainMenu"/>). Every transition lifts the pause and the hit-stop first, so the
 /// next scene can never come up frozen. Concrete levels derive from it and add their props.
@@ -27,37 +31,73 @@ public partial class LevelBase : Node2D
     /// <summary>Pause overlay instanced in the level scene; optional, so a test-instanced level works without one.</summary>
     [Export] public PauseMenu? Pause { get; set; }
 
+    /// <summary>HUD showing the energy bar and the interaction prompt; optional for a level instanced by a test.</summary>
+    [Export] public HUD? Hud { get; set; }
+
+    /// <summary>Prompt shown for a ready interactable; {0} is its prompt text.</summary>
+    [Export] public string PromptFormat { get; set; } = "E: {0}";
+
     /// <summary>Real seconds between the hero's KO and the scene reload (hit-stop does not stretch it).</summary>
     [Export] public float RestartDelay { get; set; } = 1f;
+
+    /// <summary>Px the camera leads the hero in his direction of travel; 0 disables the lookahead.</summary>
+    [Export] public float CameraLookahead { get; set; } = 90f;
+
+    /// <summary>Rate (1/s) at which the lookahead approaches its target; higher is snappier.</summary>
+    [Export] public float CameraLookaheadSpeed { get; set; } = 5f;
+
+    /// <summary>Group whose <see cref="GpuParticles2D"/> members are never switched on by the room gating (the level drives them itself).</summary>
+    [Export] public string ManualFxGroup { get; set; } = "fx_manual";
 
     /// <summary>Scene loaded when the player abandons the run from the pause menu.</summary>
     [Export(PropertyHint.File, "*.tscn")]
     public string MainMenuScenePath { get; set; } = "res://scenes/ui/MainMenu.tscn";
 
+    private readonly RandomNumberGenerator _rng = new();
     private SceneTreeTimer? _restartTimer;
+    private Interactable? _currentInteractable;
+    private string? _interactablePrompt;
+    private Node2D? _activeFx;
+    private float _lookahead;
+    private float _shakeAmplitude;
+    private float _shakeDuration;
+    private float _shakeTime;
+    private float _shakeFlip = 1f;
 
     /// <summary><c>true</c> between the hero's KO and the reload.</summary>
     public bool IsRestartPending => _restartTimer is not null;
 
+    /// <summary>Formatted prompt of the prop currently in reach, or <c>null</c> when there is none.</summary>
+    protected string? InteractablePrompt => _interactablePrompt;
+
     /// <inheritdoc/>
     public override void _Ready()
     {
+        _rng.Randomize();
         Player.KnockedOut += OnPlayerKnockedOut;
+        Player.InteractableChanged += OnInteractableChanged;
         if (Pause is not null)
         {
             Pause.QuitToMenuRequested += GoToMainMenu;
         }
 
-        FollowPlayer();
+        FollowPlayer(0.0);
     }
 
     /// <inheritdoc/>
     public override void _ExitTree()
     {
         Player.KnockedOut -= OnPlayerKnockedOut;
+        Player.InteractableChanged -= OnInteractableChanged;
         if (Pause is not null)
         {
             Pause.QuitToMenuRequested -= GoToMainMenu;
+        }
+
+        FollowInteractable(null);
+        if (Camera is not null)
+        {
+            Camera.Offset = Vector2.Zero;   // a level freed mid-shake must not leave the camera displaced
         }
 
         if (_restartTimer is not null)
@@ -68,7 +108,7 @@ public partial class LevelBase : Node2D
     }
 
     /// <inheritdoc/>
-    public override void _Process(double delta) => FollowPlayer();
+    public override void _Process(double delta) => FollowPlayer(delta);
 
     /// <summary>
     /// Restarts the level now: lifts any hit-stop and the pause, resets the run state and reloads
@@ -128,6 +168,7 @@ public partial class LevelBase : Node2D
     {
         Player.FloorTop = room.FloorTop;
         Player.FloorBottom = room.FloorBottom;
+        SwitchRoomFx(room.Fx);
         if (Camera is null)
         {
             return;
@@ -140,16 +181,183 @@ public partial class LevelBase : Node2D
         Camera.LimitBottom = Mathf.RoundToInt(rect.End.Y);
     }
 
-    private void FollowPlayer()
+    /// <summary>
+    /// Shakes the camera for <paramref name="duration"/> seconds with a linearly decaying
+    /// amplitude, written to <see cref="Camera2D.Offset"/> only — the limits (and therefore a
+    /// <see cref="WaveSpawner"/> lock) are never touched. A shake already running is replaced only
+    /// by a stronger one, and the offset is set to exactly zero when the last one runs out.
+    /// Driven by the scaled <c>_Process</c> delta, so a hit-stop holds it instead of skipping it.
+    /// </summary>
+    /// <param name="amplitude">Peak offset in px.</param>
+    /// <param name="duration">Seconds the shake decays over.</param>
+    public void ShakeCamera(float amplitude, float duration)
+    {
+        if (Camera is null || amplitude <= 0f || duration <= 0f || (amplitude < _shakeAmplitude && _shakeTime > 0f))
+        {
+            return;
+        }
+
+        _shakeAmplitude = amplitude;
+        _shakeDuration = duration;
+        _shakeTime = duration;
+    }
+
+    /// <summary><c>true</c> while the prop in reach is busy or ready — its prompt outranks every hint; a dead one ranks last.</summary>
+    protected bool IsInteractableUsable() =>
+        _currentInteractable is not null && IsInstanceValid(_currentInteractable)
+        && (_currentInteractable.IsActive || _currentInteractable.CanInteract);
+
+    /// <summary>Shows <paramref name="text"/> in the HUD, or hides the prompt when it is <c>null</c>. A level without a HUD does nothing.</summary>
+    /// <param name="text">Prompt text, already formatted.</param>
+    protected void ShowPrompt(string? text)
+    {
+        if (Hud is null)
+        {
+            return;
+        }
+
+        if (text is null)
+        {
+            Hud.HidePrompt();
+        }
+        else
+        {
+            Hud.ShowPrompt(text);
+        }
+    }
+
+    /// <summary>
+    /// Pushes the current prompt to the HUD. The base rule is "the prop in reach, or nothing";
+    /// a level with more prompt sources (stage hints, tutorial hints, cutscenes) overrides this
+    /// with its own priority and calls the base helpers.
+    /// </summary>
+    protected virtual void RefreshPrompt() => ShowPrompt(_interactablePrompt);
+
+    /// <summary>A ready prop gets the key hint ("E: Зарядити"); a busy or unusable one shows its text as is.</summary>
+    private string FormatPrompt(Interactable interactable, string text) =>
+        interactable.IsActive || !interactable.CanInteract ? text : string.Format(PromptFormat, text);
+
+    private void OnInteractableChanged(Interactable? current)
+    {
+        FollowInteractable(current);
+        _interactablePrompt = current is null ? null : FormatPrompt(current, current.CurrentPrompt);
+        RefreshPrompt();
+    }
+
+    private void OnPromptChanged(string text)
+    {
+        if (_currentInteractable is not null)
+        {
+            _interactablePrompt = FormatPrompt(_currentInteractable, text);
+            RefreshPrompt();
+        }
+    }
+
+    /// <summary>Subscribes to the prompt of <paramref name="next"/> and drops the previous subscription.</summary>
+    private void FollowInteractable(Interactable? next)
+    {
+        if (_currentInteractable is not null && IsInstanceValid(_currentInteractable))
+        {
+            _currentInteractable.PromptChanged -= OnPromptChanged;
+        }
+
+        _currentInteractable = next;
+        if (next is not null)
+        {
+            next.PromptChanged += OnPromptChanged;
+        }
+    }
+
+    /// <summary>Stops the ambient FX of the room being left and starts those of <paramref name="next"/>.</summary>
+    private void SwitchRoomFx(Node2D? next)
+    {
+        if (ReferenceEquals(_activeFx, next))
+        {
+            return;
+        }
+
+        if (_activeFx is not null && IsInstanceValid(_activeFx))
+        {
+            SetFxActive(_activeFx, false);
+        }
+
+        _activeFx = next;
+        if (next is not null)
+        {
+            SetFxActive(next, true);
+        }
+    }
+
+    /// <summary>
+    /// Switches an ambient-FX group on or off: the emitters stop (or resume, unless they are in
+    /// <see cref="ManualFxGroup"/> and driven by the level itself) and the whole group leaves the
+    /// process loop, which also freezes its <c>AnimationPlayer</c> loops. Walked only on a room
+    /// change — three times in a playthrough — never per frame. The groups hold no collision
+    /// shapes, so a disabled group never removes a body from the physics space.
+    /// </summary>
+    private void SetFxActive(Node2D group, bool on)
+    {
+        if (on)
+        {
+            group.ProcessMode = ProcessModeEnum.Inherit;
+        }
+
+        SetEmittersActive(group, on);
+        if (!on)
+        {
+            group.ProcessMode = ProcessModeEnum.Disabled;
+        }
+    }
+
+    private void SetEmittersActive(Node node, bool on)
+    {
+        if (node is GpuParticles2D particles && (!on || !particles.IsInGroup(ManualFxGroup)))
+        {
+            particles.Emitting = on;
+        }
+
+        foreach (Node child in node.GetChildren())
+        {
+            SetEmittersActive(child, on);
+        }
+    }
+
+    private void FollowPlayer(double delta)
     {
         if (Camera is null)
         {
             return;
         }
 
+        float target = Player.Velocity.X > 0f ? CameraLookahead : Player.Velocity.X < 0f ? -CameraLookahead : 0f;
+        _lookahead = Mathf.Lerp(_lookahead, target, 1f - Mathf.Exp(-CameraLookaheadSpeed * (float)delta));
+
         Vector2 position = Camera.GlobalPosition;
-        position.X = Player.GlobalPosition.X;
+        position.X = Player.GlobalPosition.X + _lookahead;
         Camera.GlobalPosition = position;
+
+        UpdateShake(delta);
+    }
+
+    private void UpdateShake(double delta)
+    {
+        if (_shakeTime <= 0f || Camera is null)
+        {
+            return;
+        }
+
+        _shakeTime -= (float)delta;
+        if (_shakeTime <= 0f)
+        {
+            _shakeTime = 0f;
+            _shakeAmplitude = 0f;
+            Camera.Offset = Vector2.Zero;   // exactly zero, never a lerp tail
+            return;
+        }
+
+        float strength = _shakeAmplitude * (_shakeTime / _shakeDuration);
+        _shakeFlip = -_shakeFlip;   // alternating X keeps it reading as a shake, not as drift
+        Camera.Offset = new Vector2(_shakeFlip * strength, _rng.RandfRange(-strength, strength));
     }
 
     private void OnPlayerKnockedOut()

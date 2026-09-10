@@ -18,4 +18,11 @@ public partial class RoomBounds : Node2D
 
     /// <summary>Largest Y the hero's feet may reach in this room (near edge of the floor), in world px.</summary>
     [Export] public float FloorBottom { get; set; } = 600f;
+
+    /// <summary>
+    /// Ambient-FX group belonging to this room (dust, flicker, loops). Simulated only while the
+    /// room is the active one — <see cref="LevelBase.ApplyRoomBounds"/> switches it on and stops
+    /// the group of the room being left. Optional: a room without ambient FX leaves it empty.
+    /// </summary>
+    [Export] public Node2D? Fx { get; set; }
 }

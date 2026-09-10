@@ -66,9 +66,6 @@ public partial class Level00_Prologue : LevelBase
     /// <summary>Whether the player may advance cutscene lines by hand.</summary>
     [Export] public bool CutsceneSkippable { get; set; } = true;
 
-    /// <summary>Prompt shown for a ready interactable; {0} is its prompt text.</summary>
-    [Export] public string PromptFormat { get; set; } = "E: {0}";
-
     /// <summary>Stage hint while the alarm beat plays.</summary>
     [Export] public string AlarmPromptText { get; set; } = "ТРИВОГА — вентиляцію нижніх горизонтів вимкнено";
 
@@ -99,9 +96,6 @@ public partial class Level00_Prologue : LevelBase
     /// <summary>On-screen label showing the stage, the hero's state and jump height.</summary>
     [Export] public Label DebugLabel { get; set; } = null!;
 
-    /// <summary>HUD showing the energy bar and the prompt.</summary>
-    [Export] public HUD Hud { get; set; } = null!;
-
     /// <summary>Text overlay used for every cutscene.</summary>
     [Export] public Cutscene Cutscene { get; set; } = null!;
 
@@ -126,6 +120,12 @@ public partial class Level00_Prologue : LevelBase
     /// <summary>The fan panel; unpowered, so its sequence ends in <c>FailedNoPower</c>.</summary>
     [Export] public PowerPanel FanPanel { get; set; } = null!;
 
+    /// <summary>Sparks that start raining from the panel once it is known to be dead, and never stop (§3).</summary>
+    [Export] public GpuParticles2D? PanelSparks { get; set; }
+
+    /// <summary>Light of the panel sparks, switched on with them so the discharge reads in the dark.</summary>
+    [Export] public PointLight2D? PanelSparkLight { get; set; }
+
     /// <summary>Parent of the red <c>PH_AlarmLight</c> lights, blinked after the alarm.</summary>
     [Export] public Node2D AlarmLights { get; set; } = null!;
 
@@ -138,8 +138,6 @@ public partial class Level00_Prologue : LevelBase
     private Stage _stage = Stage.Intro;
     private string _playerState = string.Empty;
     private int _height = -1;
-    private Interactable? _currentInteractable;
-    private string? _interactablePrompt;
     private TutorialPrompt? _activeHint;
     private string? _stagePrompt;
     private bool _noPowerPending;
@@ -158,7 +156,6 @@ public partial class Level00_Prologue : LevelBase
         Cutscene.Skippable = CutsceneSkippable;
 
         Player.StateChanged += OnPlayerStateChanged;
-        Player.InteractableChanged += OnInteractableChanged;
         Cutscene.Finished += OnCutsceneFinished;
         Door1.Entered += OnDoor1Entered;
         Door2.Entered += OnDoor2Entered;
@@ -186,7 +183,6 @@ public partial class Level00_Prologue : LevelBase
     {
         base._ExitTree();
         Player.StateChanged -= OnPlayerStateChanged;
-        Player.InteractableChanged -= OnInteractableChanged;
         Cutscene.Finished -= OnCutsceneFinished;
         Door1.Entered -= OnDoor1Entered;
         Door2.Entered -= OnDoor2Entered;
@@ -194,7 +190,6 @@ public partial class Level00_Prologue : LevelBase
         FanPanel.FailedNoPower -= OnFanPanelFailedNoPower;
         FanPanel.Finished -= OnFanPanelFinished;
         Exit.BodyEntered -= OnExitBodyEntered;
-        FollowInteractable(null);
         KillTween(ref _alarmTween);
         KillTween(ref _darknessTween);
         if (_danTimer is not null)
@@ -289,9 +284,20 @@ public partial class Level00_Prologue : LevelBase
 
     private void OnFanPanelFailedNoPower()
     {
-        if (_stage == Stage.Ventilation)
+        if (_stage != Stage.Ventilation)
         {
-            _noPowerPending = true;   // the panel still flashes red; the cutscene starts once it releases the hero
+            return;
+        }
+
+        _noPowerPending = true;   // the panel still flashes red; the cutscene starts once it releases the hero
+        if (PanelSparks is not null)
+        {
+            PanelSparks.Emitting = true;   // the panel is dead from now on: the discharge never stops
+        }
+
+        if (PanelSparkLight is not null)
+        {
+            PanelSparkLight.Enabled = true;
         }
     }
 
@@ -450,67 +456,23 @@ public partial class Level00_Prologue : LevelBase
         RefreshPrompt();
     }
 
-    private void OnInteractableChanged(Interactable? current)
-    {
-        FollowInteractable(current);
-        _interactablePrompt = current is null ? null : FormatPrompt(current, current.CurrentPrompt);
-        RefreshPrompt();
-    }
-
-    private void OnPromptChanged(string text)
-    {
-        if (_currentInteractable is not null)
-        {
-            _interactablePrompt = FormatPrompt(_currentInteractable, text);
-            RefreshPrompt();
-        }
-    }
-
-    /// <summary>Subscribes to the prompt of <paramref name="next"/> and drops the previous subscription.</summary>
-    private void FollowInteractable(Interactable? next)
-    {
-        if (_currentInteractable is not null && IsInstanceValid(_currentInteractable))
-        {
-            _currentInteractable.PromptChanged -= OnPromptChanged;
-        }
-
-        _currentInteractable = next;
-        if (next is not null)
-        {
-            next.PromptChanged += OnPromptChanged;
-        }
-    }
-
-    /// <summary>A ready prop gets the key hint ("E: Зарядити"); a busy or unusable one shows its text as is.</summary>
-    private string FormatPrompt(Interactable interactable, string text) =>
-        interactable.IsActive || !interactable.CanInteract ? text : string.Format(PromptFormat, text);
-
-    /// <summary><c>true</c> while the prop in reach is busy or ready — its prompt outranks every hint; a dead one ranks last.</summary>
-    private bool IsInteractableUsable() =>
-        _currentInteractable is not null && IsInstanceValid(_currentInteractable)
-        && (_currentInteractable.IsActive || _currentInteractable.CanInteract);
-
-    /// <summary>Shows the highest-priority prompt: usable interactable, stage hint, active tutorial hint, unusable interactable; none during a cutscene.</summary>
-    private void RefreshPrompt()
+    /// <summary>
+    /// The prologue's prompt priority, replacing the base rule: a usable interactable in reach,
+    /// then the stage hint, then the active tutorial hint, then the text of an unusable prop
+    /// (the dead panel); nothing at all while a cutscene plays.
+    /// </summary>
+    protected override void RefreshPrompt()
     {
         if (Cutscene.IsPlaying)
         {
-            Hud.HidePrompt();
+            ShowPrompt(null);
             return;
         }
 
         string? hint = _activeHint is not null && _activeHint.IsShowing ? _activeHint.Text : null;
-        string? text = IsInteractableUsable()
-            ? _interactablePrompt
-            : _stagePrompt ?? hint ?? _interactablePrompt;
-        if (text is null)
-        {
-            Hud.HidePrompt();
-        }
-        else
-        {
-            Hud.ShowPrompt(text);
-        }
+        ShowPrompt(IsInteractableUsable()
+            ? InteractablePrompt
+            : _stagePrompt ?? hint ?? InteractablePrompt);
     }
 
     private void OnPlayerStateChanged(string from, string to)

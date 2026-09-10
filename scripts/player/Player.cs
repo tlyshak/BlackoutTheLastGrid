@@ -34,6 +34,10 @@ public partial class Player : CharacterBody2D, IHittable
     [Signal]
     public delegate void KnockedOutEventHandler();
 
+    /// <summary>Emitted on the physics step the hero's <see cref="Height"/> returns to 0 after a jump.</summary>
+    [Signal]
+    public delegate void LandedEventHandler();
+
     /// <summary>Re-emits the state machine's transitions so owners (levels, HUD) never reach into the child.</summary>
     [Signal]
     public delegate void StateChangedEventHandler(string from, string to);
@@ -211,6 +215,7 @@ public partial class Player : CharacterBody2D, IHittable
     /// <param name="delta">Physics step in seconds.</param>
     public void IntegrateJump(double delta)
     {
+        bool wasAirborne = IsAirborne;
         float dt = (float)delta;
         _zVelocity -= Gravity * dt;
         _z += _zVelocity * dt;
@@ -219,6 +224,12 @@ public partial class Player : CharacterBody2D, IHittable
         {
             _z = 0f;
             _zVelocity = 0f;
+            if (wasAirborne)
+            {
+                // Only the step that actually brings the hero down reports a landing, so a
+                // grounded call (a reaction re-entering the state) emits nothing.
+                EmitSignalLanded();
+            }
         }
 
         UpdateVisual();
