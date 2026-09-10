@@ -1,17 +1,19 @@
-[gd_scene load_steps=5 format=3 uid="uid://g0gjms1b3i3p"]
+[gd_scene load_steps=6 format=3 uid="uid://g0gjms1b3i3p"]
 
 [ext_resource type="Script" path="res://scripts/levels/Level01_District.cs" id="1_level"]
 [ext_resource type="PackedScene" uid="uid://ct2db4jsifoal" path="res://scenes/player/Player.tscn" id="2_player"]
 [ext_resource type="PackedScene" uid="uid://2adcecasbtv6" path="res://scenes/ui/HUD.tscn" id="3_hud"]
+[ext_resource type="PackedScene" uid="uid://b01co21wm8ogb" path="res://scenes/ui/PauseMenu.tscn" id="4_pause"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
 size = Vector2(40, 400)
 
-[node name="Level01_District" type="Node2D" node_paths=PackedStringArray("Player", "Camera")]
+[node name="Level01_District" type="Node2D" node_paths=PackedStringArray("Player", "Camera", "Pause")]
 y_sort_enabled = true
 script = ExtResource("1_level")
 Player = NodePath("Player")
 Camera = NodePath("Camera2D")
+Pause = NodePath("PauseMenu")
 
 [node name="CanvasModulate" type="CanvasModulate" parent="."]
 color = Color(0.0627451, 0.0705882, 0.1, 1)
@@ -80,3 +82,5 @@ theme_override_font_sizes/font_size = 40
 text = "Рівень 1 — спальний район (T-08)"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="PauseMenu" parent="." instance=ExtResource("4_pause")]

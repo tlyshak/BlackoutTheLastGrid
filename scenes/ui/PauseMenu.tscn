@@ -1,0 +1,72 @@
+[gd_scene load_steps=4 format=3 uid="uid://b01co21wm8ogb"]
+
+[ext_resource type="Script" path="res://scripts/ui/PauseMenu.cs" id="1_pause"]
+[ext_resource type="Theme" uid="uid://4i2jy3f0qvhf" path="res://scenes/ui/HudTheme.tres" id="2_theme"]
+[ext_resource type="PackedScene" uid="uid://b83od2cmmg2g2" path="res://scenes/ui/SettingsMenu.tscn" id="3_settings"]
+
+[node name="PauseMenu" type="CanvasLayer" node_paths=PackedStringArray("Root", "ResumeButton", "SettingsButton", "QuitButton", "Settings")]
+process_mode = 3
+layer = 25
+script = ExtResource("1_pause")
+Root = NodePath("Root")
+ResumeButton = NodePath("Root/Center/ResumeButton")
+SettingsButton = NodePath("Root/Center/SettingsButton")
+QuitButton = NodePath("Root/Center/QuitButton")
+Settings = NodePath("Settings")
+
+[node name="Root" type="Control" parent="."]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+
+[node name="PH_Dim" type="ColorRect" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.039216, 0.05098, 0.078431, 0.7)
+
+[node name="Center" type="VBoxContainer" parent="Root"]
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -210.0
+offset_top = -170.0
+offset_right = 210.0
+offset_bottom = 170.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="Title" type="Label" parent="Root/Center"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.941176, 0.639216, 0.14902, 1)
+theme_override_font_sizes/font_size = 48
+text = "ПАУЗА"
+horizontal_alignment = 1
+
+[node name="ResumeButton" type="Button" parent="Root/Center"]
+layout_mode = 2
+text = "Продовжити"
+
+[node name="SettingsButton" type="Button" parent="Root/Center"]
+layout_mode = 2
+text = "Налаштування"
+
+[node name="QuitButton" type="Button" parent="Root/Center"]
+layout_mode = 2
+text = "Вихід у головне меню"
+
+[node name="Settings" parent="." instance=ExtResource("3_settings")]

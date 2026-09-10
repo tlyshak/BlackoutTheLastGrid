@@ -1,0 +1,137 @@
+[gd_scene load_steps=8 format=3 uid="uid://b454j5mxleitv"]
+
+[ext_resource type="Script" path="res://scripts/ui/MainMenu.cs" id="1_menu"]
+[ext_resource type="Theme" uid="uid://4i2jy3f0qvhf" path="res://scenes/ui/HudTheme.tres" id="2_theme"]
+[ext_resource type="PackedScene" uid="uid://b83od2cmmg2g2" path="res://scenes/ui/SettingsMenu.tscn" id="3_settings"]
+
+[sub_resource type="Gradient" id="Gradient_vignette"]
+offsets = PackedFloat32Array(0, 0.55, 1)
+colors = PackedColorArray(0.039216, 0.05098, 0.078431, 0, 0.039216, 0.05098, 0.078431, 0.35, 0.039216, 0.05098, 0.078431, 0.9)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_vignette"]
+gradient = SubResource("Gradient_vignette")
+width = 512
+height = 512
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="Gradient" id="Gradient_glow"]
+offsets = PackedFloat32Array(0, 0.35, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.45, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_glow"]
+gradient = SubResource("Gradient_glow")
+width = 256
+height = 256
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[node name="MainMenu" type="Control" node_paths=PackedStringArray("LogoRow", "NewGameButton", "SettingsButton", "QuitButton", "Settings")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_menu")
+LogoRow = NodePath("Center/LogoRow")
+NewGameButton = NodePath("Center/Buttons/NewGameButton")
+SettingsButton = NodePath("Center/Buttons/SettingsButton")
+QuitButton = NodePath("Center/Buttons/QuitButton")
+Settings = NodePath("Settings")
+GlowTexture = SubResource("GradientTexture2D_glow")
+
+[node name="PH_Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.070588, 0.086275, 0.113725, 1)
+
+[node name="PH_Vignette" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = SubResource("GradientTexture2D_vignette")
+expand_mode = 1
+
+[node name="Center" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -600.0
+offset_top = -400.0
+offset_right = 600.0
+offset_bottom = 400.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="LogoRow" type="HBoxContainer" parent="Center"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="Subtitle" type="Label" parent="Center"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.301961, 0.345098, 0.4, 1)
+theme_override_font_sizes/font_size = 26
+text = "ОСТАННЯ МЕРЕЖА"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="Center"]
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Buttons" type="VBoxContainer" parent="Center"]
+custom_minimum_size = Vector2(360, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/separation = 12
+
+[node name="NewGameButton" type="Button" parent="Center/Buttons"]
+layout_mode = 2
+text = "Нова гра"
+
+[node name="SettingsButton" type="Button" parent="Center/Buttons"]
+layout_mode = 2
+text = "Налаштування"
+
+[node name="QuitButton" type="Button" parent="Center/Buttons"]
+layout_mode = 2
+text = "Вихід"
+
+[node name="Version" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -48.0
+offset_right = 624.0
+offset_bottom = -16.0
+grow_vertical = 0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.301961, 0.345098, 0.4, 1)
+theme_override_font_sizes/font_size = 16
+text = "BLACKOUT: Last Grid — прототип"
+vertical_alignment = 1
+
+[node name="Settings" parent="." instance=ExtResource("3_settings")]
