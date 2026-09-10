@@ -14,6 +14,10 @@ namespace BlackoutLastGrid.Props;
 /// A panel with <see cref="Powered"/> off accepts the sequence but cannot activate: it emits
 /// <see cref="FailedNoPowerEventHandler"/> instead, flashes red and from then on refuses further
 /// use, showing <see cref="NoPowerPromptText"/> — the player has been told it is dead.
+/// A panel with <see cref="CanPowerDown"/> stays usable once it is activated: the next
+/// <c>interact</c> switches it off (<see cref="DeactivatedEventHandler"/>) instead of starting a new
+/// sequence, and switching it on again is a single press as well — the sequence is a one-off repair,
+/// not a toll on every toggle.
 /// </summary>
 public partial class PowerPanel : Interactable
 {
@@ -52,8 +56,23 @@ public partial class PowerPanel : Interactable
     [Signal]
     public delegate void FailedNoPowerEventHandler();
 
+    /// <summary>Emitted once per <see cref="PowerDown"/>: an activated panel was switched off again.</summary>
+    [Signal]
+    public delegate void DeactivatedEventHandler();
+
+    /// <summary>
+    /// Emitted when a correctly entered sequence was refused by a subclass (see
+    /// <see cref="RefuseActivation"/>) — unlike <see cref="FailedNoPowerEventHandler"/> the panel
+    /// stays usable and the player may retry once the reason is gone.
+    /// </summary>
+    [Signal]
+    public delegate void ActivationRefusedEventHandler();
+
     /// <summary><c>false</c> for a panel cut off upstream: the sequence completes but the panel cannot switch on.</summary>
     [Export] public bool Powered { get; set; } = true;
+
+    /// <summary><c>true</c> for a switch: an activated panel accepts <c>interact</c> again and switches off with <see cref="PowerDown"/>.</summary>
+    [Export] public bool CanPowerDown { get; set; }
 
     /// <summary>InputMap actions to press in order.</summary>
     [Export] public string[] Sequence { get; set; } = { "move_up", "attack", "move_down", "jump" };
@@ -90,6 +109,7 @@ public partial class PowerPanel : Interactable
     private bool _failing;
     private float _failTime;
     private bool _deadNoPower;
+    private bool _repaired;
 
     /// <summary><c>true</c> once the sequence was completed; the panel stays on.</summary>
     public bool IsActivated { get; private set; }
@@ -98,7 +118,7 @@ public partial class PowerPanel : Interactable
     public int CurrentStep => _step;
 
     /// <inheritdoc/>
-    public override bool CanInteract => !IsActivated && !_deadNoPower;
+    public override bool CanInteract => (!IsActivated || CanPowerDown) && !_deadNoPower;
 
     private static bool IsTracked(string action)
     {
@@ -177,10 +197,17 @@ public partial class PowerPanel : Interactable
             return;
         }
 
+        if (IsActivated && CanPowerDown)
+        {
+            PowerDown();
+            Finish(true);
+            return;
+        }
+
         _step = 0;
         _stepTime = 0f;
         _failing = false;
-        if (Sequence.Length == 0)
+        if (Sequence.Length == 0 || _repaired)
         {
             Complete();
             return;
@@ -204,6 +231,24 @@ public partial class PowerPanel : Interactable
         NotifyPromptChanged();
     }
 
+    /// <summary>
+    /// Switches an activated panel off again and emits <see cref="DeactivatedEventHandler"/>; a
+    /// no-op on a panel that is not activated. The repair is not undone — switching the panel back
+    /// on stays a single press.
+    /// </summary>
+    public void PowerDown()
+    {
+        if (!IsActivated)
+        {
+            return;
+        }
+
+        IsActivated = false;
+        SetScreen(DeadColor);
+        EmitSignalDeactivated();
+        NotifyPromptChanged();
+    }
+
     private void HandlePress(StringName action)
     {
         if (action != Sequence[_step])
@@ -224,7 +269,12 @@ public partial class PowerPanel : Interactable
         NotifyPromptChanged();
     }
 
-    private void Complete()
+    /// <summary>
+    /// Switches the panel on after the sequence was entered correctly (or at once for a panel that
+    /// needs no repair). Subclasses override it to ask for something first — a circuit that may
+    /// refuse — and either call <c>base.Complete()</c> or <see cref="RefuseActivation"/>.
+    /// </summary>
+    protected virtual void Complete()
     {
         if (!Powered)
         {
@@ -234,6 +284,7 @@ public partial class PowerPanel : Interactable
             return;
         }
 
+        _repaired = true;
         IsActivated = true;
         SetPhysicsProcess(false);
         SetScreen(ActiveColor);
@@ -245,6 +296,18 @@ public partial class PowerPanel : Interactable
     private void Fail()
     {
         EmitSignalSequenceFailed();
+        StartFailFlash();
+    }
+
+    /// <summary>
+    /// Refuses a correctly entered sequence without marking the panel dead: flashes
+    /// <see cref="FailColor"/>, ends the attempt with <c>Finished(false)</c> and emits
+    /// <see cref="ActivationRefusedEventHandler"/>. For a subclass whose <see cref="Complete"/> was
+    /// turned down by something outside the panel; the player may retry once that reason is gone.
+    /// </summary>
+    protected void RefuseActivation()
+    {
+        EmitSignalActivationRefused();
         StartFailFlash();
     }
 
@@ -261,6 +324,9 @@ public partial class PowerPanel : Interactable
 
         _failing = true;
         _failTime = FailResetDelay;
+        // A panel that needs no sequence is not polling yet, and the flash countdown lives in
+        // _PhysicsProcess: without this the attempt would never end and the hero would stay held.
+        SetPhysicsProcess(true);
     }
 
     /// <summary>Ends a failed attempt: releases the hero with <c>Finished(false)</c> and restores the idle prompt.</summary>
