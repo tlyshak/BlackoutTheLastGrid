@@ -284,13 +284,24 @@ public partial class PowerPanel : Interactable
             return;
         }
 
+        MarkActivated();
+        EmitSignalActivated();
+        NotifyPromptChanged();
+        Finish(true);
+    }
+
+    /// <summary>
+    /// Puts the panel into its activated state — repaired, lit green, no longer polling — without
+    /// announcing an interaction. <see cref="Complete"/> is the ordinary path into it; a subclass
+    /// that starts a machine on its own (<see cref="PoweredMachine.ForcePower"/>) reuses this so
+    /// there is exactly one place where "the panel is on" is written.
+    /// </summary>
+    protected void MarkActivated()
+    {
         _repaired = true;
         IsActivated = true;
         SetPhysicsProcess(false);
         SetScreen(ActiveColor);
-        EmitSignalActivated();
-        NotifyPromptChanged();
-        Finish(true);
     }
 
     private void Fail()
