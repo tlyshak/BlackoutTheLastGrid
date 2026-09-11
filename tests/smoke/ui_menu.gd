@@ -3,10 +3,11 @@ extends SceneTree
 # HudTheme, the §8 logo is built procedurally (one Label per character of TitleText, exactly one
 # of them lit and carrying an additive `Glow` TextureRect behind it at GlowLetterIndex), the three
 # English buttons exist with «New Game» focused for keyboard/gamepad, NewGameScenePath points at
-# a scene that really loads, the nested SettingsMenu opens from the menu and gives focus back on
-# close, and — the contract T-07i-a must not break — «New Game» makes Main the tree's *current
-# scene* (not a child of the menu) with a full energy reserve, so a level restart still reloads
-# Main into a fresh prologue. Needs frames: the scene change is deferred.
+# the 2073 exposition (T-07s-e) and it really loads, the nested SettingsMenu opens from the menu
+# and gives focus back on close, and — the contract T-07i-a must not break — «New Game» makes the
+# exposition and then Main the tree's *current scene* (not a child of the menu) with a full energy
+# reserve, so a level restart still reloads Main into a fresh prologue and never the exposition.
+# Needs frames: the scene changes are deferred.
 # The settings screen saves on close, so ConfigPath is redirected to a throwaway file first and
 # the player's own user://settings.cfg is asserted untouched (risk 4 in the plan).
 # Run: godot --headless --path . -s tests/smoke/ui_menu.gd
@@ -17,7 +18,9 @@ const NAME := "ui_menu"   # must equal the file basename
 const MAX_FRAMES := 6000
 const MENU_PATH := "res://scenes/ui/MainMenu.tscn"
 const MAIN_PATH := "res://scenes/Main.tscn"
+const EXPOSITION_PATH := "res://scenes/ui/Exposition.tscn"
 const PROLOGUE_PATH := "res://scenes/levels/Level00_Prologue.tscn"
+const EXPOSITION_CAP := 12      # Advance() calls allowed to play the exposition out
 const PROBE_PATH := "user://settings_menu_smoke.cfg"
 const REAL_PATH := "user://settings.cfg"
 const SETTLE_CAP := 20          # idle frames allowed for the post-load physics catch-up to end
@@ -176,7 +179,7 @@ func _run() -> void:
 		if b != null and b is Button:
 			_check(b.text == button_texts[export_name], "%s.text='%s', expected '%s'" % [export_name, b.text, button_texts[export_name]])
 	_check(menu.NewGameButton.has_focus(), "«New Game» does not have focus — the menu is not usable without a mouse")
-	_check(menu.NewGameScenePath == MAIN_PATH, "MainMenu.NewGameScenePath='%s', expected '%s'" % [menu.NewGameScenePath, MAIN_PATH])
+	_check(menu.NewGameScenePath == EXPOSITION_PATH, "MainMenu.NewGameScenePath='%s', expected '%s'" % [menu.NewGameScenePath, EXPOSITION_PATH])
 	_check(load(menu.NewGameScenePath) != null, "MainMenu.NewGameScenePath '%s' does not load" % menu.NewGameScenePath)
 
 	# 4. The nested settings screen: opened by the button, synced to the autoload, focus back on close.
@@ -232,7 +235,8 @@ func _run() -> void:
 		_check(settings.IsOpen == false, "Close() left the settings screen open")
 		_check(menu.SettingsButton.has_focus(), "focus did not return to «Settings» after the settings screen closed")
 
-	# 5. «New Game»: Main becomes the current scene (not a child of the menu) with a full reserve.
+	# 5. «New Game»: the exposition becomes the current scene (not a child of the menu) with a full
+	#    reserve, and playing it out hands over to Main.
 	var menu_id: int = menu.get_instance_id()
 	gs.Energy = START_ENERGY
 	menu.NewGameButton.emit_signal("pressed")
@@ -246,8 +250,29 @@ func _run() -> void:
 		_finish()
 		return
 	await _settle()
-	var main: Node = current_scene
+	var expo: Node = current_scene
 	_check(not is_instance_valid(menu), "the main menu is still alive after «New Game»")
+	_check(expo != null and expo.scene_file_path == EXPOSITION_PATH and expo.get_parent() == root,
+		"after «New Game» the current scene is %s, expected the exposition from %s as a child of root" % [expo.scene_file_path if expo != null else "null", EXPOSITION_PATH])
+	if expo == null or expo.get("Cutscene") == null:
+		_finish()
+		return
+	var expo_id: int = expo.get_instance_id()
+	var expo_cutscene: Node = expo.get("Cutscene")
+	var advances := 0
+	while is_instance_valid(expo) and expo_cutscene.IsPlaying and advances < EXPOSITION_CAP:
+		expo_cutscene.Advance()
+		advances += 1
+		await _step(1)
+	var handed: int = await _watch_ms(func():
+		var cs: Node = current_scene
+		return cs != null and cs.get_instance_id() != expo_id, SCENE_CHANGE_CAP_MS)
+	_check(handed >= 0, "the exposition did not hand over to Main within %d ms" % SCENE_CHANGE_CAP_MS)
+	if handed < 0:
+		_finish()
+		return
+	await _settle()
+	var main: Node = current_scene
 	_check(main != null and main.name == "Main" and main.scene_file_path == MAIN_PATH,
 		"the current scene is '%s', expected Main from %s" % [main.name if main != null else "null", MAIN_PATH])
 	if main == null:
@@ -278,6 +303,7 @@ func _run() -> void:
 				var level2: Node = main2.get("CurrentLevel")
 				_check(level2 != null and level2.get_instance_id() != level_id and level2.scene_file_path == PROLOGUE_PATH,
 					"after the restart the level is %s, expected a fresh Level00_Prologue" % (level2.scene_file_path if level2 != null else "null"))
+				_check(main2.scene_file_path != EXPOSITION_PATH, "a level restart brought the exposition back")
 			_check(is_equal_approx(gs.Energy, gs.MaxEnergy), "Energy=%s after the restart, expected MaxEnergy" % gs.Energy)
 
 	# 7. Teardown: nothing left running, the state reset, the player's own settings untouched.

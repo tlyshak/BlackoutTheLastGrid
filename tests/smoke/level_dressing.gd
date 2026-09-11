@@ -36,24 +36,28 @@ const Z_BACKDROP := -40
 const Z_GROUND := -20
 const Z_FX := 20
 const Z_FOREGROUND := 40
-const ROOM_NAMES := ["Face", "Flood", "Gas", "Upper", "Cage", "Surface"]
-const BACKDROP_NODES := ["PH_Wall_Face", "PH_Wall_Flood", "PH_Wall_Gas", "PH_Wall_Upper", "PH_Wall_Cage", "PH_Wall_Surface", "PH_Ceiling", "Backdrop"]
-const GROUND_NODES := ["PH_Floor_Face", "PH_Floor_Flood", "PH_Floor_Gas", "PH_Floor_Upper", "PH_Floor_Cage", "PH_Floor_Surface", "PH_FloorEdge", "PH_Decals", "Ground"]
-const FX_GROUPS := ["Fx_Face", "Fx_Flood", "Fx_Gas", "Fx_Upper", "Fx_Cage", "Fx_Surface"]
+const ROOM_NAMES := ["Face", "Drift", "Patrol", "Surface"]
+const BACKDROP_NODES := ["PH_Wall_Face", "PH_Wall_Drift", "PH_Wall_Patrol", "PH_Wall_Surface", "PH_Ceiling", "Backdrop"]
+const GROUND_NODES := ["PH_Floor_Face", "PH_Floor_Drift", "PH_Floor_Patrol", "PH_Floor_Surface", "PH_FloorEdge", "PH_Decals", "Ground"]
+const FX_GROUPS := ["Fx_Face", "Fx_Drift", "Fx_Patrol", "Fx_Surface"]
 const PARALLAX_LAYERS := ["Parallax/PxRockFar", "Parallax/PxRockMid", "Parallax/PxStruct"]
-const LEVEL_WIDTH := 13440.0    # six rooms of the rebuilt prologue (T-07s-b)
+const LEVEL_WIDTH := 10560.0    # four rooms of the third-revision prologue (T-07s-e)
 const CAMERA_LIMIT_BOTTOM := 1080.0
 # Frame budget (plan, "Performance & frame budget"). The caps that matter are per screen, not per
 # level: only one room's ambient FX group runs at a time, and only one room's lights are ever in
 # view. The whole-level totals are kept as a ceiling so a runaway census is still caught.
-const MAX_EMITTERS := 24        # 6 ambient groups + the one-shot bursts of the piles, pockets and falls
+const MAX_EMITTERS := 24        # 4 ambient groups + the one-shot bursts of the piles, pockets and the fall
 const MAX_FX_EMITTERS := 3      # ambient emitters per room group
 const MAX_PARTICLE_AMOUNT := 32
 const MAX_LIGHTS := 30
 const MAX_ROOM_LIGHTS := 12     # lights standing inside one room's rect — the on-screen peak
 const PROCESS_DISABLED := 4     # Node.PROCESS_MODE_DISABLED
 const PROCESS_INHERIT := 0
-const STAGE_BLAST := 2          # Level00_Prologue.Stage.Blast (C# enums arrive as int)
+const STAGE_CHARGE := 2         # Level00_Prologue.Stage.Charge (C# enums arrive as int)
+const STAGE_BLAST := 3          # Level00_Prologue.Stage.Blast
+const CUTSCENE_CAP := 12        # Advance() calls allowed to play the Charge cutscene out
+const HERO_AT_PROPS := Vector2(1560, 450)   # within Dan's HeroCloseDistance of WP_props (1620)
+const BLAST_CAP := 30           # physics frames for the scripted blast to fire from HeroReached
 const MANUAL_FX_GROUP := "fx_manual"
 # Shake.
 const SHAKE_AMPLITUDE := 10.0
@@ -279,7 +283,7 @@ func _check_prologue() -> void:
 			"Vignette/PH_Vignette is %s / mouse_filter %s, expected a mouse-transparent TextureRect" % [rect, rect.get("mouse_filter") if rect != null else null])
 		_check(rect != null and rect.get("texture") != null, "Vignette/PH_Vignette has no texture")
 
-	# 6. Per-room FX gating (acceptance criterion 4). Six rooms, six groups, one active at a time —
+	# 6. Per-room FX gating (acceptance criterion 4). Four rooms, four groups, one active at a time —
 	#    ApplyRoomBounds is exactly what crossing a Checkpoint ends in (Level00_Prologue's room
 	#    transitions), so the gating is exercised without replaying the flow; level_prologue.gd
 	#    already covers the walk itself.
@@ -301,7 +305,7 @@ func _check_prologue() -> void:
 				_check(groups[i] != groups[j], "Room_%s and Room_%s share one Fx group" % [ROOM_NAMES[i], ROOM_NAMES[j]])
 		for i in groups.size():
 			_check_fx_state(groups[i], i == 0, "%s at start" % ROOM_NAMES[i])
-		for target in [1, 2, 5, 0]:
+		for target in [1, 2, 3, 0]:
 			level.ApplyRoomBounds(level.get_node("Rooms/Room_" + ROOM_NAMES[target]))
 			await _step(1)
 			for i in groups.size():
@@ -321,20 +325,53 @@ func _check_prologue() -> void:
 			_collect(g, &"CollisionObject2D", bodies)
 		_check(bodies.is_empty(), "an Fx group holds %d CollisionObject2D; disabling the group would remove them from physics" % bodies.size())
 
-		# The level, not the gating, ignites them: CaveIn.Triggered is exactly what crossing the
-		# blast trigger emits, and the station lighting dies in the same handler.
+		# The level, not the gating, ignites them: the blast is scripted — the charge panel's
+		# Activated starts the Charge cutscene, and once it is over Dan's HeroReached at the props
+		# brings the roof down; the station lighting dies in the same handler.
 		var blast: Node = level.get("BlastCollapse")
 		var lamps: Node = level.get("WorkLamps")
-		_check(blast != null and lamps != null, "the level lacks BlastCollapse / WorkLamps")
-		if blast != null and lamps != null and sparks != null and spark_light != null:
+		var charge: Node = level.get("Charge")
+		var cutscene: Node = level.get("Cutscene")
+		var dan: Node = level.get("Companion")
+		var player: Node = level.get("Player")
+		_check(blast != null and lamps != null and charge != null and cutscene != null and dan != null, "the level lacks BlastCollapse / WorkLamps / Charge / Cutscene / Companion")
+		if blast != null and lamps != null and charge != null and cutscene != null and dan != null and sparks != null and spark_light != null:
 			_check(lamps.visible == true, "the station lighting is already out before the blast")
-			blast.emit_signal("Triggered")
+			var guard := 0
+			while cutscene.IsPlaying and guard < CUTSCENE_CAP:   # the intro
+				cutscene.Advance()
+				guard += 1
+				await _step(1)
+			await _step(3)
+			charge.emit_signal("Activated")
 			await _step(1)
+			_check(level.CurrentStage == STAGE_CHARGE,
+				"after Charge.Activated the stage is %s, expected Charge (%d)" % [level.CurrentStage, STAGE_CHARGE])
+			_check(cutscene.IsPlaying == true, "the Charge cutscene did not start")
+			guard = 0
+			while cutscene.IsPlaying and guard < CUTSCENE_CAP:
+				cutscene.Advance()
+				guard += 1
+				await _step(1)
+			await _step(3)
+			dan.WarpTo(level.get("DanRoute").get_node("WP_props").global_position)
+			await _step(2)
+			player.global_position = HERO_AT_PROPS
+			var fired := false
+			for i in BLAST_CAP:
+				await physics_frame
+				if blast.HasCollapsed:
+					fired = true
+					break
+			_check(fired, "the hero in Dan's reach at the props did not bring the roof down within %d frames" % BLAST_CAP)
 			_check(level.CurrentStage == STAGE_BLAST,
-				"after CaveIn_Blast.Triggered the stage is %s, expected Blast (%d)" % [level.CurrentStage, STAGE_BLAST])
+				"after the blast the stage is %s, expected Blast (%d)" % [level.CurrentStage, STAGE_BLAST])
 			_check(sparks.emitting == true, "the torn cable does not spark after the blast")
 			_check(spark_light.enabled == true, "the blast sparks have no light")
 			_check(lamps.visible == false, "the station lighting survived the blast")
+			# The collapse shakes the camera for its own ShakeSeconds; the shake contract below must
+			# start from a camera at rest.
+			await _wait_ms(int(blast.ShakeSeconds * 1000.0) + SHAKE_SETTLE_MS)
 
 	# 7. Camera shake (acceptance criterion 7).
 	var camera: Camera2D = level.get_node_or_null("Camera2D")

@@ -1,0 +1,24 @@
+[gd_scene load_steps=3 format=3 uid="uid://colxkb0bcc4f8"]
+
+[ext_resource type="Script" path="res://scripts/ui/Exposition.cs" id="1_exposition"]
+[ext_resource type="PackedScene" uid="uid://4hbuflsw3m5e" path="res://scenes/ui/Cutscene.tscn" id="2_cutscene"]
+
+[node name="Exposition" type="Node" node_paths=PackedStringArray("Cutscene")]
+script = ExtResource("1_exposition")
+Lines = PackedStringArray("2073.", "The oil is gone. The gas and the uranium are gone. What is left is coal, deep and poor, and it is mined.", "It makes what little power there is. People work for it by the day: one bank, one card, ten percent.", "There is a second source. It is on no ledger. While it stays off the ledger, ten percent is a fair share.", "Nobody who digs the coal has been told.")
+NextScenePath = "res://scenes/Main.tscn"
+Cutscene = NodePath("Cutscene")
+
+[node name="PH_Black" type="CanvasLayer" parent="."]
+layer = 0
+
+[node name="PH_Ground" type="ColorRect" parent="PH_Black"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.039216, 0.05098, 0.078431, 1)
+
+[node name="Cutscene" parent="." instance=ExtResource("2_cutscene")]
