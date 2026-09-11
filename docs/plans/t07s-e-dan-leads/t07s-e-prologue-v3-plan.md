@@ -1040,7 +1040,8 @@ between `Overseer` and `Death`; (6) `level_dressing.gd` «updated» by deleting 
 The author replaced the routine-confiscation shot with a **deliberate sacrifice**: at the cage the
 guards (overseer + patrol) catch up from behind; the cage is slow; Dan sees Ray will not make it
 if both run; he hands Ray his bank, turns back and **holds the guards on himself** until the cage
-moves; they seize him, the overseer shoots; Ray sees it from the rising cage.
+moves; they seize him and **drag him away — no shot, Dan lives** (author's second correction,
+minutes later); Ray sees it from the rising cage.
 Consequences for this plan:
 - Segment 5 / the `Overseer` section: the overseer no longer stands *at the exit ahead*; the threat
   comes **from behind**, from the drift they came through. Place guards (2 + overseer rig) at an
@@ -1048,7 +1049,8 @@ Consequences for this plan:
   whatever the player did: on boarding, freeze the hero in the cage, run the cutscene, cage lifts.
 - No gameplay fight, no chase, no fail state — the scene is a cutscene as before.
 - The cue table's `CUT_OVERSEER`/`CUT_DEATH` are replaced by the new scene the writer delivers
-  (`script-en.md`, cutscene `Held`); `Vanish()` after it stays.
+  (`script-en.md`, cutscene `Held`); `Vanish()` after it stays — he is dragged off-screen, not
+  killed: no shot FX, no decal, no death pose. M8's `shot FX`/`CUT_DEATH`/`PH_DanDown` are void.
 - Acceptance criterion "the death plays identically regardless of hero/Dan position" stays and
   now also covers "the guards' approach is not interactive".
 
