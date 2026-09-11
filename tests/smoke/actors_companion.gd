@@ -5,13 +5,17 @@ extends SceneTree
 # GasZone (all masking the Player layer) ever sees him; his Follow state closes a 340 px gap and
 # then stands still playing `idle`; the three anti-stuck failsafes work — a warp when the follow
 # point is past WarpDistance, a warp after StuckSeconds of "wants to walk, is not moving" (wedged
-# behind a wall) and the explicit warp a level does on a room change; HoldAt walks him to a
-# scripted spot, emits Arrived once and keeps him there while the hero leaves, and Resume() puts
-# him back on the hero; the failsafes cover the Wait state too — a level's warp takes the held spot
-# with him instead of sending him marching back, and a hold past WarpDistance is a teleport; Say()
-# shows a line for BubbleSeconds, a HUD prompt suppresses the bubble without losing the line, and a
-# paused tree freezes the countdown. Also checks the level wiring: a gas warning makes TestMine put
-# its GasLine in Dan's bubble. Needs physics frames.
+# behind a wall) and the explicit relocation hook a level calls on a room change; HoldAt walks him
+# to a scripted spot, emits Arrived once and keeps him there while the hero leaves, and Resume()
+# puts him back on the hero; the failsafes cover the Wait state too — a hold is a world position,
+# so the level's relocation hook leaves a holding Dan on his spot (T-07s-e: it no longer drags the
+# hold behind the hero) and a hold past WarpDistance is a teleport; Say() shows a line for
+# BubbleSeconds, a HUD prompt suppresses the bubble without losing the line, and a paused tree
+# freezes the countdown. Also checks the level wiring: a gas warning makes TestMine put its GasLine
+# in Dan's bubble and switches his headlamp off first. The Lead state (the guide, T-07s-e) has its
+# own script, tests/smoke/actors_guide.gd; here only its scene contract is checked (the Lead node,
+# the new export defaults, PH_DanLight and the render bit his body and bubble carry). Needs
+# physics frames.
 # Run: godot --headless --path . -s tests/smoke/actors_companion.gd
 #
 # Nothing is hit here, so Engine.time_scale stays 1 and movement is counted in physics frames; the
@@ -49,7 +53,9 @@ const GAS_POS := Vector2(920, 450)       # centre of the rehearsal pocket
 const BUBBLE_SECONDS := 0.3    # BubbleSeconds shortened so the countdown is cheap to observe
 const BUBBLE_WAIT := 0.5       # real seconds > BUBBLE_SECONDS
 const LINE := "Stay close."
-const EXPECTED_STATES := ["Follow", "Wait"]
+const EXPECTED_STATES := ["Follow", "Wait", "Lead"]
+const LAMP_BIT := 2            # render bit only Dan's body and bubble carry: what PH_DanLight lights
+const RELOCATE_NEAR := Vector2(300, 450)   # hero relocated within WarpDistance of a holding Dan (80 px)
 
 var _started := false
 var _frames := 0
@@ -175,6 +181,18 @@ func _run() -> void:
 	_check(is_equal_approx(proto.ArriveDistance, 12.0), "Companion.ArriveDistance default is %s, expected 12" % proto.ArriveDistance)
 	_check(is_equal_approx(proto.BubbleSeconds, 2.6), "Companion.BubbleSeconds default is %s, expected 2.6" % proto.BubbleSeconds)
 	_check(proto.Facing == 1, "Companion.Facing default is %s, expected 1" % proto.Facing)
+	# The guide's exports (T-07s-e); every escort default above is unchanged.
+	_check(is_equal_approx(proto.LeadSpeed, 240.0), "Companion.LeadSpeed default is %s, expected 240 (just over the hero's 220)" % proto.LeadSpeed)
+	_check(is_equal_approx(proto.RunSpeed, 300.0), "Companion.RunSpeed default is %s, expected 300 (his catch-up speed)" % proto.RunSpeed)
+	_check(is_equal_approx(proto.LeadMaxGap, 640.0), "Companion.LeadMaxGap default is %s, expected 640 (a third of a screen)" % proto.LeadMaxGap)
+	_check(is_equal_approx(proto.LeadResumeGap, 380.0), "Companion.LeadResumeGap default is %s, expected 380" % proto.LeadResumeGap)
+	_check(is_equal_approx(proto.HeroCloseDistance, 160.0), "Companion.HeroCloseDistance default is %s, expected 160" % proto.HeroCloseDistance)
+	_check(is_equal_approx(proto.LookBackSeconds, 1.5), "Companion.LookBackSeconds default is %s, expected 1.5" % proto.LookBackSeconds)
+	_check(is_equal_approx(proto.CallAfterSeconds, 5.0), "Companion.CallAfterSeconds default is %s, expected 5" % proto.CallAfterSeconds)
+	_check(is_equal_approx(proto.CallRepeatSeconds, 10.0), "Companion.CallRepeatSeconds default is %s, expected 10" % proto.CallRepeatSeconds)
+	_check(proto.MaxCallsPerStop == 2, "Companion.MaxCallsPerStop default is %s, expected 2 (the anti-nag cap)" % proto.MaxCallsPerStop)
+	_check(is_equal_approx(proto.OvertakeDistance, 120.0), "Companion.OvertakeDistance default is %s, expected 120" % proto.OvertakeDistance)
+	_check(proto.IsGone == false, "Companion.IsGone is %s on a fresh instance, expected false" % proto.IsGone)
 	var psm: Node = proto.get_node_or_null("StateMachine")
 	_check(psm != null, "Companion.tscn has no StateMachine child")
 	if psm != null:
@@ -195,6 +213,23 @@ func _run() -> void:
 			_check(panim.has_animation(a), "Companion AnimationPlayer lacks the '%s' animation" % a)
 		_check(not panim.has_animation("attack"), "Companion has an 'attack' animation — he never fights")
 	_check(proto.get_node_or_null("Visual/Rig") != null, "Companion.tscn has no Visual/Rig CharacterRig")
+	# His own headlamp (T-07s-e): a light that reaches only the items carrying LAMP_BIT — his body
+	# and his bubble — so he reads in the dark a third of a screen ahead without lighting the floor.
+	var plamp: Node = proto.get_node_or_null("Visual/PH_DanLight")
+	_check(plamp is PointLight2D, "Companion.tscn has no Visual/PH_DanLight PointLight2D (Dan's headlamp)")
+	if plamp is PointLight2D:
+		_check(proto.get("Lamp") == plamp, "Companion.Lamp export does not point at PH_DanLight")
+		_check(plamp.enabled == true, "PH_DanLight ships switched off; Dan's lamp is on by default")
+		_check(plamp.range_item_cull_mask == LAMP_BIT, "PH_DanLight range_item_cull_mask=%d, expected %d (it must light only Dan and his bubble)" % [plamp.range_item_cull_mask, LAMP_BIT])
+		_check(plamp.shadow_enabled == false, "PH_DanLight casts shadows — the cheapest light in any level must not")
+		_check(plamp.texture != null, "PH_DanLight has no texture, so it lights nothing")
+		_check(plamp.energy > 0.0, "PH_DanLight energy is %s, expected positive" % plamp.energy)
+	var pvisual: Node = proto.get_node_or_null("Visual")
+	_check(pvisual is Node2D and (pvisual.light_mask & LAMP_BIT) != 0, "Companion Visual light_mask lacks bit %d: his body is not lit by his own lamp" % LAMP_BIT)
+	_check(pvisual is Node2D and (pvisual.light_mask & 1) != 0, "Companion Visual light_mask lacks bit 1: the hero's lamp no longer lights him")
+	_check(pbubble is Label and (pbubble.light_mask & LAMP_BIT) != 0, "Companion Bubble light_mask lacks bit %d: his line is unreadable in the dark" % LAMP_BIT)
+	var pshadow: Node = proto.get_node_or_null("PH_Shadow")
+	_check(pshadow is Polygon2D and pshadow.light_mask == 1, "PH_Shadow light_mask is not 1 — the lamp must not light his shadow")
 	proto.free()
 	if _failures.size() > 0:
 		_finish()
@@ -232,6 +267,13 @@ func _run() -> void:
 	_check(room.get("Companion") == dan, "TestMine (LevelBase).Companion export does not point at the Companion")
 	_check(dan.CurrentStateName == "Follow", "Companion starts in '%s', expected 'Follow'" % dan.CurrentStateName)
 	_check(dan.IsWaiting == false, "Companion.IsWaiting=%s at start, expected false" % dan.IsWaiting)
+	_check(dan.IsLeading == false, "Companion.IsLeading=%s at start, expected false" % dan.IsLeading)
+	_check(room.DanLeads == false, "TestMine.DanLeads is %s in the scene, expected false (the Follow fixture must not drift)" % room.DanLeads)
+	_check(dan.IsLampOn == true, "Companion.IsLampOn=%s at start, expected true" % dan.IsLampOn)
+	# Godot does not inherit light_mask, so Companion copies Visual's mask onto the rig's polygons on ready.
+	var torso: Node = dan.get_node_or_null("Visual/Rig/Torso")
+	_check(torso is CanvasItem and (torso.light_mask & LAMP_BIT) != 0,
+		"Visual/Rig/Torso light_mask lacks bit %d after ready — the lamp's render bit did not reach the drawn polygons" % LAMP_BIT)
 	dan.BubbleSeconds = BUBBLE_SECONDS
 
 	var warps: Array = []
@@ -348,9 +390,11 @@ func _run() -> void:
 	await _step(2)
 	_check(gas.IsWarning == true, "the rehearsal pocket did not start counting down with the lamp on")
 	_check(lines.has(room.GasLine), "Dan's lines after the gas warning are %s, expected TestMine.GasLine '%s'" % [lines, room.GasLine])
+	_check(dan.IsLampOn == false, "Dan's headlamp stayed on through the gas warning — he must go dark before he shouts")
 	lamp.SetOn(false)
 	await _step(2)
 	_check(gas.IsWarning == false, "the window kept running after the lamp went off")
+	_check(dan.IsLampOn == true, "Dan's headlamp did not come back on once the gas warning stopped")
 
 	# 9. The bubble: shown for BubbleSeconds, hidden by a HUD prompt, frozen by the pause.
 	var bubble: Label = dan.Bubble
@@ -385,39 +429,46 @@ func _run() -> void:
 	await _real_wait(BUBBLE_WAIT)
 	_check(dan.IsSpeaking == false, "the bubble countdown did not resume after the pause was lifted")
 
-	# 10. Failsafe 3 — the level warps him on a room change (a door hop, a respawn).
+	# 10. Failsafe 3 — the level's relocation hook on a room change (a door hop, a respawn). A
+	# follower has no place of his own, so it warps him behind the hero, as it always did.
 	await _place(player, HERO_RIGHT)
 	dan.WarpTo(WARP_FROM)
 	warps_before = warps.size()
 	room.ApplyRoomBounds(room.StartRoom)
-	_check(warps.size() > warps_before, "ApplyRoomBounds did not warp the companion along with the hero")
+	_check(warps.size() > warps_before, "ApplyRoomBounds did not warp the following companion along with the hero")
+	_check(dan.CurrentStateName == "Follow", "the room change knocked Dan out of '%s' into '%s'" % ["Follow", dan.CurrentStateName])
 	_check(dan.global_position.distance_to(dan.FollowPoint) <= dan.FollowDistance,
 		"after the room change Dan is %.0f px from his follow point" % dan.global_position.distance_to(dan.FollowPoint))
 
-	# 11. The same failsafes while he holds a scripted spot. A level's warp (a respawn during a beat)
-	# must take the hold with him, or he sets off walking back across the mine — possibly into a
-	# drift a cave-in has just sealed. And a hold farther away than WarpDistance is taken at once.
-	await _place(player, HERO_RIGHT)
-	dan.HoldAt(HOLD_FAR)
+	# 11. The same failsafes while he holds a scripted spot — rewritten for T-07s-e. A hold is a
+	# world position: the level's relocation hook leaves a holding Dan on his spot whether the hero
+	# came back near him or half a level away (before T-07s-e it dragged the hold behind the hero,
+	# which would have marched the guide back to the hero he is supposed to lead); a level that
+	# wants him elsewhere after a respawn re-issues HoldAt. And a hold farther away than
+	# WarpDistance is still taken at once.
+	await _place(player, RELOCATE_NEAR)
+	await _pin(dan, HOLD_NEAR)
 	_check(dan.IsWaiting == true, "Companion.IsWaiting=%s after HoldAt, expected true" % dan.IsWaiting)
-	await _step(2)
-	await _place(player, HERO_LEFT)   # the hero died and came back at a checkpoint far from the beat
 	warps_before = warps.size()
+	room.ApplyRoomBounds(room.StartRoom)   # the hero came back at a checkpoint 80 px from the beat
+	_check(warps.size() == warps_before, "ApplyRoomBounds warped a holding Dan although the hero is only %.0f px away" % dan.global_position.distance_to(player.global_position))
+	_check(dan.global_position.distance_to(HOLD_NEAR) <= dan.ArriveDistance,
+		"the relocation hook moved a holding Dan %.0f px off his spot with the hero nearby" % dan.global_position.distance_to(HOLD_NEAR))
+	await _place(player, HERO_RIGHT)   # the hero died and came back at a checkpoint far from the beat
 	room.ApplyRoomBounds(room.StartRoom)
-	_check(warps.size() > warps_before, "ApplyRoomBounds did not warp the waiting companion")
-	_check(dan.IsWaiting == true, "the level's warp knocked Dan out of the Wait state")
-	_check(dan.global_position.distance_to(dan.FollowPoint) <= dan.FollowDistance,
-		"after the warp the waiting Dan is %.0f px from the hero" % dan.global_position.distance_to(dan.FollowPoint))
+	_check(dan.IsWaiting == true, "the level's relocation hook knocked Dan out of the Wait state")
+	_check(dan.HoldPosition == HOLD_NEAR, "HoldPosition moved to %s on the hero's relocation, expected it to stay %s (a hold is a world position)" % [dan.HoldPosition, HOLD_NEAR])
 	await _step(HOLD_KEEP_FRAMES)
-	_check(dan.global_position.distance_to(dan.FollowPoint) <= dan.CatchUpDistance,
-		"the waiting Dan walked %.0f px away from the hero after the warp — the hold did not come with him"
-		% dan.global_position.distance_to(dan.FollowPoint))
+	_check(dan.global_position.distance_to(HOLD_NEAR) <= dan.ArriveDistance,
+		"Dan left his hold after the hero's relocation: he is %.0f px from %s (the hold must not follow the hero)"
+		% [dan.global_position.distance_to(HOLD_NEAR), HOLD_NEAR])
 	# Failsafe 1 in the Wait state: a hold half the level away is a teleport, not a march.
+	await _place(player, HERO_LEFT)
 	warps_before = warps.size()
 	dan.HoldAt(HOLD_FAR)
 	var hold_warp: int = await _wait_until(func(): return warps.size() > warps_before, WAIT_WARP_CAP)
 	_check(hold_warp >= 0, "a hold %.0f px away (WarpDistance %.0f) was walked to instead of warped to"
-		% [HOLD_FAR.distance_to(dan.FollowPoint), dan.WarpDistance])
+		% [HOLD_FAR.distance_to(HOLD_NEAR), dan.WarpDistance])
 	_check(dan.global_position.distance_to(HOLD_FAR) <= dan.ArriveDistance,
 		"after the hold warp Dan is %.1f px from the held spot" % dan.global_position.distance_to(HOLD_FAR))
 	dan.Resume()

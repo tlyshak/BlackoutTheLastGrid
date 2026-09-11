@@ -407,27 +407,38 @@ whether the warning stance (facing the danger, not you) is understood without a 
 
 ## Playtest (manual QA)
 
+Fixture route as built (see *Coder notes*): `WP_A` (360, 460) at the timber pile, `WP_B`
+(1300, 460) after the flooded drift, `WP_C` (1460, 460) short of the back rubble; `A` on ready,
+`B` when the pump is powered, `C` at the «Before the gas» checkpoint.
+
 1. Open `scenes/levels/TestMine.tscn`, select the root node, tick **DanLeads** in the inspector,
-   run the scene (F6). Expected: Dan walks from the start to the first marker (past the outlet),
-   stops, faces right, and shows «This way.» in his bubble; the top-left label reads `Lead`.
-2. Stand still 6–10 s. Expected: he turns to look at you after ~1.5 s, then says «Come on!» once,
-   again ~10 s later, and then nothing more.
-3. Walk to him. Expected: the event label reports the hero reached him; he does not move (the
-   fixture advances him on checkpoints, not on your arrival).
-4. Walk on across the first checkpoint. Expected: he sets off ahead of you toward the second
-   marker; while you walk he stays ahead, no more than about a third of a screen; stop and he stops
-   and turns to you; walk and he goes on.
+   run the scene (F6). Expected: Dan sets off at once, walks ahead of you to the timber pile
+   (past the outlet), stops just short of it facing right, and shows «This way.» in his bubble; the
+   top-left label reads `Dan: Lead -> A`, the event label «Dan reached A».
+2. Stand still at the start 6–10 s. Expected: he turns to look at you after ~1.5 s, then says
+   «Come on!» once, again ~10 s later, and then nothing more (the event label says «Dan calls the
+   hero» each time).
+3. Walk to him. Expected: the event label reads «The hero reached Dan at A»; he does not move (the
+   fixture advances him on the pump and the gas checkpoint, not on your arrival). He never presses
+   against the pile.
+4. Break the pile (K twice), walk on to the pump and switch it on (E). Expected: the moment the
+   pump runs he sets off ahead of you toward the second marker (label `Lead -> B`); while you walk
+   he stays ahead, no more than about a third of a screen; stop and he stops and turns to you; walk
+   and he goes on.
 5. Sprint past him (hold D). Expected: you can pass him — he does not race you; he still stops at
    his marker behind you and waits there.
-6. Cross the second checkpoint. Expected: he walks to the third marker and stops short of the
-   rubble; he never presses against it.
-7. Switch the lamp off in the dark stretch and look at him from a distance. Expected: he and his
-   bubble stay faintly visible; the floor around him does not light up.
-8. Untick **DanLeads**, run again. Expected: Dan trails you as before (Follow); nothing else changed.
+6. Cross the «Before the gas» checkpoint. Expected: he walks to the third marker and stops short of
+   the back rubble (label `Lead -> C`); he never presses against it.
+7. In the dark stretch, look at him from a distance with your own lamp off. Expected: he and his
+   bubble stay visible in the warm glow of his own headlamp; the floor around him does not light up.
+   Walk into the rehearsal gas pocket with your lamp on. Expected: his headlamp goes out the instant
+   the warning starts, then «Lamp off! Gas!»; it comes back on when the warning stops.
+8. Untick **DanLeads**, run again. Expected: Dan trails you as before (Follow); nothing else changed
+   except that his headlamp is on.
 9. Open `scenes/levels/Level00_Prologue.tscn` via `scenes/Main.tscn` (F5) and play to the pump.
    Expected: identical to before this task — Dan follows, is found after the blast, holds at the
    scripted beats (the prologue is untouched by this plan).
-10. Question for the author: is the faintly lit guide (step 7) an acceptable visual convention?
+10. Question for the author: does the self-lit guide (step 7) read as «he has a headlamp»?
 
 ---
 
@@ -539,6 +550,27 @@ the re-lead is a walk or an off-screen warp, never a pop. **Low.**
 4. Story-specific parts (route, cues, ending) are a separate plan — the story is being revised
    for a third time today; do not guess at it.
 
+
+## Coder notes (2026-09-11) — divergences from the contract above, for `/reviewer`
+1. **Fixture route.** The plan's `WP_A` (800, 460) and «`Checkpoint_Start` → `WP_B`» send the
+   guide through the uncleared timber pile (blocker 412…468) on the very first leg — from the start
+   he could only reach 800 by the stuck-warp, and `Checkpoint_Start` (x 220) is armed before the
+   pile is broken. Built instead, keeping every contract item (marker names, `LeadTo(key)` /
+   `LeadAtLeast(key)`, checkpoints → `LeadAtLeast`): `WP_A` (360, 460) *at the pile*, 52 px short of
+   its blocker; `CheckpointRoute = ["A", "C"]` (`Checkpoint_Start` → at least `A`, a no-op;
+   `Checkpoint_Gas` → `C`); `RouteMachine = Pump`, `MachineRouteKey = "B"` — the pump running is
+   the explicit event that opens the way on. Every point sits short of the blocker it waits at.
+2. **The lamp** (author-side decision 1): `PH_DanLight` is a child of `Visual` at (0, −24) (head
+   height, flips with him), colour of the hero's lamp, energy 0.75, `range_item_cull_mask = 2`, no
+   shadows; `Companion.Lamp` export, `SetLampOn(bool)`, `IsLampOn`. Godot does not inherit
+   `light_mask`, so `Companion._Ready` copies `Visual.light_mask` (3) onto every drawn descendant
+   (the rig's polygons) once. `TestMine` demonstrates the rule: lamp off when a gas warning starts,
+   on when it stops or the pocket is cleared.
+3. **Tests split** (pre-authorised): `actors_companion.gd` keeps §1–9 plus the contract additions
+   and the rewritten §10–11 (11 s); the Lead sections are `tests/smoke/actors_guide.gd` (13 s).
+4. `CompanionLead.HeroReached` also gates the calls: once the hero has reached a point, no
+   `HeroLagging` fires there again (AC 7, second half).
+5. Not done here by design: the prologue route, cue table and ending; `TASKS.md` status.
 
 ## Review findings
 

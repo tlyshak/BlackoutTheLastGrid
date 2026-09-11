@@ -21,7 +21,7 @@
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
 size = Vector2(40, 400)
 
-[node name="TestMine" type="Node2D" node_paths=PackedStringArray("Player", "Camera", "Pause", "Hud", "Companion", "Checkpoints", "StartRoom", "Circuit", "DebugLabel", "EventLabel", "Cage", "GasPockets", "Collapse")]
+[node name="TestMine" type="Node2D" node_paths=PackedStringArray("Player", "Camera", "Pause", "Hud", "Companion", "Checkpoints", "StartRoom", "Circuit", "DebugLabel", "EventLabel", "Cage", "GasPockets", "Collapse", "DanRoute", "RouteMachine")]
 y_sort_enabled = true
 script = ExtResource("1_mine")
 Player = NodePath("Player")
@@ -37,6 +37,11 @@ EventLabel = NodePath("UI/EventLabel")
 Cage = NodePath("Hoist")
 GasPockets = [NodePath("GasZone_Rehearsal"), NodePath("GasZone_Pocket")]
 Collapse = NodePath("CaveIn_Mid")
+DanRoute = NodePath("DanRoute")
+RouteMachine = NodePath("Pump")
+DanLeads = false
+LeadLine = "This way."
+CallLine = "Come on!"
 
 [node name="CanvasModulate" type="CanvasModulate" parent="."]
 color = Color(0.0392157, 0.0509804, 0.0784314, 1)
@@ -101,6 +106,17 @@ position = Vector2(1080, 450)
 RespawnOffset = Vector2(-32, 0)
 Room = NodePath("../../Rooms/Room_Main")
 Label = "Before the gas"
+
+[node name="DanRoute" type="Node2D" parent="."]
+
+[node name="WP_A" type="Marker2D" parent="DanRoute"]
+position = Vector2(360, 460)
+
+[node name="WP_B" type="Marker2D" parent="DanRoute"]
+position = Vector2(1300, 460)
+
+[node name="WP_C" type="Marker2D" parent="DanRoute"]
+position = Vector2(1460, 460)
 
 [node name="Outlet" parent="." instance=ExtResource("11_outlet")]
 position = Vector2(300, 560)
