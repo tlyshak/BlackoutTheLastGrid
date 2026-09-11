@@ -4,23 +4,31 @@ using Godot;
 namespace BlackoutLastGrid.Actors;
 
 /// <summary>
-/// Dan, the hero's younger brother: a follower that trails the hero across the whole escape,
-/// catches up when he falls behind, waits where the script puts him and speaks short lines in a
-/// bubble over his head. The node's origin is the contact point with the floor (Y = depth) and
-/// behaviour is driven by the child <see cref="StateMachine"/> (Follow / Wait); this class owns
-/// the follow point, movement, the anti-stuck failsafes, the visual flip and the speech bubble.
+/// Dan, the hero's younger brother: the guide who runs ahead and shows the way
+/// (<see cref="LeadTo"/> / <see cref="RunTo"/>), or a follower who trails the hero
+/// (<see cref="Resume"/>), or a scripted extra who holds a spot (<see cref="HoldAt"/>); he speaks
+/// short lines in a bubble over his head and carries his own headlamp so he stays readable in the
+/// dark from a third of a screen ahead. The node's origin is the contact point with the floor
+/// (Y = depth) and behaviour is driven by the child <see cref="StateMachine"/>
+/// (Follow / Wait / Lead); this class owns the follow point, the route point, movement, the
+/// anti-stuck failsafes, the visual flip, the lamp and the speech bubble.
 /// </summary>
 /// <remarks>
 /// He is scenery with a heartbeat, never a puzzle: <c>collision_layer = 0</c> in
 /// <c>Companion.tscn</c> means he cannot push the hero, cannot be hit and cannot trigger a door,
 /// a checkpoint, a cave-in, a gas pocket or a tutorial prompt (all of which mask layer 2, the
 /// hero), while <c>collision_mask = 1</c> keeps him out of walls. He has no health and no death
-/// of his own — losing him is impossible by construction, so nothing may ever wait for him.
-/// Three independent failsafes recover him from geometry without the player noticing:
+/// of his own — losing him is impossible by construction, so nothing may ever wait for him;
+/// <see cref="ArrivedEventHandler"/>, <see cref="HeroReachedEventHandler"/> and
+/// <see cref="HeroLaggingEventHandler"/> are information for the level, never a gate. Three
+/// independent failsafes recover him from geometry without the player noticing:
 /// <see cref="WarpDistance"/> (too far), <see cref="StuckSeconds"/> (wants to walk and is not
-/// moving) and the explicit <see cref="WarpBehind"/> a level calls on a room change or a respawn.
-/// All three are live in <b>both</b> states — while he holds a scripted spot they aim at that spot
-/// instead of at the hero, and <see cref="WarpBehind"/> moves the spot with him.
+/// moving) and the explicit <see cref="OnHeroRelocated"/> a level calls on a room change or a
+/// respawn. All three are live in every state, each aimed at that state's own anchor — the follow
+/// point behind the hero, the held spot, or the route point <b>ahead</b>: a guide is never warped
+/// back behind the hero. A hold and a route point are world positions; a level that wants him
+/// somewhere else after a respawn re-issues the call. No transition ever originates inside a
+/// state: every one is a level call.
 /// </remarks>
 public partial class Companion : CharacterBody2D
 {
@@ -34,7 +42,7 @@ public partial class Companion : CharacterBody2D
     [Signal]
     public delegate void LineShownEventHandler(string text);
 
-    /// <summary>Emitted once per <see cref="HoldAt"/> when he reaches the held position.</summary>
+    /// <summary>Emitted once per <see cref="HoldAt"/>, <see cref="LeadTo"/> or <see cref="RunTo"/> when he reaches the position.</summary>
     [Signal]
     public delegate void ArrivedEventHandler();
 
@@ -42,10 +50,27 @@ public partial class Companion : CharacterBody2D
     [Signal]
     public delegate void WarpedEventHandler();
 
-    /// <summary>The hero he follows; wired by the level. Without one he simply stands still.</summary>
+    /// <summary>
+    /// Emitted while leading, at the route point, the first time the hero comes within
+    /// <see cref="HeroCloseDistance"/> of it — once per point. The moment a level checks the
+    /// condition that gates the next point, or says a line.
+    /// </summary>
+    [Signal]
+    public delegate void HeroReachedEventHandler();
+
+    /// <summary>
+    /// Emitted while leading (at the point or held by the leash) when the hero has stayed farther
+    /// than <see cref="LeadResumeGap"/> for <see cref="CallAfterSeconds"/>, then every
+    /// <see cref="CallRepeatSeconds"/>, at most <see cref="MaxCallsPerStop"/> times per point and
+    /// never while warning. The moment for a call line; he never walks back himself.
+    /// </summary>
+    [Signal]
+    public delegate void HeroLaggingEventHandler();
+
+    /// <summary>The hero he follows or guides; wired by the level. Without one he simply stands still (or holds his point).</summary>
     [Export] public Player? Target { get; set; }
 
-    /// <summary>Walk speed along X while trailing, in px/s (just under the hero's 220 so he reads as trailing).</summary>
+    /// <summary>Walk speed along X while trailing or walking to a hold, in px/s (just under the hero's 220 so he reads as trailing).</summary>
     [Export] public float MoveSpeed { get; set; } = 205f;
 
     /// <summary>Walk speed along X beyond <see cref="CatchUpDistance"/>, in px/s.</summary>
@@ -57,7 +82,7 @@ public partial class Companion : CharacterBody2D
     /// <summary>Distance to the follow point above which he hurries at <see cref="CatchUpSpeed"/>, in px.</summary>
     [Export] public float CatchUpDistance { get; set; } = 260f;
 
-    /// <summary>Anti-stuck failsafe 1: distance to the follow point above which he is warped at once, in px.</summary>
+    /// <summary>Anti-stuck failsafe 1: distance to the state's anchor (follow point, hold, route point) above which he is warped there at once, in px.</summary>
     [Export] public float WarpDistance { get; set; } = 900f;
 
     /// <summary>Anti-stuck failsafe 2: seconds of "wants to walk, is not moving" before a warp.</summary>
@@ -78,7 +103,7 @@ public partial class Companion : CharacterBody2D
     /// <summary>Y offset of the follow point from the hero, in px, so he never stands exactly on the hero's depth line.</summary>
     [Export] public float DepthOffset { get; set; } = 10f;
 
-    /// <summary>Distance to a held position at which <see cref="ArrivedEventHandler"/> fires, in px.</summary>
+    /// <summary>Distance to a held position or a route point at which <see cref="ArrivedEventHandler"/> fires, in px.</summary>
     [Export] public float ArriveDistance { get; set; } = 12f;
 
     /// <summary>Seconds a spoken line stays in the bubble.</summary>
@@ -87,10 +112,44 @@ public partial class Companion : CharacterBody2D
     /// <summary>Speed above which <c>walk</c> plays instead of <c>idle</c>, in px/s.</summary>
     [Export] public float WalkAnimationMinSpeed { get; set; } = 12f;
 
+    /// <summary>Walk speed along X while leading, in px/s (just over the hero's 220 so he reads as leading and is rarely overtaken on a straight).</summary>
+    [Export] public float LeadSpeed { get; set; } = 240f;
+
+    /// <summary>Speed along X for <see cref="RunTo"/>, in px/s; equals <see cref="CatchUpSpeed"/>, so nothing ever moves faster than the hero has already seen.</summary>
+    [Export] public float RunSpeed { get; set; } = 300f;
+
+    /// <summary>The leash: farther ahead of the hero than this (px, along the way) he stops and turns to him. Keeps his bubble inside a 1920 px view with the hero centred.</summary>
+    [Export] public float LeadMaxGap { get; set; } = 640f;
+
+    /// <summary>Leash hysteresis: held by the leash, he goes on once the hero is closer than this, in px. Also the distance beyond which the hero counts as lagging.</summary>
+    [Export] public float LeadResumeGap { get; set; } = 380f;
+
+    /// <summary>At the route point, the hero within this distance of it (px) fires <see cref="HeroReachedEventHandler"/> — once per point.</summary>
+    [Export] public float HeroCloseDistance { get; set; } = 160f;
+
+    /// <summary>At a stop, seconds facing the way before he turns to look for the hero; ignored while warning.</summary>
+    [Export] public float LookBackSeconds { get; set; } = 1.5f;
+
+    /// <summary>At a stop or held by the leash, seconds with the hero farther than <see cref="LeadResumeGap"/> before the first <see cref="HeroLaggingEventHandler"/>.</summary>
+    [Export] public float CallAfterSeconds { get; set; } = 5f;
+
+    /// <summary>Seconds between repeated <see cref="HeroLaggingEventHandler"/> at the same stop.</summary>
+    [Export] public float CallRepeatSeconds { get; set; } = 10f;
+
+    /// <summary>After this many calls at one point he is quiet until the next — the anti-nag cap.</summary>
+    [Export] public int MaxCallsPerStop { get; set; } = 2;
+
+    /// <summary>The hero counts as "ahead of him" once past this distance along the way, in px (levels, tests, docs).</summary>
+    [Export] public float OvertakeDistance { get; set; } = 120f;
+
     /// <summary>+1 facing right, -1 facing left. Set in the scene for a placed companion; updated while he walks.</summary>
     [Export] public int Facing { get; set; } = 1;
 
-    /// <summary>Container for the body art; mirrored by <see cref="Facing"/>.</summary>
+    /// <summary>
+    /// Container for the body art; mirrored by <see cref="Facing"/>. Its <c>light_mask</c> is the
+    /// one his headlamp lights (bit 2 on top of the world's bit 1) and is copied onto every drawn
+    /// child once on ready, because Godot does not inherit the mask.
+    /// </summary>
     [Export] public Node2D Visual { get; set; } = null!;
 
     /// <summary>Procedural silhouette (Dan: <c>Slim</c> build, <c>DanSuit</c> colour); hidden once painted art is wired into <see cref="Sprite"/>.</summary>
@@ -102,15 +161,24 @@ public partial class Companion : CharacterBody2D
     /// <summary>idle / walk / RESET; no combat animations — he never fights.</summary>
     [Export] public AnimationPlayer AnimationPlayer { get; set; } = null!;
 
-    /// <summary>Behaviour state machine (Follow / Wait).</summary>
+    /// <summary>Behaviour state machine (Follow / Wait / Lead).</summary>
     [Export] public StateMachine StateMachine { get; set; } = null!;
 
     /// <summary>
     /// Speech bubble over his head. A child of the root, not of <see cref="Visual"/>, so the
     /// facing flip does not mirror the text. It never pauses the game — story beats go through
-    /// the level's cutscene overlay instead.
+    /// the level's cutscene overlay instead. Carries the headlamp's render bit so the line reads
+    /// in the dark.
     /// </summary>
     [Export] public Label? Bubble { get; set; }
+
+    /// <summary>
+    /// His own headlamp (<c>PH_DanLight</c>): a light whose <c>range_item_cull_mask</c> is a render
+    /// bit only his body and his bubble carry, so it lights him and nothing else — not the floor,
+    /// not the hero. On by default; a level switches it with <see cref="SetLampOn"/> (off before a
+    /// gas pocket, so the rule is shown before it is said).
+    /// </summary>
+    [Export] public PointLight2D? Lamp { get; set; }
 
     private bool _walking;
     private bool? _gait;
@@ -118,15 +186,46 @@ public partial class Companion : CharacterBody2D
     private float _stuckFor;
     private float _bubbleFor;
     private bool _bubbleSuppressed;
+    private CompanionLead? _lead;
 
-    /// <summary>Position the <c>Wait</c> state walks to and holds; set by <see cref="HoldAt"/>.</summary>
+    /// <summary>Position the <c>Wait</c> state walks to and holds; set by <see cref="HoldAt"/>. A world position — it never moves with him.</summary>
     public Vector2 HoldPosition { get; private set; }
+
+    /// <summary>Route point the <c>Lead</c> state walks to and shows the way from; set by <see cref="LeadTo"/> / <see cref="RunTo"/>.</summary>
+    public Vector2 LeadTarget { get; private set; }
+
+    /// <summary>+1 when the route point lies to his right, -1 to his left: the direction he shows and the axis of "ahead" / "behind".</summary>
+    public int TravelSign { get; private set; } = 1;
+
+    /// <summary><c>true</c> while the leash is on (<see cref="LeadTo"/>); <c>false</c> after <see cref="RunTo"/>.</summary>
+    public bool LeadLeashed { get; private set; } = true;
+
+    /// <summary>Walk speed the <c>Lead</c> state uses: <see cref="LeadSpeed"/> after <see cref="LeadTo"/>, <see cref="RunSpeed"/> after <see cref="RunTo"/>.</summary>
+    public float LeadMoveSpeed { get; private set; }
+
+    /// <summary><c>true</c> in the warning stance (<see cref="SetWarning"/>): at the point, facing the danger, no look-back, no calls.</summary>
+    public bool IsWarning { get; private set; }
+
+    /// <summary><c>true</c> once <see cref="Vanish"/> removed him from play for good.</summary>
+    public bool IsGone { get; private set; }
 
     /// <summary>Name of the active state, for debug labels and tests.</summary>
     public string CurrentStateName => StateMachine.CurrentState?.Name ?? string.Empty;
 
     /// <summary><c>true</c> while he holds a scripted position instead of following.</summary>
     public bool IsWaiting => StateMachine.IsIn(CompanionState.StateWait);
+
+    /// <summary><c>true</c> while he guides the hero to <see cref="LeadTarget"/>.</summary>
+    public bool IsLeading => StateMachine.IsIn(CompanionState.StateLead);
+
+    /// <summary><c>true</c> while he is leading and has reached <see cref="LeadTarget"/>.</summary>
+    public bool IsAtLeadTarget => IsLeading && _lead is { AtTarget: true };
+
+    /// <summary><c>true</c> while he is leading and the leash holds him (the hero fell more than <see cref="LeadMaxGap"/> behind).</summary>
+    public bool IsLeashed => IsLeading && _lead is { Leashed: true };
+
+    /// <summary><c>true</c> while the headlamp is on.</summary>
+    public bool IsLampOn => Lamp is { Enabled: true };
 
     /// <summary><c>true</c> while a spoken line is still counting down (whether or not it is visible).</summary>
     public bool IsSpeaking => _bubbleFor > 0f;
@@ -142,10 +241,10 @@ public partial class Companion : CharacterBody2D
     public bool HasTarget => ActiveTarget is not null;
 
     /// <summary>
-    /// Where he wants to stand: behind the hero by <see cref="SideOffset"/> (mirrored with the
-    /// hero's facing) and <see cref="DepthOffset"/> off his depth line, clamped to the hero's own
-    /// floor band so he inherits it and needs no room bounds of his own. Falls back to the
-    /// current position without a target.
+    /// Where he wants to stand while following: behind the hero by <see cref="SideOffset"/>
+    /// (mirrored with the hero's facing) and <see cref="DepthOffset"/> off his depth line, clamped
+    /// to the hero's own floor band so he inherits it and needs no room bounds of his own. Falls
+    /// back to the current position without a target.
     /// </summary>
     public Vector2 FollowPoint
     {
@@ -183,6 +282,9 @@ public partial class Companion : CharacterBody2D
             Bubble.Visible = false;
         }
 
+        _lead = StateMachine.GetNodeOrNull<CompanionLead>(CompanionState.StateLead);
+        LeadMoveSpeed = LeadSpeed;
+        ApplyLightMask(Visual, Visual.LightMask);
         UpdateVisual();
     }
 
@@ -235,32 +337,58 @@ public partial class Companion : CharacterBody2D
         UpdateBubble();
     }
 
+    /// <summary>Switches his headlamp; a level turns it off before a gas pocket so Dan goes dark before he shouts.</summary>
+    /// <param name="on"><c>true</c> lights him up.</param>
+    public void SetLampOn(bool on)
+    {
+        if (Lamp is not null)
+        {
+            Lamp.Enabled = on;
+        }
+    }
+
     /// <summary>
-    /// Anti-stuck failsafes 1 and 3: teleports him to <see cref="FollowPoint"/>. Called by the
-    /// Follow state when he is too far or wedged, and by the level on a room change or a respawn,
-    /// so a door or a death never leaves him on the wrong side of a sealed drift. Without a target
-    /// it does nothing.
+    /// Anti-stuck failsafes 1 and 3 of the <c>Follow</c> state: teleports him to
+    /// <see cref="FollowPoint"/>. Called by the Follow state when he is too far or wedged, and by
+    /// <see cref="OnHeroRelocated"/> while he follows, so a door or a death never leaves him on the
+    /// wrong side of a sealed drift. Without a target, or once gone, it does nothing. A hold or a
+    /// route point is never moved by this.
     /// </summary>
-    /// <remarks>
-    /// While he is holding a scripted spot the hold moves with him: a hold is relative to the hero,
-    /// not to the world, so a respawn during a beat must not send him walking back across the level
-    /// (or into a drift a <see cref="Levels.CaveIn"/> has just sealed). A level that wants him at a
-    /// particular place again re-issues <see cref="HoldAt"/> from its respawn handler.
-    /// </remarks>
     public void WarpBehind()
     {
-        if (!HasTarget)
+        if (IsGone || !HasTarget)
         {
             return;
         }
 
-        Vector2 point = FollowPoint;
-        if (IsWaiting)
+        WarpTo(FollowPoint);
+    }
+
+    /// <summary>
+    /// The level's hook after it teleported the hero (a door hop between room bounds, a respawn);
+    /// what he does about it depends on his state. Following: <see cref="WarpBehind"/>, as a
+    /// follower has no place of his own. Holding or leading: nothing, unless the hero is now
+    /// farther than <see cref="WarpDistance"/> from him — then a warp onto the held spot or the
+    /// route point, never behind the hero. The level re-issues a hold or a route point where it
+    /// wants him after a respawn.
+    /// </summary>
+    public void OnHeroRelocated()
+    {
+        if (IsGone || ActiveTarget is not { } target)
         {
-            HoldPosition = point;
+            return;
         }
 
-        WarpTo(point);
+        if (!IsWaiting && !IsLeading)
+        {
+            WarpBehind();
+            return;
+        }
+
+        if (target.GlobalPosition.DistanceSquaredTo(GlobalPosition) > WarpDistance * WarpDistance)
+        {
+            WarpTo(IsLeading ? LeadTarget : HoldPosition);
+        }
     }
 
     /// <summary>Teleports him to <paramref name="position"/>, stops him and emits <see cref="WarpedEventHandler"/>.</summary>
@@ -282,6 +410,43 @@ public partial class Companion : CharacterBody2D
     {
         HoldPosition = position;
         StateMachine.TransitionToOrRestart(CompanionState.StateWait);
+    }
+
+    /// <summary>
+    /// Sends him ahead to <paramref name="target"/> as the guide: he walks there at
+    /// <see cref="LeadSpeed"/> with the leash on, stops, shows the way and waits for the hero,
+    /// emitting <see cref="ArrivedEventHandler"/> once on reaching the point. Re-issuing the same
+    /// point while already leading there only refreshes the leash and speed and clears the warning
+    /// stance — it never restarts the walk or re-fires <see cref="ArrivedEventHandler"/>, so a
+    /// respawn handler may re-issue freely. Ignored once he is gone.
+    /// </summary>
+    /// <param name="target">World position of the route point.</param>
+    public void LeadTo(Vector2 target) => Lead(target, leashed: true, LeadSpeed);
+
+    /// <summary>As <see cref="LeadTo"/>, but with the leash off and at <see cref="RunSpeed"/>: he does not wait for the hero on the way.</summary>
+    /// <param name="target">World position of the route point.</param>
+    public void RunTo(Vector2 target) => Lead(target, leashed: false, RunSpeed);
+
+    /// <summary>
+    /// The warning stance at the route point: he faces <see cref="TravelSign"/> — the danger, not
+    /// the hero — never looks back and never calls. The level says the line and decides when the
+    /// point may be advanced; the next <see cref="LeadTo"/> / <see cref="RunTo"/> clears it.
+    /// </summary>
+    /// <param name="on"><c>true</c> to warn, <c>false</c> to stand normally again.</param>
+    public void SetWarning(bool on) => IsWarning = on;
+
+    /// <summary>
+    /// Takes him out of the story for good: hidden, no processing, silent, and every later
+    /// <see cref="LeadTo"/> / <see cref="RunTo"/> / <see cref="OnHeroRelocated"/> is ignored.
+    /// Irreversible for this level instance — how and when is the level's decision.
+    /// </summary>
+    public void Vanish()
+    {
+        IsGone = true;
+        Stop();
+        Say(string.Empty);
+        Visible = false;
+        ProcessMode = ProcessModeEnum.Disabled;
     }
 
     /// <summary>Sends him back to following the hero.</summary>
@@ -356,8 +521,35 @@ public partial class Companion : CharacterBody2D
             Mathf.Clamp(offset.Y / dt, -depthSpeed, depthSpeed));
     }
 
-    /// <summary>Emits <see cref="ArrivedEventHandler"/>; called by the Wait state once per hold.</summary>
+    /// <summary>Emits <see cref="ArrivedEventHandler"/>; called by the Wait and Lead states once per position.</summary>
     public void NotifyArrived() => EmitSignalArrived();
+
+    /// <summary>Emits <see cref="HeroReachedEventHandler"/>; called by the Lead state once per route point.</summary>
+    public void NotifyHeroReached() => EmitSignalHeroReached();
+
+    /// <summary>Emits <see cref="HeroLaggingEventHandler"/>; called by the Lead state, rate-limited and capped.</summary>
+    public void NotifyHeroLagging() => EmitSignalHeroLagging();
+
+    private void Lead(Vector2 target, bool leashed, float speed)
+    {
+        if (IsGone)
+        {
+            return;
+        }
+
+        LeadLeashed = leashed;
+        LeadMoveSpeed = speed;
+        IsWarning = false;
+        if (IsLeading && LeadTarget == target)
+        {
+            return;   // the same point again: nothing to restart, Arrived must not fire twice
+        }
+
+        LeadTarget = target;
+        float dx = target.X - GlobalPosition.X;
+        TravelSign = dx == 0f ? Facing : dx > 0f ? 1 : -1;
+        StateMachine.TransitionToOrRestart(CompanionState.StateLead);
+    }
 
     /// <summary>
     /// Counts the time he asks for a walk faster than <see cref="StuckSpeed"/> without leaving the
@@ -417,6 +609,25 @@ public partial class Companion : CharacterBody2D
         // re-entered gait starts at frame 0.
         AnimationPlayer.Play(animation);
         AnimationPlayer.Seek(0.0, update: true);
+    }
+
+    /// <summary>
+    /// Copies <paramref name="mask"/> onto every drawn descendant of <paramref name="node"/> (the
+    /// rig's polygons, future sprite frames), so the headlamp's render bit reaches the items that
+    /// are actually lit. Walked once on ready, never per frame. The lamp itself is skipped: a
+    /// light's mask is what it lights, not what lights it.
+    /// </summary>
+    private static void ApplyLightMask(Node node, int mask)
+    {
+        foreach (Node child in node.GetChildren())
+        {
+            if (child is CanvasItem item && child is not Light2D)
+            {
+                item.LightMask = mask;
+            }
+
+            ApplyLightMask(child, mask);
+        }
     }
 
     private void UpdateBubble()

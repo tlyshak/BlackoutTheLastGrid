@@ -47,9 +47,12 @@ public partial class LevelBase : Node2D
 
     /// <summary>
     /// The brother escorting the hero through this level, when it has one. The level owns the two
-    /// places a follower cannot recover from on its own — a room change and a respawn, both of
-    /// which teleport the hero — and warps him behind the hero there (the third anti-stuck
-    /// safeguard from the plan; the other two live in <see cref="Actors.Companion"/> itself).
+    /// places he cannot recover from on his own — a room change and a respawn, both of which
+    /// teleport the hero — and tells him the hero was relocated there
+    /// (<see cref="Actors.Companion.OnHeroRelocated"/>, the third anti-stuck safeguard from the
+    /// plan; the other two live in <see cref="Actors.Companion"/> itself). What he does about it
+    /// depends on his state: a follower is warped behind the hero, a guide or a scripted extra
+    /// stays on his own point unless the hero is now half a screen away.
     /// </summary>
     [Export] public Companion? Companion { get; set; }
 
@@ -211,7 +214,7 @@ public partial class LevelBase : Node2D
         state.Energy = _checkpoint.RestoresFullEnergy
             ? state.MaxEnergy
             : Mathf.Max(_checkpointEnergy, MinRespawnEnergy);
-        Companion?.WarpBehind();   // the hero jumped back to the checkpoint; bring the brother along
+        Companion?.OnHeroRelocated();   // the hero jumped back to the checkpoint; the brother decides by his state
         EmitSignalRespawned();
     }
 
@@ -253,7 +256,7 @@ public partial class LevelBase : Node2D
         Player.FloorTop = room.FloorTop;
         Player.FloorBottom = room.FloorBottom;
         SwitchRoomFx(room.Fx);
-        Companion?.WarpBehind();   // a door hop teleports the hero; walking there would strand him
+        Companion?.OnHeroRelocated();   // a door hop teleports the hero; walking after him could strand a follower
         if (Camera is null)
         {
             return;
