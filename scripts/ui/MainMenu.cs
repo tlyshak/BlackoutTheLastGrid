@@ -7,8 +7,8 @@ namespace BlackoutLastGrid.Ui;
 /// <summary>
 /// Title screen and <c>run/main_scene</c>: the logo from GAME_DESIGN.md §8 — the word BLACKOUT
 /// with one letter glowing like the single lit window in a dark block, built procedurally from
-/// Labels and an additive halo — plus «Нова гра» / «Налаштування» / «Вихід» and its own settings
-/// overlay. «Нова гра» changes the tree's scene to <see cref="NewGameScenePath"/>, so <c>Main</c>
+/// Labels and an additive halo — plus «New Game» / «Settings» / «Quit» and its own settings
+/// overlay. «New Game» changes the tree's scene to <see cref="NewGameScenePath"/>, so <c>Main</c>
 /// becomes the current scene and a KO still reloads the run through it. The run entry point is a
 /// path, not an <c>[Export] PackedScene</c> as elsewhere, on purpose: a PackedScene reference
 /// would pull the whole prologue into this scene's load graph before the menu could draw.
@@ -33,7 +33,7 @@ public partial class MainMenu : Control
     /// <summary>The settings overlay instanced under this menu.</summary>
     [Export] public SettingsMenu Settings { get; set; } = null!;
 
-    /// <summary>Scene made the current scene by «Нова гра» — the run entry point.</summary>
+    /// <summary>Scene made the current scene by «New Game» — the run entry point.</summary>
     [Export(PropertyHint.File, "*.tscn")]
     public string NewGameScenePath { get; set; } = "res://scenes/Main.tscn";
 

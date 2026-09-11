@@ -8,7 +8,7 @@ namespace BlackoutLastGrid.Core;
 /// "GameSettings". It is the only place that calls <c>DisplayServer.WindowSetMode</c> or
 /// <c>AudioServer</c> for the master bus and the only owner of the global
 /// <c>toggle_fullscreen</c> hotkey, so the settings screen and the hotkey can never disagree.
-/// This is not run state (that lives in <see cref="GameState"/> and is reset by «Нова гра»):
+/// This is not run state (that lives in <see cref="GameState"/> and is reset by «New Game»):
 /// these values are per machine, survive a new run and are never written into a save slot.
 /// </summary>
 public partial class GameSettings : Node

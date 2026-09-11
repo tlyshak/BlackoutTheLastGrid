@@ -3,7 +3,7 @@ extends SceneTree
 # exports, HudTheme.tres whose ProgressBar fill/background styleboxes are the ones the bar
 # resolves, no percentage text, mouse ignore), binding to GameState (min/max/value/label after
 # ResetRun), synchronous same-frame updates on Energy set / AddEnergy / ResetRun with the
-# "ЕНЕРГІЯ {0}" label built from Mathf.RoundToInt (banker's rounding: 32.5 -> 32, 33.5 -> 34,
+# "ENERGY {0}" label built from Mathf.RoundToInt (banker's rounding: 32.5 -> 32, 33.5 -> 34,
 # 0.5 -> 0 — the S1 regression), no label rebuild on a sub-unit change, Unbind()/Bind() API,
 # _ExitTree/_EnterTree re-binding when the HUD is removed from and re-added to the tree (S2),
 # no dangling EnergyChanged listener after the HUD is freed (an Energy change after the free must
@@ -98,7 +98,7 @@ func _run() -> void:
 		return
 	var bar: ProgressBar = bar_v
 	var label: Label = label_v
-	_check(hud.LabelFormat == "ЕНЕРГІЯ {0}", "HUD.LabelFormat default is '%s', expected 'ЕНЕРГІЯ {0}' ({0} is the rounded int)" % hud.LabelFormat)
+	_check(hud.LabelFormat == "ENERGY {0}", "HUD.LabelFormat default is '%s', expected 'ENERGY {0}' ({0} is the rounded int)" % hud.LabelFormat)
 	_check(bar.show_percentage == false, "EnergyBar.show_percentage=%s, expected false" % bar.show_percentage)
 
 	var root_ctl: Node = hud.get_node_or_null("Root")
@@ -130,29 +130,29 @@ func _run() -> void:
 	_check(is_equal_approx(bar.value, gs.Energy), "EnergyBar.value=%s after ResetRun, expected Energy=%s" % [bar.value, gs.Energy])
 	_check(is_equal_approx(bar.value, 100.0), "EnergyBar.value=%s after ResetRun, expected 100" % bar.value)
 	_check(is_equal_approx(hud.DisplayedEnergy, 100.0), "HUD.DisplayedEnergy=%s after ResetRun, expected 100" % hud.DisplayedEnergy)
-	_check(label.text == "ЕНЕРГІЯ 100", "EnergyLabel.text='%s' after ResetRun, expected 'ЕНЕРГІЯ 100'" % label.text)
+	_check(label.text == "ENERGY 100", "EnergyLabel.text='%s' after ResetRun, expected 'ENERGY 100'" % label.text)
 
 	# 3. Same-frame updates (no await between the set and the read).
 	gs.Energy = 42.4
 	_check(is_equal_approx(bar.value, 42.4), "EnergyBar.value=%s right after Energy=42.4, expected 42.4 (same frame)" % bar.value)
 	_check(is_equal_approx(hud.DisplayedEnergy, 42.4), "HUD.DisplayedEnergy=%s after Energy=42.4, expected 42.4" % hud.DisplayedEnergy)
-	_check(label.text == "ЕНЕРГІЯ 42", "EnergyLabel.text='%s' after Energy=42.4, expected 'ЕНЕРГІЯ 42'" % label.text)
+	_check(label.text == "ENERGY 42", "EnergyLabel.text='%s' after Energy=42.4, expected 'ENERGY 42'" % label.text)
 	gs.AddEnergy(-10.0)
 	_check(is_equal_approx(bar.value, 32.4), "EnergyBar.value=%s after AddEnergy(-10), expected 32.4" % bar.value)
-	_check(label.text == "ЕНЕРГІЯ 32", "EnergyLabel.text='%s' after AddEnergy(-10), expected 'ЕНЕРГІЯ 32'" % label.text)
+	_check(label.text == "ENERGY 32", "EnergyLabel.text='%s' after AddEnergy(-10), expected 'ENERGY 32'" % label.text)
 	gs.Energy = 32.6
 	_check(is_equal_approx(bar.value, 32.6), "EnergyBar.value=%s after Energy=32.6, expected 32.6" % bar.value)
-	_check(label.text == "ЕНЕРГІЯ 33", "EnergyLabel.text='%s' after Energy=32.6, expected 'ЕНЕРГІЯ 33' (rounding)" % label.text)
+	_check(label.text == "ENERGY 33", "EnergyLabel.text='%s' after Energy=32.6, expected 'ENERGY 33' (rounding)" % label.text)
 	# S1 regression: exact halves. The label is built from Mathf.RoundToInt (banker's rounding to
 	# even), the same value that throttles rebuilds — one rule, so the text can never go stale.
 	var half_cases: Array = [
-		[32.5, "ЕНЕРГІЯ 32"],   # 32.5 -> 32 (to even), was "33" with {0:0} and then stuck
-		[32.4, "ЕНЕРГІЯ 32"],
-		[31.5, "ЕНЕРГІЯ 32"],   # 31.5 -> 32 (to even)
-		[33.5, "ЕНЕРГІЯ 34"],   # 33.5 -> 34 (to even)
-		[0.5, "ЕНЕРГІЯ 0"],     # 0.5 -> 0 (to even), was "1"
-		[0.0, "ЕНЕРГІЯ 0"],     # lamp dead: still 0, never a stale "1"
-		[1.0, "ЕНЕРГІЯ 1"],
+		[32.5, "ENERGY 32"],   # 32.5 -> 32 (to even), was "33" with {0:0} and then stuck
+		[32.4, "ENERGY 32"],
+		[31.5, "ENERGY 32"],   # 31.5 -> 32 (to even)
+		[33.5, "ENERGY 34"],   # 33.5 -> 34 (to even)
+		[0.5, "ENERGY 0"],     # 0.5 -> 0 (to even), was "1"
+		[0.0, "ENERGY 0"],     # lamp dead: still 0, never a stale "1"
+		[1.0, "ENERGY 1"],
 	]
 	var observed: PackedStringArray = []
 	for case in half_cases:
@@ -165,10 +165,10 @@ func _run() -> void:
 	print("ui_hud: half-rounding: %s" % ", ".join(observed))
 	gs.ResetRun()
 	_check(is_equal_approx(bar.value, 100.0), "EnergyBar.value=%s after ResetRun, expected 100" % bar.value)
-	_check(label.text == "ЕНЕРГІЯ 100", "EnergyLabel.text='%s' after ResetRun, expected 'ЕНЕРГІЯ 100'" % label.text)
+	_check(label.text == "ENERGY 100", "EnergyLabel.text='%s' after ResetRun, expected 'ENERGY 100'" % label.text)
 	# Sub-unit change: the bar follows, the label text is not rebuilt.
 	gs.Energy = 32.4
-	_check(label.text == "ЕНЕРГІЯ 32", "EnergyLabel.text='%s' after Energy=32.4, expected 'ЕНЕРГІЯ 32'" % label.text)
+	_check(label.text == "ENERGY 32", "EnergyLabel.text='%s' after Energy=32.4, expected 'ENERGY 32'" % label.text)
 	var text_before: String = label.text
 	gs.Energy = 32.45
 	_check(is_equal_approx(bar.value, 32.45), "EnergyBar.value=%s after Energy=32.45, expected 32.45" % bar.value)
@@ -181,7 +181,7 @@ func _run() -> void:
 	_check(is_equal_approx(bar.value, v_unbound), "EnergyBar.value=%s after Unbind() and Energy=5, expected unchanged %s" % [bar.value, v_unbound])
 	hud.Bind(gs)
 	_check(is_equal_approx(bar.value, 5.0), "EnergyBar.value=%s after Bind(gs), expected 5" % bar.value)
-	_check(label.text == "ЕНЕРГІЯ 5", "EnergyLabel.text='%s' after Bind(gs), expected 'ЕНЕРГІЯ 5'" % label.text)
+	_check(label.text == "ENERGY 5", "EnergyLabel.text='%s' after Bind(gs), expected 'ENERGY 5'" % label.text)
 	gs.Energy = 7.0
 	_check(is_equal_approx(bar.value, 7.0), "EnergyBar.value=%s after rebind and Energy=7, expected 7 (bound again)" % bar.value)
 	gs.ResetRun()
@@ -202,10 +202,10 @@ func _run() -> void:
 	_check(hud.is_inside_tree() and hud.is_node_ready(), "re-added HUD is not inside the tree / not ready")
 	_check(is_equal_approx(v_readded, 61.0),
 		"EnergyBar.value=%s right after add_child, expected 61 (_EnterTree must re-bind a ready node)" % v_readded)
-	_check(text_readded == "ЕНЕРГІЯ 61", "EnergyLabel.text='%s' right after add_child, expected 'ЕНЕРГІЯ 61'" % text_readded)
+	_check(text_readded == "ENERGY 61", "EnergyLabel.text='%s' right after add_child, expected 'ENERGY 61'" % text_readded)
 	gs.Energy = 62.0
 	_check(is_equal_approx(bar.value, 62.0), "EnergyBar.value=%s after re-add and Energy=62, expected 62 (bound again)" % bar.value)
-	_check(label.text == "ЕНЕРГІЯ 62", "EnergyLabel.text='%s' after re-add and Energy=62, expected 'ЕНЕРГІЯ 62'" % label.text)
+	_check(label.text == "ENERGY 62", "EnergyLabel.text='%s' after re-add and Energy=62, expected 'ENERGY 62'" % label.text)
 	print("ui_hud: re-entry: out of tree Energy=61 -> bar %.1f (was %.1f); add_child -> bar %.1f '%s'; Energy=62 -> bar %.1f '%s'" % [v_while_out, v_out, v_readded, text_readded, bar.value, label.text])
 	await _step(1)
 	_check(is_equal_approx(bar.value, 62.0), "EnergyBar.value=%s one frame after re-add, expected 62" % bar.value)
@@ -249,7 +249,7 @@ func _run() -> void:
 	var room_bar: ProgressBar = room_bar_v
 	await _step(1)
 	_check(is_equal_approx(room_bar.value, gs.Energy), "TestRoom/HUD bar=%s, expected Energy=%s" % [room_bar.value, gs.Energy])
-	_check(_label_text(room_hud) == "ЕНЕРГІЯ 100", "TestRoom/HUD label='%s', expected 'ЕНЕРГІЯ 100'" % _label_text(room_hud))
+	_check(_label_text(room_hud) == "ENERGY 100", "TestRoom/HUD label='%s', expected 'ENERGY 100'" % _label_text(room_hud))
 	var dbg: Node = room.get_node_or_null("UI/DebugLabel")
 	_check(dbg != null and dbg is Label, "TestRoom has no 'UI/DebugLabel' Label")
 	if dbg != null and dbg is Label:
@@ -274,8 +274,8 @@ func _run() -> void:
 		_check(room_bar.step <= 0.01, "EnergyBar.step=%s, expected <= 0.01 (coarser steps make the bar visibly lag Energy)" % room_bar.step)
 		_check(absf(room_bar.value - gs.Energy) <= room_bar.step,
 			"HUD bar=%.4f after the drain, expected Energy=%.4f within step %s" % [room_bar.value, gs.Energy, room_bar.step])
-		_check(_label_text(room_hud) == "ЕНЕРГІЯ %d" % roundi(gs.Energy),
-			"HUD label='%s' after the drain, expected 'ЕНЕРГІЯ %d'" % [_label_text(room_hud), roundi(gs.Energy)])
+		_check(_label_text(room_hud) == "ENERGY %d" % roundi(gs.Energy),
+			"HUD label='%s' after the drain, expected 'ENERGY %d'" % [_label_text(room_hud), roundi(gs.Energy)])
 		print("ui_hud: drain on the bar %.4f -> %.4f over %d frames (drop %.4f, expected %.4f), Energy %.4f, label '%s'" % [v0, room_bar.value, DRAIN_FRAMES, drop, expected_drop, gs.Energy, _label_text(room_hud)])
 		lamp.SetOn(false)
 		await _step(1)

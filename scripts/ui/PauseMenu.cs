@@ -5,7 +5,7 @@ namespace BlackoutLastGrid.Ui;
 
 /// <summary>
 /// Pause overlay instanced by every level and wired to it through <c>LevelBase.Pause</c>. It owns
-/// <c>SceneTree.Paused</c> and nothing else: «Вихід у головне меню» only emits
+/// <c>SceneTree.Paused</c> and nothing else: «Quit to Main Menu» only emits
 /// <see cref="QuitToMenuRequestedEventHandler"/>, because scene transitions belong to the level.
 /// Opening cancels a hit-stop in flight, so the menu can never come up over a frozen
 /// <c>Engine.TimeScale</c> (the freeze is dropped, not resumed afterwards).

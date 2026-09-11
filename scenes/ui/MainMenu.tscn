@@ -92,7 +92,7 @@ alignment = 1
 layout_mode = 2
 theme_override_colors/font_color = Color(0.301961, 0.345098, 0.4, 1)
 theme_override_font_sizes/font_size = 26
-text = "ОСТАННЯ МЕРЕЖА"
+text = "LAST GRID"
 horizontal_alignment = 1
 
 [node name="Spacer" type="Control" parent="Center"]
@@ -108,15 +108,15 @@ theme_override_constants/separation = 12
 
 [node name="NewGameButton" type="Button" parent="Center/Buttons"]
 layout_mode = 2
-text = "Нова гра"
+text = "New Game"
 
 [node name="SettingsButton" type="Button" parent="Center/Buttons"]
 layout_mode = 2
-text = "Налаштування"
+text = "Settings"
 
 [node name="QuitButton" type="Button" parent="Center/Buttons"]
 layout_mode = 2
-text = "Вихід"
+text = "Quit"
 
 [node name="Version" type="Label" parent="."]
 layout_mode = 1
@@ -131,7 +131,7 @@ grow_vertical = 0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.301961, 0.345098, 0.4, 1)
 theme_override_font_sizes/font_size = 16
-text = "BLACKOUT: Last Grid — прототип"
+text = "BLACKOUT: Last Grid — prototype"
 vertical_alignment = 1
 
 [node name="Settings" parent="." instance=ExtResource("3_settings")]

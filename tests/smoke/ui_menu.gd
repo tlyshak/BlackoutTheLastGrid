@@ -2,9 +2,9 @@ extends SceneTree
 # Smoke: the main menu (T-07i-a) — MainMenu.tscn is a Control with MainMenu.cs and the shared
 # HudTheme, the §8 logo is built procedurally (one Label per character of TitleText, exactly one
 # of them lit and carrying an additive `Glow` TextureRect behind it at GlowLetterIndex), the three
-# Ukrainian buttons exist with «Нова гра» focused for keyboard/gamepad, NewGameScenePath points at
+# English buttons exist with «New Game» focused for keyboard/gamepad, NewGameScenePath points at
 # a scene that really loads, the nested SettingsMenu opens from the menu and gives focus back on
-# close, and — the contract T-07i-a must not break — «Нова гра» makes Main the tree's *current
+# close, and — the contract T-07i-a must not break — «New Game» makes Main the tree's *current
 # scene* (not a child of the menu) with a full energy reserve, so a level restart still reloads
 # Main into a fresh prologue. Needs frames: the scene change is deferred.
 # The settings screen saves on close, so ConfigPath is redirected to a throwaway file first and
@@ -29,7 +29,7 @@ const PULSE_FRAMES := 20        # physics frames the halo Tween must visibly mov
 const ALPHA_TOL := 0.01
 const VOLUME_TEST := 0.5        # slider position the value label must render as "50 %"
 const DB_TOL := 0.01
-const START_ENERGY := 12.0      # leftover energy of an abandoned run; «Нова гра» must reset it
+const START_ENERGY := 12.0      # leftover energy of an abandoned run; «New Game» must reset it
 
 var _started := false
 var _frames := 0
@@ -168,14 +168,14 @@ func _run() -> void:
 			_check(glow.modulate.a >= menu.GlowMinAlpha - ALPHA_TOL and glow.modulate.a <= menu.GlowMaxAlpha + ALPHA_TOL,
 				"the halo alpha %.3f left [%s, %s]" % [glow.modulate.a, menu.GlowMinAlpha, menu.GlowMaxAlpha])
 
-	# 3. Buttons: exact texts, «Нова гра» focused, the run entry point really exists.
-	var button_texts: Dictionary = {"NewGameButton": "Нова гра", "SettingsButton": "Налаштування", "QuitButton": "Вихід"}
+	# 3. Buttons: exact texts, «New Game» focused, the run entry point really exists.
+	var button_texts: Dictionary = {"NewGameButton": "New Game", "SettingsButton": "Settings", "QuitButton": "Quit"}
 	for export_name in button_texts:
 		var b: Node = menu.get(export_name)
 		_check(b != null and b is Button, "MainMenu.%s is %s, expected a Button" % [export_name, b.get_class() if b != null else "null"])
 		if b != null and b is Button:
 			_check(b.text == button_texts[export_name], "%s.text='%s', expected '%s'" % [export_name, b.text, button_texts[export_name]])
-	_check(menu.NewGameButton.has_focus(), "«Нова гра» does not have focus — the menu is not usable without a mouse")
+	_check(menu.NewGameButton.has_focus(), "«New Game» does not have focus — the menu is not usable without a mouse")
 	_check(menu.NewGameScenePath == MAIN_PATH, "MainMenu.NewGameScenePath='%s', expected '%s'" % [menu.NewGameScenePath, MAIN_PATH])
 	_check(load(menu.NewGameScenePath) != null, "MainMenu.NewGameScenePath '%s' does not load" % menu.NewGameScenePath)
 
@@ -187,8 +187,8 @@ func _run() -> void:
 		_check(settings.IsOpen == false, "the settings screen is open on a fresh menu")
 		menu.SettingsButton.emit_signal("pressed")
 		await _step(1)
-		_check(settings.IsOpen == true, "«Налаштування» did not open the settings screen")
-		_check(settings.BackButton.has_focus(), "«Назад» does not have focus while the settings screen is open")
+		_check(settings.IsOpen == true, "«Settings» did not open the settings screen")
+		_check(settings.BackButton.has_focus(), "«Back» does not have focus while the settings screen is open")
 		_check(settings.FullscreenCheck.button_pressed == gset.Fullscreen,
 			"the fullscreen checkbox is %s while GameSettings.Fullscreen=%s" % [settings.FullscreenCheck.button_pressed, gset.Fullscreen])
 		_check(is_equal_approx(settings.VolumeSlider.value, gset.MasterVolume),
@@ -230,14 +230,14 @@ func _run() -> void:
 		settings.Close()
 		await _step(1)
 		_check(settings.IsOpen == false, "Close() left the settings screen open")
-		_check(menu.SettingsButton.has_focus(), "focus did not return to «Налаштування» after the settings screen closed")
+		_check(menu.SettingsButton.has_focus(), "focus did not return to «Settings» after the settings screen closed")
 
-	# 5. «Нова гра»: Main becomes the current scene (not a child of the menu) with a full reserve.
+	# 5. «New Game»: Main becomes the current scene (not a child of the menu) with a full reserve.
 	var menu_id: int = menu.get_instance_id()
 	gs.Energy = START_ENERGY
 	menu.NewGameButton.emit_signal("pressed")
 	_check(is_equal_approx(gs.Energy, gs.MaxEnergy),
-		"Energy=%s right after «Нова гра», expected MaxEnergy=%s (ResetRun)" % [gs.Energy, gs.MaxEnergy])
+		"Energy=%s right after «New Game», expected MaxEnergy=%s (ResetRun)" % [gs.Energy, gs.MaxEnergy])
 	var switched: int = await _watch_ms(func():
 		var cs: Node = current_scene
 		return cs != null and cs.get_instance_id() != menu_id, SCENE_CHANGE_CAP_MS)
@@ -247,13 +247,13 @@ func _run() -> void:
 		return
 	await _settle()
 	var main: Node = current_scene
-	_check(not is_instance_valid(menu), "the main menu is still alive after «Нова гра»")
+	_check(not is_instance_valid(menu), "the main menu is still alive after «New Game»")
 	_check(main != null and main.name == "Main" and main.scene_file_path == MAIN_PATH,
 		"the current scene is '%s', expected Main from %s" % [main.name if main != null else "null", MAIN_PATH])
 	if main == null:
 		_finish()
 		return
-	_check(main.get_parent() == root, "Main is not a child of root — «Нова гра» must change the scene, not add a child")
+	_check(main.get_parent() == root, "Main is not a child of root — «New Game» must change the scene, not add a child")
 	_check(main.get_script() != null and str(main.get_script().resource_path).ends_with("Main.cs"), "the new current scene has no Main.cs")
 	var level: Node = main.get("CurrentLevel")
 	_check(level != null and level.scene_file_path == PROLOGUE_PATH,

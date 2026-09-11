@@ -1,9 +1,9 @@
 extends SceneTree
 # Smoke: the pause menu (T-07i-a) — PauseMenu.tscn is a CanvasLayer above the HUD that keeps
 # processing while paused, it owns SceneTree.paused (open/resume, PauseToggled both ways, focus on
-# «Продовжити»), it cancels a hit-stop in flight so the menu can never sit over a frozen
+# «Resume»), it cancels a hit-stop in flight so the menu can never sit over a frozen
 # Engine.time_scale, the settings overlay above it eats the first Escape and leaves the game
-# paused, «Вихід у головне меню» only emits QuitToMenuRequested (the menu never changes the scene
+# paused, «Quit to Main Menu» only emits QuitToMenuRequested (the menu never changes the scene
 # itself), and a menu freed while open unpauses the tree. Plus the two invariants around it: a
 # paused Cutscene advances no line however often `interact` is pressed, and LevelBase.GoToMainMenu
 # — reached through the level's own wiring in TestRoom — lands on the main menu unpaused, at
@@ -166,8 +166,8 @@ func _run() -> void:
 	if settings != null:
 		_check(settings.layer == SETTINGS_LAYER, "SettingsMenu.layer=%d, expected %d (above the pause menu)" % [settings.layer, SETTINGS_LAYER])
 		_check(settings.process_mode == PROCESS_MODE_ALWAYS, "SettingsMenu.process_mode=%d, expected %d (ALWAYS)" % [settings.process_mode, PROCESS_MODE_ALWAYS])
-	_check(pm.ResumeButton.text == "Продовжити", "ResumeButton.text='%s'" % pm.ResumeButton.text)
-	_check(pm.QuitButton.text == "Вихід у головне меню", "QuitButton.text='%s'" % pm.QuitButton.text)
+	_check(pm.ResumeButton.text == "Resume", "ResumeButton.text='%s'" % pm.ResumeButton.text)
+	_check(pm.QuitButton.text == "Quit to Main Menu", "QuitButton.text='%s'" % pm.QuitButton.text)
 
 	# 2. Open/Resume own SceneTree.paused and emit PauseToggled both ways.
 	var toggles: Array = []
@@ -175,7 +175,7 @@ func _run() -> void:
 	pm.Open()
 	_check(paused == true, "the tree is not paused after PauseMenu.Open()")
 	_check(pm.IsOpen == true and pm.Root.visible == true, "the pause overlay is not visible after Open()")
-	_check(pm.ResumeButton.has_focus(), "«Продовжити» has no focus after Open() — the menu needs no mouse")
+	_check(pm.ResumeButton.has_focus(), "«Resume» has no focus after Open() — the menu needs no mouse")
 	_check(toggles == [true], "PauseToggled fired %s on Open(), expected [true]" % [toggles])
 	pm.Resume()
 	_check(paused == false, "the tree is still paused after PauseMenu.Resume()")
@@ -195,15 +195,15 @@ func _run() -> void:
 	_check(paused == true and pm.IsOpen == true, "the `pause` action did not open the menu (paused=%s open=%s)" % [paused, pm.IsOpen])
 	pm.SettingsButton.emit_signal("pressed")
 	await _step(1)
-	_check(settings.IsOpen == true, "«Налаштування» did not open the settings screen from the pause menu")
+	_check(settings.IsOpen == true, "«Settings» did not open the settings screen from the pause menu")
 	await _send_action("pause")
 	_check(settings.IsOpen == false, "the settings screen is still open after Escape")
 	_check(paused == true and pm.IsOpen == true, "Escape over the settings screen also resumed the game (paused=%s)" % paused)
-	_check(pm.SettingsButton.has_focus(), "focus did not return to «Налаштування» after the settings screen closed")
+	_check(pm.SettingsButton.has_focus(), "focus did not return to «Settings» after the settings screen closed")
 	await _send_action("pause")
 	_check(paused == false and pm.IsOpen == false, "the second `pause` press did not resume (paused=%s open=%s)" % [paused, pm.IsOpen])
 
-	# 5. «Вихід у головне меню» resumes and asks; it never changes the scene itself.
+	# 5. «Quit to Main Menu» resumes and asks; it never changes the scene itself.
 	var quit_events: Array = []
 	pm.QuitToMenuRequested.connect(func(): quit_events.append(1))
 	var scene_before: Node = current_scene
@@ -211,7 +211,7 @@ func _run() -> void:
 	pm.QuitButton.emit_signal("pressed")
 	await _step(1)
 	_check(quit_events.size() == 1, "QuitToMenuRequested fired %d times, expected 1" % quit_events.size())
-	_check(paused == false, "the tree is still paused after «Вихід у головне меню»")
+	_check(paused == false, "the tree is still paused after «Quit to Main Menu»")
 	_check(current_scene == scene_before, "the pause menu changed the current scene itself — that is the level's job")
 
 	# 6. A menu freed while open must not leave the tree frozen.
@@ -229,7 +229,7 @@ func _run() -> void:
 		var cut: Node = cs_scene.instantiate()
 		root.add_child(cut)
 		await _step(1)
-		cut.Play(PackedStringArray(["перший рядок", "другий рядок"]))
+		cut.Play(PackedStringArray(["first line", "second line"]))
 		await _step(1)
 		_check(cut.IsPlaying == true and cut.CurrentLine == 0, "the cutscene is at line %d, expected 0" % cut.CurrentLine)
 		paused = true
@@ -245,7 +245,7 @@ func _run() -> void:
 		cut.queue_free()
 		await _step(1)
 
-	# 8. LevelBase: the level's own pause menu is wired, and «Вихід у головне меню» lands on the
+	# 8. LevelBase: the level's own pause menu is wired, and «Quit to Main Menu» lands on the
 	#    main menu unpaused, at time_scale 1 and with a full reserve (acceptance criteria 7 and 13).
 	var room_scene: PackedScene = load(ROOM_PATH)
 	_check(room_scene != null, "%s failed to load" % ROOM_PATH)
@@ -272,7 +272,7 @@ func _run() -> void:
 	var left: int = await _watch_ms(func():
 		var cs: Node = current_scene
 		return cs != null and cs.get_instance_id() != room_id, SCENE_CHANGE_CAP_MS)
-	_check(left >= 0, "«Вихід у головне меню» did not change the scene within %d ms" % SCENE_CHANGE_CAP_MS)
+	_check(left >= 0, "«Quit to Main Menu» did not change the scene within %d ms" % SCENE_CHANGE_CAP_MS)
 	if left >= 0:
 		await _settle()
 		var menu: Node = current_scene

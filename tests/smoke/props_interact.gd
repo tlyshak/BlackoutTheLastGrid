@@ -198,16 +198,16 @@ func _run() -> void:
 	_check(is_equal_approx(outlet_proto.Amount, 25.0), "Outlet.Amount default is %s, expected 25" % outlet_proto.Amount)
 	_check(is_equal_approx(outlet_proto.Cooldown, 8.0), "Outlet.Cooldown default is %s, expected 8" % outlet_proto.Cooldown)
 	_check(outlet_proto.Uses == 1, "Outlet.Uses default is %s, expected 1" % outlet_proto.Uses)
-	_check(outlet_proto.PromptText == "Зарядити", "Outlet.PromptText is '%s', expected 'Зарядити'" % outlet_proto.PromptText)
-	_check(outlet_proto.SpentPromptText == "Розряджена", "Outlet.SpentPromptText is '%s', expected 'Розряджена'" % outlet_proto.SpentPromptText)
+	_check(outlet_proto.PromptText == "Charge", "Outlet.PromptText is '%s', expected 'Charge'" % outlet_proto.PromptText)
+	_check(outlet_proto.SpentPromptText == "Drained", "Outlet.SpentPromptText is '%s', expected 'Drained'" % outlet_proto.SpentPromptText)
 	_check(outlet_proto.get("SaveId") != null, "Outlet.SaveId export missing (T-09 hook)")
 	_check(outlet_proto.get_node_or_null("PH_Body") is Polygon2D and outlet_proto.get_node_or_null("PH_Indicator") is Polygon2D, "Outlet.tscn lacks PH_Body/PH_Indicator Polygon2D placeholders")
 	_check(outlet_proto.get("Indicator") == outlet_proto.get_node_or_null("PH_Indicator"), "Outlet.Indicator export does not point at PH_Indicator")
 	_check(Array(panel_proto.Sequence) == EXPECTED_SEQUENCE, "PowerPanel.Sequence default is %s, expected %s" % [Array(panel_proto.Sequence), EXPECTED_SEQUENCE])
 	_check(is_equal_approx(panel_proto.StepTimeout, 2.0), "PowerPanel.StepTimeout default is %s, expected 2" % panel_proto.StepTimeout)
 	_check(is_equal_approx(panel_proto.FailResetDelay, 0.5), "PowerPanel.FailResetDelay default is %s, expected 0.5" % panel_proto.FailResetDelay)
-	_check(panel_proto.PromptText == "Полагодити", "PowerPanel.PromptText is '%s', expected 'Полагодити'" % panel_proto.PromptText)
-	_check(panel_proto.ActivatedPromptText == "Працює", "PowerPanel.ActivatedPromptText is '%s', expected 'Працює'" % panel_proto.ActivatedPromptText)
+	_check(panel_proto.PromptText == "Repair", "PowerPanel.PromptText is '%s', expected 'Repair'" % panel_proto.PromptText)
+	_check(panel_proto.ActivatedPromptText == "Running", "PowerPanel.ActivatedPromptText is '%s', expected 'Running'" % panel_proto.ActivatedPromptText)
 	_check(panel_proto.get_node_or_null("PH_Body") is Polygon2D and panel_proto.get_node_or_null("PH_Screen") is Polygon2D, "PowerPanel.tscn lacks PH_Body/PH_Screen Polygon2D placeholders")
 	_check(panel_proto.get("Screen") == panel_proto.get_node_or_null("PH_Screen"), "PowerPanel.Screen export does not point at PH_Screen")
 	var outlet_scene: PackedScene = load("res://scenes/props/Outlet.tscn")
@@ -299,7 +299,7 @@ func _run() -> void:
 	var screen: Polygon2D = panel.Screen
 
 	# 2. Prompt: away -> null / hidden; next to the outlet -> InteractableChanged(outlet),
-	#    "E: Зарядити"; away again -> InteractableChanged(null), hidden.
+	#    "E: Charge"; away again -> InteractableChanged(null), hidden.
 	_release_all()
 	player.position = AWAY_POS
 	await _step(OVERLAP_FRAMES)
@@ -314,7 +314,7 @@ func _run() -> void:
 	_check(changes.size() == 1 and changes[0] == outlet, "InteractableChanged events %s next to the outlet, expected [Outlet]" % [changes])
 	_check(player.CurrentInteractable == outlet, "CurrentInteractable=%s next to the outlet, expected Outlet" % player.CurrentInteractable)
 	_check(prompt.visible, "prompt hidden next to the outlet")
-	_check(hud.PromptText == "E: Зарядити", "prompt '%s' next to the outlet, expected 'E: Зарядити'" % hud.PromptText)
+	_check(hud.PromptText == "E: Charge", "prompt '%s' next to the outlet, expected 'E: Charge'" % hud.PromptText)
 	player.position = AWAY_POS
 	await _step(OVERLAP_FRAMES)
 	_check(changes.size() == 2 and changes[1] == null, "InteractableChanged events %s after leaving, expected [Outlet, null]" % [changes])
@@ -322,7 +322,7 @@ func _run() -> void:
 	_check(prompt.visible == false and hud.PromptText == "", "prompt '%s' still shown after leaving the outlet" % hud.PromptText)
 
 	# 3a. Outlet: Energy 40 -> 65, Charged(25), Finished(true), Idle -> Interact -> Idle within
-	#     INTERACT_CAP frames; Uses=1 -> spent, indicator grey, prompt "Розряджена".
+	#     INTERACT_CAP frames; Uses=1 -> spent, indicator grey, prompt "Drained".
 	var charged: Array = []
 	var ofinished: Array = []
 	outlet.Charged.connect(func(a: float): charged.append(a))
@@ -343,7 +343,7 @@ func _run() -> void:
 	_check(outlet.IsCoolingDown == false, "outlet: IsCoolingDown=%s on a spent outlet, expected false (no cooldown once spent)" % outlet.IsCoolingDown)
 	_check(outlet.CanInteract == false, "outlet: CanInteract=%s after the single use, expected false" % outlet.CanInteract)
 	_check(outlet.IsActive == false, "outlet: IsActive=%s after Finished, expected false" % outlet.IsActive)
-	_check(hud.PromptText.begins_with("Розряджена"), "outlet: prompt '%s' after the use, expected 'Розряджена…'" % hud.PromptText)
+	_check(hud.PromptText.begins_with("Drained"), "outlet: prompt '%s' after the use, expected 'Drained…'" % hud.PromptText)
 	_check(indicator.color.is_equal_approx(outlet.SpentColor), "outlet: indicator colour %s after the use, expected SpentColor %s" % [indicator.color, outlet.SpentColor])
 	print("props_interact: outlet used in %d frames, prompt '%s'" % [outlet_frames + 1, hud.PromptText])
 
@@ -365,8 +365,8 @@ func _run() -> void:
 	_check(outlet.IsActive == false, "spent outlet: IsActive=%s after the refusal, expected false" % outlet.IsActive)
 
 	# 3c. Fresh outlet, unlimited uses + 0.2 s cooldown: Energy 95 -> capped at MaxEnergy; cooling
-	#     down (CanInteract false, "Розряджена (1 с)", grey); after the cooldown ready again
-	#     (prompt back to "E: Зарядити", green) and a second use adds 25 again.
+	#     down (CanInteract false, "Drained (1s)", grey); after the cooldown ready again
+	#     (prompt back to "E: Charge", green) and a second use adds 25 again.
 	var outlet2: Node = outlet_scene.instantiate()
 	outlet2.Uses = -1
 	outlet2.Cooldown = 0.2
@@ -377,7 +377,7 @@ func _run() -> void:
 	player.position = OUTLET2_POS + REACH
 	await _step(OVERLAP_FRAMES)
 	_check(player.CurrentInteractable == outlet2, "outlet2: CurrentInteractable=%s, expected the fresh outlet" % player.CurrentInteractable)
-	_check(hud.PromptText == "E: Зарядити", "outlet2: prompt '%s', expected 'E: Зарядити'" % hud.PromptText)
+	_check(hud.PromptText == "E: Charge", "outlet2: prompt '%s', expected 'E: Charge'" % hud.PromptText)
 	gs.Energy = 95.0
 	_transitions.clear()
 	await _tap("interact")
@@ -402,7 +402,7 @@ func _run() -> void:
 	var cd_ms: int = Time.get_ticks_msec() - cd_start
 	_check(cd_ready, "outlet2: still cooling down %d ms after the use (Cooldown=%s s)" % [cd_ms, outlet2.Cooldown])
 	_check(outlet2.IsCoolingDown == false, "outlet2: IsCoolingDown=%s after the cooldown, expected false" % outlet2.IsCoolingDown)
-	_check(hud.PromptText == "E: Зарядити", "outlet2: prompt '%s' after the cooldown, expected 'E: Зарядити' (PromptChanged must refresh the HUD)" % hud.PromptText)
+	_check(hud.PromptText == "E: Charge", "outlet2: prompt '%s' after the cooldown, expected 'E: Charge' (PromptChanged must refresh the HUD)" % hud.PromptText)
 	_check(outlet2.Indicator.color.is_equal_approx(outlet2.ReadyColor), "outlet2: indicator colour %s after the cooldown, expected ReadyColor" % outlet2.Indicator.color)
 	gs.Energy = 40.0
 	_transitions.clear()
@@ -430,7 +430,7 @@ func _run() -> void:
 
 	# 5. Panel success (TestRoom panel): interact -> Interact + sequence prompt; the four taps
 	#    emit SequenceStep 1..4, Activated once, PH_Lamp on, hero Idle (and never Jump) after the
-	#    closing `jump`, prompt "Працює", CanInteract false, a further interact does nothing.
+	#    closing `jump`, prompt "Running", CanInteract false, a further interact does nothing.
 	var steps: Array = []
 	var activated: Array = []
 	var pfailed: Array = []
@@ -442,7 +442,7 @@ func _run() -> void:
 	player.position = PANEL_POS + REACH
 	await _step(OVERLAP_FRAMES)
 	_check(player.CurrentInteractable == panel, "panel: CurrentInteractable=%s, expected PowerPanel" % player.CurrentInteractable)
-	_check(hud.PromptText == "E: Полагодити", "panel: prompt '%s', expected 'E: Полагодити'" % hud.PromptText)
+	_check(hud.PromptText == "E: Repair", "panel: prompt '%s', expected 'E: Repair'" % hud.PromptText)
 	var hero_pos: Vector2 = player.position
 	_transitions.clear()
 	await _tap("interact")
@@ -486,7 +486,7 @@ func _run() -> void:
 
 	# 6. Panel failure (fresh panel next to the room): move_up then heavy_attack -> SequenceFailed,
 	#    screen red, hero still held; Finished(false) and Idle after FailResetDelay; CurrentStep 0,
-	#    not activated, prompt back to "E: Полагодити"; a retry with the full sequence activates.
+	#    not activated, prompt back to "E: Repair"; a retry with the full sequence activates.
 	var panel2: Node = panel_scene.instantiate()
 	panel2.position = PANEL2_POS
 	root.add_child(panel2)
@@ -502,7 +502,7 @@ func _run() -> void:
 	player.position = PANEL2_POS + REACH
 	await _step(OVERLAP_FRAMES)
 	_check(player.CurrentInteractable == panel2, "panel2: CurrentInteractable=%s, expected the fresh panel" % player.CurrentInteractable)
-	_check(hud.PromptText == "E: Полагодити", "panel2: prompt '%s', expected 'E: Полагодити'" % hud.PromptText)
+	_check(hud.PromptText == "E: Repair", "panel2: prompt '%s', expected 'E: Repair'" % hud.PromptText)
 	_transitions.clear()
 	await _tap("interact")
 	await _step(1)
@@ -527,7 +527,7 @@ func _run() -> void:
 	_check(panel2.CurrentStep == 0, "panel2: CurrentStep=%d after the failure, expected 0" % panel2.CurrentStep)
 	_check(panel2.CanInteract == true, "panel2: CanInteract=%s after the failure, expected true (retry allowed)" % panel2.CanInteract)
 	_check(panel2.Screen.color.is_equal_approx(panel2.DeadColor), "panel2: screen colour %s after the failure, expected DeadColor" % panel2.Screen.color)
-	_check(hud.PromptText == "E: Полагодити", "panel2: prompt '%s' after the failure, expected 'E: Полагодити'" % hud.PromptText)
+	_check(hud.PromptText == "E: Repair", "panel2: prompt '%s' after the failure, expected 'E: Repair'" % hud.PromptText)
 	_check(_transitions == ["Interact", "Idle"], "panel2: transitions %s over the failed attempt, expected [Interact, Idle] (heavy_attack must not start HeavyAttack)" % [_transitions])
 	_check(activated2.is_empty(), "panel2: Activated fired on a failed attempt")
 	print("props_interact: panel2 failure released the hero %d frames after the wrong key (FailResetDelay %s s)" % [fail_idle, panel2.FailResetDelay])
@@ -594,7 +594,7 @@ func _run() -> void:
 	_check(finished3.is_empty(), "panel3: Finished %s after a cancel, expected none (Cancel emits no Finished)" % [finished3])
 	_check(failed3.is_empty(), "panel3: SequenceFailed fired on a cancel")
 	_check(panel3.Screen.color.is_equal_approx(panel3.DeadColor), "panel3: screen colour %s after the cancel, expected DeadColor" % panel3.Screen.color)
-	_check(hud.PromptText == "E: Полагодити", "panel3: prompt '%s' after the cancel, expected 'E: Полагодити'" % hud.PromptText)
+	_check(hud.PromptText == "E: Repair", "panel3: prompt '%s' after the cancel, expected 'E: Repair'" % hud.PromptText)
 	var hurt_idle: int = await _wait_until(func(): return player.CurrentStateName == "Idle", HURT_IDLE_CAP)
 	_check(hurt_idle >= 0, "panel3: state '%s' %d frames after the hit, expected 'Idle'" % [player.CurrentStateName, HURT_IDLE_CAP])
 	_check(_transitions == ["Interact", "Hurt", "Idle"], "panel3: transitions %s, expected [Interact, Hurt, Idle]" % [_transitions])
@@ -667,7 +667,7 @@ func _run() -> void:
 	print("props_interact: freed panel released the hero (state '%s' after %d frames, moved %.1f px)" % [player.CurrentStateName, FREE_IDLE_CAP, player.position.x - freed_x])
 
 	#    S1 — Cancel() from "the level" mid-sequence: no Finished, the hero is back in Idle within
-	#    CANCEL_IDLE_CAP frames, the panel is dead again and retry-able, prompt "E: Полагодити".
+	#    CANCEL_IDLE_CAP frames, the panel is dead again and retry-able, prompt "E: Repair".
 	var panel5: Node = panel_scene.instantiate()
 	panel5.position = PANEL2_POS
 	root.add_child(panel5)
@@ -695,7 +695,7 @@ func _run() -> void:
 	_check(failed5.is_empty(), "cancelled panel: SequenceFailed fired on Cancel()")
 	_check(panel5.CurrentStep == 0 and panel5.IsActivated == false and panel5.CanInteract == true, "cancelled panel: CurrentStep=%d IsActivated=%s CanInteract=%s after Cancel(), expected 0 / false / true" % [panel5.CurrentStep, panel5.IsActivated, panel5.CanInteract])
 	_check(panel5.Screen.color.is_equal_approx(panel5.DeadColor), "cancelled panel: screen colour %s after Cancel(), expected DeadColor" % panel5.Screen.color)
-	_check(hud.PromptText == "E: Полагодити", "cancelled panel: prompt '%s' after Cancel(), expected 'E: Полагодити'" % hud.PromptText)
+	_check(hud.PromptText == "E: Repair", "cancelled panel: prompt '%s' after Cancel(), expected 'E: Repair'" % hud.PromptText)
 	print("props_interact: level Cancel() released the hero after %d frames" % cancel_idle)
 	player.position = AWAY_POS
 	await _step(OVERLAP_FRAMES)
@@ -703,7 +703,7 @@ func _run() -> void:
 	await _step(1)
 
 	# 10. S2 — free outlet (Uses=-1, Cooldown=0): after a use the prop is ready at once and the HUD
-	#     prompt keeps its key hint "E: Зарядити" (PromptChanged must be emitted after Finish).
+	#     prompt keeps its key hint "E: Charge" (PromptChanged must be emitted after Finish).
 	var outlet3: Node = outlet_scene.instantiate()
 	outlet3.Uses = -1
 	outlet3.Cooldown = 0.0
@@ -714,7 +714,7 @@ func _run() -> void:
 	player.position = OUTLET2_POS + REACH
 	await _step(OVERLAP_FRAMES)
 	_check(player.CurrentInteractable == outlet3, "free outlet: CurrentInteractable=%s, expected the fresh outlet" % player.CurrentInteractable)
-	_check(hud.PromptText == "E: Зарядити", "free outlet: prompt '%s' before the use, expected 'E: Зарядити'" % hud.PromptText)
+	_check(hud.PromptText == "E: Charge", "free outlet: prompt '%s' before the use, expected 'E: Charge'" % hud.PromptText)
 	gs.Energy = 40.0
 	_transitions.clear()
 	await _tap("interact")
@@ -723,7 +723,7 @@ func _run() -> void:
 	_check(is_equal_approx(gs.Energy, 65.0), "free outlet: Energy=%s after interact at 40, expected 65" % gs.Energy)
 	_check(charged3 == [25.0], "free outlet: Charged events %s, expected [25.0]" % [charged3])
 	_check(outlet3.IsSpent == false and outlet3.IsCoolingDown == false and outlet3.CanInteract == true, "free outlet: IsSpent=%s IsCoolingDown=%s CanInteract=%s after the use, expected false / false / true" % [outlet3.IsSpent, outlet3.IsCoolingDown, outlet3.CanInteract])
-	_check(hud.PromptText == "E: Зарядити", "free outlet: prompt '%s' after the use, expected 'E: Зарядити' (S2: the prefix must survive a use with no cooldown)" % hud.PromptText)
+	_check(hud.PromptText == "E: Charge", "free outlet: prompt '%s' after the use, expected 'E: Charge' (S2: the prefix must survive a use with no cooldown)" % hud.PromptText)
 	_check(outlet3.Indicator.color.is_equal_approx(outlet3.ReadyColor), "free outlet: indicator colour %s after the use, expected ReadyColor" % outlet3.Indicator.color)
 	_transitions.clear()
 	await _tap("interact")
@@ -731,7 +731,7 @@ func _run() -> void:
 	_check(_transitions == ["Interact", "Idle"], "free outlet: transitions %s on the second use, expected [Interact, Idle]" % [_transitions])
 	_check(is_equal_approx(gs.Energy, 90.0), "free outlet: Energy=%s after the second use, expected 90" % gs.Energy)
 	_check(charged3 == [25.0, 25.0], "free outlet: Charged events %s after two uses, expected [25.0, 25.0]" % [charged3])
-	_check(hud.PromptText == "E: Зарядити", "free outlet: prompt '%s' after the second use, expected 'E: Зарядити'" % hud.PromptText)
+	_check(hud.PromptText == "E: Charge", "free outlet: prompt '%s' after the second use, expected 'E: Charge'" % hud.PromptText)
 	print("props_interact: free outlet prompt after a use '%s', Energy %s" % [hud.PromptText, gs.Energy])
 	player.position = AWAY_POS
 	await _step(OVERLAP_FRAMES)
@@ -753,7 +753,7 @@ func _run() -> void:
 	player.position = BAND_START_POS
 	await _step(OVERLAP_FRAMES)
 	_check(player.CurrentInteractable == outlet4, "band: CurrentInteractable=%s at x=%s, expected the outlet (only prop in reach)" % [player.CurrentInteractable, BAND_START_POS.x])
-	_check(hud.PromptText == "E: Зарядити", "band: prompt '%s' at x=%s, expected 'E: Зарядити'" % [hud.PromptText, BAND_START_POS.x])
+	_check(hud.PromptText == "E: Charge", "band: prompt '%s' at x=%s, expected 'E: Charge'" % [hud.PromptText, BAND_START_POS.x])
 	_check(changes == [outlet4], "band: InteractableChanged events %s on entering, expected [outlet]" % [changes])
 	var switch_x: float = -1.0
 	Input.action_press("move_right")
@@ -768,7 +768,7 @@ func _run() -> void:
 	Input.action_release("move_right")
 	_check(switch_x >= 0.0, "band: CurrentInteractable=%s at x=%.1f, expected the panel once past x=%s (S4: re-pick while both props are in reach)" % [player.CurrentInteractable, player.position.x, BAND_SWITCH_X])
 	_check(switch_x < 0.0 or (switch_x > BAND_SWITCH_X and switch_x <= BAND_SWITCH_MAX_X), "band: pick switched to the panel at x=%.1f, expected in (%s, %s] — both props still in reach" % [switch_x, BAND_SWITCH_X, BAND_SWITCH_MAX_X])
-	_check(switch_prompt == "E: Полагодити", "band: prompt '%s' at the switch, expected 'E: Полагодити'" % switch_prompt)
+	_check(switch_prompt == "E: Repair", "band: prompt '%s' at the switch, expected 'E: Repair'" % switch_prompt)
 	_check(changes == [outlet4, panel6], "band: InteractableChanged events %s after the walk, expected [outlet, panel]" % [changes])
 	var band_idle: int = await _wait_until(func(): return player.CurrentStateName == "Idle", IDLE_CAP)
 	_check(band_idle >= 0, "band: state '%s' after releasing move_right, expected 'Idle'" % player.CurrentStateName)
@@ -776,7 +776,7 @@ func _run() -> void:
 	player.position = BAND_REPICK_POS
 	await _step(2)
 	_check(player.CurrentInteractable == outlet4, "band: CurrentInteractable=%s after a teleport to x=%s inside the band, expected the outlet (re-pick without an enter/exit event)" % [player.CurrentInteractable, BAND_REPICK_POS.x])
-	_check(hud.PromptText == "E: Зарядити", "band: prompt '%s' after the teleport back, expected 'E: Зарядити'" % hud.PromptText)
+	_check(hud.PromptText == "E: Charge", "band: prompt '%s' after the teleport back, expected 'E: Charge'" % hud.PromptText)
 	_check(changes == [outlet4, panel6, outlet4], "band: InteractableChanged events %s after the teleport back, expected [outlet, panel, outlet]" % [changes])
 	print("props_interact: band pick switched to the panel at x=%.1f (midpoint %s), prompt '%s'" % [switch_x, BAND_SWITCH_X, switch_prompt])
 	player.position = AWAY_POS

@@ -25,7 +25,7 @@ public partial class TutorialPrompt : Area2D
     [Signal]
     public delegate void CompletedEventHandler();
 
-    /// <summary>Hint shown on the HUD, e.g. "Space — стрибок".</summary>
+    /// <summary>Hint shown on the HUD, e.g. "Space — jump".</summary>
     [Export] public string Text { get; set; } = string.Empty;
 
     /// <summary>InputMap action whose press completes the hint; empty = timeout only.</summary>
