@@ -49,8 +49,8 @@ const WALK_FRAMES := 58            # 220 px/s x 0.97 s = 213 px, comfortably pas
 const JUMP_CAP := 90               # frames for a full jump (~51 at the defaults)
 const CRATE_CLEAR_X := 860.0
 # Segment 1.
-const BLAST_TRIGGER := Vector2(1520, 450)
-const AFTER_BLAST := Vector2(1620, 450)
+const BLAST_TRIGGER := Vector2(1640, 450)
+const AFTER_BLAST := Vector2(1740, 450)
 const DELAY_MARGIN := 0.4          # extra real seconds on top of a level timer
 const FADE_MARGIN := 0.6           # extra real seconds on top of DarknessFadeSeconds
 const COLOR_EPS := 0.02
@@ -323,8 +323,23 @@ func _run() -> void:
 	await _place(player, Vector2(420, 450))
 	_check(hint != null and hint.IsShown == true, "the move hint never appeared where the hero walks")
 	_check(hint != null and not hint.Text.is_empty(), "the move hint has no text")
-	var blocked: float = await _walk_right(player, BEFORE_CRATE)
-	_check(blocked <= CRATE_BLOCK_MAX_X, "walking right the hero reached x %.0f, past the crate at x %.0f" % [blocked, CRATE_X])
+	# The crate is a gate like every pile: it must stop the walk at EVERY depth, or the jump lesson
+	# is optional and the hero strolls round it along a wall. Its shape is checked first, then the
+	# two edges of the band are walked — the same two-edge probe _check_gate() runs on the piles.
+	var crate: Node = level.get_node_or_null("Crate")
+	_check(crate != null, "the prologue has no 'Crate'")
+	if crate != null and crate.Shape != null and crate.Shape.shape is RectangleShape2D:
+		var cbox: RectangleShape2D = crate.Shape.shape
+		var ctop: float = crate.Shape.global_position.y - cbox.size.y * 0.5
+		var cbottom: float = crate.Shape.global_position.y + cbox.size.y * 0.5
+		_check(ctop <= player.FloorTop and cbottom >= player.FloorBottom,
+			"the crate blocks Y %.0f..%.0f, expected the whole walk band %.0f..%.0f — it could be walked around in depth"
+			% [ctop, cbottom, player.FloorTop, player.FloorBottom])
+	for crate_depth in [player.FloorTop + BAND_MARGIN, 450.0, player.FloorBottom - BAND_MARGIN]:
+		var blocked: float = await _walk_right(player, Vector2(BEFORE_CRATE.x, crate_depth))
+		_check(blocked <= CRATE_BLOCK_MAX_X,
+			"walking right at Y %.0f the hero reached x %.0f, past the crate at x %.0f" % [crate_depth, blocked, CRATE_X])
+	_release_all()
 	player.global_position = BEFORE_CRATE
 	await _step(2)
 	Input.action_press("move_right")

@@ -196,7 +196,18 @@ func _run() -> void:
 			"the crew watches Y %.0f..%.0f, expected the whole walk band %.0f..%.0f — the hero could slip past them in depth"
 			% [top, bottom, player.FloorTop, player.FloorBottom])
 
-	# The lamp pools must be exactly the rectangles the floor decals draw, or being lit reads as random.
+	# The lamp pools must be exactly the rectangles the floor decals draw, or being lit reads as
+	# random. "Exactly" means the rectangle that makes the hero lit, not the LitZone rectangle:
+	# Player.IsLit is fed by LightSensor, an Area2D with a radius, so the pool the physics uses is
+	# the LitZone grown by that radius on every side. A decal drawn at the bare LitZone size is
+	# smaller than the zone that catches him, and he is spotted with no visible cause.
+	var sensor_r := 0.0
+	var sensor: Node = player.get("LightSensor")
+	if sensor != null:
+		for child in sensor.get_children():
+			if child is CollisionShape2D and child.shape is CircleShape2D:
+				sensor_r = (child.shape as CircleShape2D).radius
+	_check(sensor_r > 0.0, "Player/LightSensor has no circular shape; the lit footprint cannot be derived")
 	var decals: Node = level.get_node_or_null("PH_Decals")
 	_check(decals != null, "the level has no PH_Decals group for the crew's lamp pools")
 	if decals != null:
@@ -215,8 +226,11 @@ func _run() -> void:
 					for p in poly:
 						w = maxf(w, absf(p.x) * 2.0)
 						h = maxf(h, absf(p.y) * 2.0)
-					_check(is_equal_approx(w, shape.shape.size.x) and is_equal_approx(h, shape.shape.size.y),
-						"PH_CrewPool_%d is %sx%s but the LitZone is %s" % [i, w, h, shape.shape.size])
+					var lit_w: float = shape.shape.size.x + sensor_r * 2.0
+					var lit_h: float = shape.shape.size.y + sensor_r * 2.0
+					_check(is_equal_approx(w, lit_w) and is_equal_approx(h, lit_h),
+						"PH_CrewPool_%d is drawn %.0fx%.0f but the hero is lit over %.0fx%.0f (LitZone %s grown by the %.0f px LightSensor radius) - he would be spotted %.0f px outside the light he can see"
+						% [i, w, h, lit_w, lit_h, shape.shape.size, sensor_r, sensor_r])
 
 	# Let the hero out of the intro cutscene: he is frozen (and out of the physics space) until then.
 	await _play_out(cutscene)
@@ -283,6 +297,15 @@ func _run() -> void:
 	_check(zone.IsWarning == false, "the window is still running after the catch")
 	_check(zone.AlertLight.enabled == false, "the alert light is still on after the catch")
 	_check(level.IsRestartPending == true, "the KO did not enter the level's respawn pipeline")
+
+	# And it stays quiet over the body. Player.Kill() is a no-op while he is knocked out and the head
+	# lamp only goes out on the revive, so a zone that kept polling IsLit would re-arm on the next
+	# frame, flare its alert light and fire Spotted (and Caught again) throughout RespawnDelay.
+	await _step(DARK_FRAMES)
+	_check(spotted.size() == 3, "the crew re-armed on a knocked-out hero (Spotted %d times, expected 3)" % spotted.size())
+	_check(caught.size() == 1, "the crew caught a hero who was already down (Caught %d times, expected 1)" % caught.size())
+	_check(zone.IsWarning == false, "a warning window is running over a knocked-out hero")
+	_check(zone.AlertLight.enabled == false, "the alert light is flaring over a knocked-out hero")
 	lamp.SetOn(false)
 
 	# 7. A retired zone is inert for good (the crew is sealed away by the upper collapse).

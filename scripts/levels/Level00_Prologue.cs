@@ -111,12 +111,6 @@ public partial class Level00_Prologue : LevelBase
     /// <summary>Seconds between Dan's two lines when the hero finds him after the blast.</summary>
     [Export] public float FoundFollowUpSeconds { get; set; } = 3f;
 
-    /// <summary>Seconds between the first and the second line Dan says once the cage is in sight.</summary>
-    [Export] public float SightFollowUpSeconds { get; set; } = 4f;
-
-    /// <summary>Seconds between his remaining lines on the walk to the cage.</summary>
-    [Export] public float RoadLineSeconds { get; set; } = 5f;
-
     // ---- cutscenes (docs/plans/t07s-b-prologue-rebuild/script-en.md) ----------------------
 
     /// <summary>Intro at the coal face.</summary>
@@ -208,7 +202,7 @@ public partial class Level00_Prologue : LevelBase
     /// <summary>Segment 4, the cage is in sight.</summary>
     [Export] public string DanCageSeenLine { get; set; } = "That's the cage. Ray, that's the cage.";
 
-    /// <summary>Segment 4, four seconds later.</summary>
+    /// <summary>Segment 4, a few steps on.</summary>
     [Export] public string DanCagePowerLine { get; set; } = "Cage has power up top. It'll lift.";
 
     /// <summary>Segment 4, halfway to the cage — the line the foreman will answer in segment 7.</summary>
@@ -303,6 +297,14 @@ public partial class Level00_Prologue : LevelBase
     /// the player — its trigger is off in the scene.
     /// </summary>
     [Export] public Checkpoint FarewellCheckpoint { get; set; } = null!;
+
+    /// <summary>
+    /// Respawn point armed by the level the moment the cage arrives up top. The hero is put down a
+    /// few px short of this checkpoint's own trigger, so without arming it by hand a knock-out in
+    /// the first seconds of the surface fight would send him back to
+    /// <see cref="FarewellCheckpoint"/> — inside the sealed mine, below a cage that has gone.
+    /// </summary>
+    [Export] public Checkpoint SurfaceCheckpoint { get; set; } = null!;
 
     /// <summary>Text overlay used for every cutscene.</summary>
     [Export] public Cutscene Cutscene { get; set; } = null!;
@@ -509,14 +511,26 @@ public partial class Level00_Prologue : LevelBase
             case "upper":
                 SetStage(Stage.Upper);
                 break;
+            // Segment 4's five lines are placed, not timed: the road from the first sight of the
+            // cage to the cage itself is 3.4 s of walking, so a cumulative timer chain let the
+            // hero outrun it and hear the last line («Mum'll be at the gate») second, overwritten
+            // 0.6 s later. script-en.md rows 28–30 ask for positions anyway, and the order is the
+            // point of the scene: fact → future → mother, immediately before the fall.
             case "sight":
                 SayLine(DanCageSeenLine);
-                SayAfter(SightFollowUpSeconds, DanCagePowerLine);
-                SayAfter(RoadLineSeconds, DanPayLine);
-                SayAfter(RoadLineSeconds, DanDaysOffLine);
+                break;
+            case "road_power":
+                SayLine(DanCagePowerLine);
+                break;
+            case "road_pay":
+                SayLine(DanPayLine);
+                break;
+            case "road_days":
+                SayLine(DanDaysOffLine);
                 break;
             case "cage":
                 SetStage(Stage.Cage);
+                ClearPendingLines();   // nothing queued may land on top of the last line before the fall
                 SayLine(DanMumLine);
                 break;
         }
@@ -684,6 +698,7 @@ public partial class Level00_Prologue : LevelBase
         SetStage(Stage.Surface);
         Player.GlobalPosition = SurfaceArrival;
         ApplyRoomBounds(SurfaceRoom);
+        SetCheckpoint(SurfaceCheckpoint);   // the mine is behind him for good; a KO must never send him back down
         TweenDarkness(DarknessSurface);
         PlayCutscene(Beat.Foreman, ForemanLines);
     }

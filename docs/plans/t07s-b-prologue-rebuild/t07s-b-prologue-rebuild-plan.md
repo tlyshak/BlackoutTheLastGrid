@@ -1181,4 +1181,389 @@ Two placements diverge from the plan's table and are recorded here rather than s
    lights are behind the same seal, and a player who switched them back on would otherwise strand
    the bus.
 
-*filled in by /reviewer*
+### Round 1 — Ship: no
+
+Reviewed: `git diff task/t-07s-a-escape-mechanics..HEAD` (3 commits, 19 files, +5 762 / −1 873).
+Working tree clean; nothing outside those commits. Verification re-run by the reviewer, not taken
+on trust: `dotnet build` 0 warnings / 0 errors; `godot --headless --path . --quit` and
+`godot --headless --path . res://scenes/levels/Level00_Prologue.tscn --quit` — no `ERROR:`, no
+`WARNING:`; `tools/smoke.ps1` — **21 passed, 0 failed**. All four numbers match the author's report.
+
+#### Summary
+
+The prologue is rebuilt from a 5 760 px three-room alarm level into a 13 440 px six-room escape:
+seven segments, one `PowerCircuit` with five machines and three refusals, three `GasZone`s, the new
+`WatchZone` stealth segment, six `DebrisPile` gates, three `CaveIn` seals, twelve checkpoints, Dan as
+a full `Companion` for the whole run, six English cutscenes and 28 bubbles taken verbatim from
+`script-en.md`. Structure is genuinely signal-driven: `Checkpoint.Label` carries room bounds, FX
+gating, the armed respawn and the story beat in one switch, and the level script has no per-frame
+logic beyond the debug label. The circuit hand-over at the upper collapse is real and tested. One
+blocker: a second soft-lock of exactly the class the author asked to hunt for.
+
+#### Plan conformance
+
+Plan: `docs/plans/t07s-b-prologue-rebuild/t07s-b-prologue-rebuild-plan.md` (read in full, including
+**Author-side decisions (2026-09-11)**, which override everything above them, and the coder's own
+**Cue mapping** block). Script: `docs/plans/t07s-b-prologue-rebuild/script-en.md`. Design:
+`docs/GAME_DESIGN.md` §3.
+TASKS.md: **correct** — T-07s-b is `done` with a truthful «Зроблено / Не зроблено / Плейтест» block;
+the four planned backlog lines T-B17…T-B20 landed, plus a fifth (T-B21) found on the way. The
+"Не зроблено" list is honest: it names the cut cues, the unreachable `DanBoardLine`, the nice-to-have
+tiers that were skipped and `Door.cs` losing its last user. Status should go back to `in_progress`
+until B1 is closed.
+
+- **Implemented as planned:** M1–M11 all present. Six rooms tiled at the stated rects with a uniform
+  300…600 band in every one (verified in the scene and asserted by `level_dressing.gd`); the seven
+  segments in order; `PoweredMachine.StartsPowered` + `ForcePower()` additive with `false` defaults
+  and `PowerPanel.MarkActivated()` extracted so there is one code path; `WatchZone` built beat-for-beat
+  on the `GasZone` template (option 6C, no fallback needed); all six `DebrisPile`s at y 450 with
+  `BlockerDepth = 320`; `GasZone` 180×320 and `WatchZone` 700×320 both covering 290…610; the cue table
+  wired; every visible string English — a Cyrillic-range grep over
+  `scenes/levels/Level00_Prologue.tscn` returns **0 matches**, and the only Cyrillic in
+  `scripts/levels/Level00_Prologue.cs` is a code comment on line 140. Cutscene text is byte-identical
+  to `script-en.md` (Intro 7, Blast 2, DanDeath **A** 8, Foreman 7, Guard 3, Ending **A** 7); the gas
+  shout is exactly `LAMP OFF!` (`Level00_Prologue.cs:191`). Nothing invented, nothing "improved".
+- **Regressions: none.** `git diff --stat` shows no `scenes/levels/TestMine.tscn`,
+  `scenes/levels/TestRoom.tscn`, `scenes/levels/Level01_District.tscn`, `project.godot`,
+  `BlackoutLastGrid.csproj`, `.sln` or `assets/` in the delta (AC 32 ✓). The two T-07s-a classes that
+  were touched are additive only and `props_circuit.gd` / `level_mine.gd` stay green.
+- **The three recorded deviations are sound, and one of them is incompletely applied:**
+  1. **`Crate` at y 450** — correct and necessary. Verified: shape 44×300 at y 450 spans 300…600;
+     the hero's body capsule is rotated 90° (`Player.tscn:734`, radius 7, height 28 ⇒ half-height 7),
+     so at `FloorTop` he occupies 293…307 and at `FloorBottom` 593…607 — caught at both edges. At the
+     planned y 470 the shape would span 320…620 and leave the 20 px lane the coder describes. Hides
+     nothing; the only gap is that no test probes it in depth (see Tests).
+  2. **`CaveIn_Final` at 10 880 + forced `DanLastStandAt`** — correct. It also, as a side effect,
+     buys a 180 px margin between the trigger and `DebrisPile_Final`, which is what makes the last
+     fall safe (measured below). Placing Dan rather than holding him where he stands is honest —
+     `Companion = null` plus `SetCheckpoint(FarewellCheckpoint)` close the two ways he could be
+     dragged through, and `level_prologue_escape.gd:505-517` proves it, including 3.5 s > the 2.5 s
+     stuck watchdog. **But the same 180 px reasoning was not applied to `CaveIn_Upper`, which has
+     only 60 px — that is B1.**
+  3. **`Lights.PowerDown()` in the hand-over** — necessary, not cosmetic. Without it a player who
+     re-lit the work lights after draining the flood strands the bus behind the upper seal. Good catch.
+- **Accepted limitation (per plan / author decision 1):** the middle refusal costs a 1 720 px round
+  trip (pump x 3900 ↔ extractor x 5620 — measured in the scene, matches the plan). Residual risk is
+  pacing only; the `Capacity = 2` escape hatch is one field and the playtest sheet asks the author.
+- **Deviates, undeclared:** `DAN_CREW_SEEN` (cue 17) is cut because `script-en.md` marks the stealth
+  as deliberate silence — that is right and is recorded — but it leaves `WatchZone.Spotted` with the
+  alert lamp as its only tell, which interacts badly with S1 below.
+
+#### Code
+
+- [x] **B1. `CaveIn_Upper` can seal the hero on the wrong side of the rubble — unrecoverable** — `scenes/levels/Level00_Prologue.tscn:1053-1065` (`DebrisPile_UpperSeal` x 7540 / `CaveIn_Upper` x 7600), `scripts/levels/Level00_Prologue.cs:622-635` (`OnUpperCollapsed`) — **Blocker**
+  **Problem:** the three falls have very different trigger-to-rubble margins. `CaveIn_Blast`:
+  pile 1420, trigger 1520 — and the hero is frozen for the whole delay because `BlastCollapse.Triggered`
+  starts a cutscene (`Level00_Prologue.cs:366, 549-569`). `CaveIn_Final`: pile 10 700, trigger 10 880
+  → 180 px, out of reach. **`CaveIn_Upper`: pile 7540, trigger 7600 — 60 px, and nothing freezes the
+  hero** (only `Collapsed` is connected, not `Triggered`). The trigger shape is 48×320 and the pile's
+  blocker 56×320, so with the hero's 14 px half-width the trigger fires at x ≈ 7566 — i.e. while he is
+  still standing inside the footprint of the rubble that is about to land. He then has the full
+  `Delay = 0.35 s` at `MoveSpeed = 220` (77 px of travel) to get to x < 7498, and he only needs 68.
+  **Verified, not theorised.** A probe script that boots the level, plays the intro out, walks the hero
+  right into the trigger and then holds `move_left`:
+  ```
+  UPPER-stand: trigger@7566  after=7582  pileX=7540 collapsed=true  BEHIND_SEAL=false
+  UPPER-back : trigger@7566  after=7408  pileX=7540 collapsed=true  BEHIND_SEAL=true   <-- soft-lock
+  FINAL-back : trigger@10846 after=10769 pileX=10700 collapsed=true BEHIND_SEAL=false
+  BLAST-back : trigger@1488  after=1488  pileX=1420  collapsed=true BEHIND_SEAL=false
+  ```
+  **Why it blocks:** the hero ends at x 7408, in `Room_Gas`, behind a seal with
+  `HeavyHitsToClear = 0` (`DebrisPile.TakeHit` returns `false` unconditionally for such a pile, so no
+  number of `K` presses opens it). `OnUpperCollapsed` has just called `PowerDown()` on the work lights,
+  the pump and the extractor and `ForcePower()` on the floodlight — **the only powered machine in the
+  level is now beyond the rubble and the bus is full**, so he cannot even switch the work lights back
+  on for light. There is no checkpoint ahead of him, no hazard to die to, and `RespawnAtCheckpoint`
+  would only put him back at `Checkpoint_Crew` (6560), on the same dead side. The only exit is
+  Quit to Main Menu. This is the second instance of exactly the class the first one (the floodlight
+  re-power) belonged to, and it breaks the plan's own AC 26 and the "Circuit reachability invariant".
+  **Realistic trigger:** stepping back off falling rock, or turning round for `Outlet_3` / the
+  extractor the moment the roof starts to go. Standing still is safe (depenetration pushes him right
+  to 7582) — it is specifically *walking left* that kills the run.
+  **Solution options:**
+  - Option A (correct, matches what already works elsewhere): move `CaveIn_Upper` to x ≥ 7720 so the
+    trigger sits ~180 px past `DebrisPile_UpperSeal`, the same margin `CaveIn_Final` has. At 220 px/s
+    that is 0.8 s of travel against a 0.35 s delay — physically out of reach. Re-check that the
+    trigger still sits left of `Checkpoint_Upper` (7720) or move that too.
+  - Option B (also correct, defends every fall at once): in `CaveIn.Collapse()`, before
+    `Blockage?.SetBlocked(true)`, if the hero is on the far side of the blockage, push him clear —
+    the level already does exactly this for Dan with `DanLastStandAt`. One guard, all three seals,
+    and it survives anyone moving a node later.
+  - Option C (quick, weakest): connect `UpperCollapse.Triggered` to a freeze the way
+    `BlastCollapse.Triggered` is. It works, but it stops the hero dead in the middle of a walk for no
+    story reason, and it leaves the geometry fragile for the next level that copies the prefab.
+  Whichever is taken, add the regression test in the Tests block — this is the second soft-lock of
+  this class, so the class needs a test, not another one-off fix.
+
+- [x] **S1. The crew's lamp pools are 36 px bigger than the light the player can see** — `scenes/levels/Level00_Prologue.tscn:992-1036` (`LitZone_Crew1/2`, shape 220×170) vs `:402-412` (`PH_CrewPool_1/2`, polygon 220×170) and `scenes/player/Player.tscn:738-744` (`LightSensor`, `CircleShape2D` radius 36) — Should-fix
+  **Problem / why it matters:** `Player.IsLit` is `Flashlight.IsOn || _litZones > 0`, and `_litZones`
+  is fed by the hero's `LightSensor` — an `Area2D` with a **radius-36 circle**, not a point. So the
+  rectangle that actually makes him lit is 292×242, not the 220×170 rectangle the decal draws. The
+  far dark lane above `LitZone_Crew1` looks 135 px deep (y 300…435) and is really 99 px (y 300…399);
+  the near lane below `LitZone_Crew2` looks y 465…600 and is really y 501…600. A player who aims for
+  the visible edge of a pool is spotted with **no visible cause** — which is failure mode (ii) named
+  verbatim in the plan's *Design risks* §4, and the plan calls the matching decal
+  "non-negotiable if this ships" (author-side decision 3 repeats it). It is made worse by cue 17 being
+  cut: the only tell is `PH_Alert`, a single `PointLight2D` at the middle of a 700 px zone, up to
+  350 px away from where the hero is standing. `WarningSeconds = 0.6` leaves no time to work out why.
+  **Fix:** grow each `PH_CrewPool_*` polygon to ±146 × ±121 so the drawn pool is the pool the physics
+  uses; or shrink the two `LitZone` shapes to 148×98 and keep the decals. The first is better — it
+  keeps the lamp pools readable at 292×242 and does not narrow the lit area the crew's own lamps
+  justify. Optionally also move `PH_Alert` onto the spotted hero, or restore a short bubble on
+  `Spotted`, so "you were seen" has a tell where the player is looking. **I do not recommend taking
+  the `GasZone` fallback (option 6B):** the segment itself is sound — the lanes are real, there is a
+  58 px fully dark column at x 6996…7054 to change depth in, the crew and their pools are on screen
+  a full screen before the zone, and `Checkpoint_Crew` sits 100 px in front of it. It is the decal
+  that is wrong, not the mechanic.
+
+- [x] **S2. Dan's segment-4 lines arrive out of order on a normal walk, and the Mum line is overwritten 0.6 s after it appears** — `scripts/levels/Level00_Prologue.cs:512-521` (`case "sight"` / `case "cage"`), `:782-800` (`SayAfter`) — Should-fix
+  **Problem / why it matters:** `SayAfter` queues *cumulatively* — one timer at a time, each delay
+  measured from the previous line. `case "sight"` therefore schedules `DanCagePowerLine` at +4 s,
+  `DanPayLine` at +9 s and `DanDaysOffLine` at +14 s. But `Checkpoint_Sight` is at x 8900 and
+  `Checkpoint_Cage` at x 9640 — 740 px, i.e. **3.4 s at `MoveSpeed = 220`**. So the order a player
+  walking straight actually hears is: `That's the cage…` (0 s) → `Mum'll be at the gate…` (3.4 s) →
+  `Cage has power up top.` (4.0 s) → `They'll have to pay…` (9 s) → `Two days off.` (14 s). A new
+  `Say()` overwrites the previous bubble (`script-en.md` §0), so the Mum line — the one the farewell
+  is built on — is on screen for 0.6 s and then replaced. `script-en.md` is explicit about why the
+  order matters: «Порядок реплік зберегти: від факту (`cage has power`) до майбутнього (`two days
+  off`, `Mum`) — він піднімається рівно перед падінням.» As wired, he does not rise before the fall;
+  he counts days off after the cage is already in reach.
+  **Fix:** drive the chain from position rather than from a timer — put the three middle lines on
+  small trigger `Area2D`s (or extra label-less checkpoints) at roughly x 9050 / 9250 / 9450, and keep
+  `DanMumLine` on `Checkpoint_Cage`. Cheaper alternative: shorten the chain to
+  `SightFollowUpSeconds = 1.5` / `RoadLineSeconds = 1.0` and call `ClearPendingLines()` at the top of
+  `case "cage"` so the Mum line is always last and never overwritten.
+
+- [x] **S3. A death in the first seconds of the surface fight puts the hero back inside the sealed mine** — `scripts/levels/Level00_Prologue.cs:682-689` (`OnCageDeparted`), `scenes/levels/Level00_Prologue.tscn:909-919` (`Checkpoint_Farewell` x 11 000 / `Checkpoint_Surface` x 11 700) — Should-fix
+  **Problem / why it matters:** `OnCageDeparted` teleports the hero to `SurfaceArrival = (11640, 480)`
+  and applies `SurfaceRoom`, but never re-arms the checkpoint. The armed one is still
+  `FarewellCheckpoint` at x 11 000, which is in `Room_Cage`, inside the mine, on the far side of the
+  cage he has already ridden. And `Checkpoint_Surface`'s trigger is 80 px wide at x 11 700
+  (11 660…11 740) while the hero lands at 11 640 with a 14 px half-width — his right edge reaches
+  11 654, **6 px short of arming it**. So from the cage arriving until he has walked at least 6 px
+  right, a knock-out by the surface guard respawns him at x 11 000 with `Room_Cage`'s camera limits
+  re-applied over the wave's `LockRect`, next to a hoist that has already departed. It is recoverable
+  — nothing blocks the walk back east — but it reads as a bug, and the margin is 6 px.
+  **Fix:** call `SetCheckpoint(SurfaceCheckpoint)` in `OnCageDeparted` (export the node; the pattern
+  already exists for `FarewellCheckpoint` at `:657`). Or move `SurfaceArrival` to x ≥ 11 700 so the
+  arrival itself arms the surface checkpoint — but the explicit `SetCheckpoint` is the honest fix,
+  because it does not depend on two numbers staying 60 px apart.
+
+- [x] **S4. `WatchZone` keeps watching a hero who is already down** — `scripts/props/WatchZone.cs:122-162, 193-204` — Should-fix
+  **Problem / why it matters:** `Catch()` calls `Disarm()` then `player.Kill()`, but `Kill()` is a
+  no-op while `_knockedOut` (`Player.cs:339-347`) and the head lamp stays on until `Revive()` runs
+  after `RespawnDelay = 0.9 s`. `_player` is still set and `_PhysicsProcess` is still on, so on the
+  very next frame `IsLit` is true again, the zone re-arms, `Spotted` fires and `PH_Alert` flares
+  while the hero lies knocked out — and 0.6 s later `Caught` fires a second time on a corpse. Today
+  the level connects neither signal, so the visible cost is a stray lamp flare; but the plan's own
+  cue table has `DAN_CREW_SEEN` on `Spotted`, and the moment anyone re-wires it (or a designer hangs
+  an alarm on `Caught`) this becomes a double-fire on a dead player.
+  **Fix:** in `_PhysicsProcess`, treat a knocked-out hero as not watched —
+  `if (_player.IsKnockedOut) { if (_warning) { Disarm(); EmitSignalLostSight(); } return; }` just
+  before the `IsLit` check. Same shape as the existing `IsInstanceValid` guard.
+
+- [x] **S5. T-B21's write-up is broader than the evidence, and it is what removed a test** — `docs/TASKS.md` (T-B21), `tests/smoke/props_circuit.gd:513-517` — Should-fix
+  **Problem / why it matters:** T-B21 states that a C# `GD.PushWarning` under a smoke script crashes
+  the process, and that therefore "жоден smoke-скрипт не може навмисно провокувати C#-попередження".
+  On that basis the `ForcePower()`-on-a-loaded-bus branch — the only failure path of a new public
+  API — was dropped from `props_circuit.gd` §14. I reproduced both halves:
+  - **The blanket claim is wrong.** A minimal script that instantiates a `PowerCircuit`, two
+    `PoweredMachine`s and calls `ForcePower()` on the loaded bus prints the warning, the C# backtrace
+    and `SMOKE … PASS`, and exits **0 — five runs out of five**.
+  - **The specific crash is real, and it is flaky, not deterministic.** Re-adding the removed branch
+    to a copy of the real `props_circuit.gd` and running it three times gave exit `0`, `139`, `139`
+    (139 = SIGSEGV, i.e. the `0xC0000005` the note quotes), always *after* `SMOKE props_circuit PASS`
+    had printed. So the trigger is the warning **plus** that script's accumulated object churn at
+    shutdown, not the warning on its own. The shipped `props_circuit.gd` is stable (3/3 exit 0) —
+    no new flake was introduced.
+  **Fix:** correct the T-B21 text to say "intermittent, and only in a script that has already
+  instantiated and freed many scenes", and restore the coverage in a small dedicated script (the
+  minimal repro above is stable) rather than leaving the refusal branch untested. Also cross-link
+  **T-B13**: `combat_dummy`'s `0xC000001D` is a different code and crashes *mid-run* rather than at
+  shutdown, so I would not claim one root cause — but both are Godot-4.7.2-mono object-lifetime
+  crashes in the same interop surface, and T-B21 is by far the cheaper reproducer of the family, so
+  whoever picks up T-B13 should start from it.
+
+#### Tests
+
+- [x] **The whole B1 class is untested.** No script ever checks which side of a seal the hero is on
+  after a `CaveIn` fires — `level_prologue_escape.gd:438-451` teleports onto `CaveIn_Upper` and stays
+  put, and `level_prologue.gd:344-352` does the same for the blast. Add, for each of the three falls:
+  walk the hero into the trigger, hold `move_left` for `Delay + 0.1 s`, and assert
+  `player.global_position.x > pile.global_position.x` once `HasCollapsed`. That is the test that
+  would have caught both soft-locks of this task — `tests/smoke/level_prologue_escape.gd` (upper +
+  final) and `tests/smoke/level_prologue.gd` (blast).
+- [x] **The `Crate` is the one gate with no depth probe.** `level_prologue.gd:326-331` walks into it
+  only at y 450 and checks `CRATE_BLOCK_MAX_X`; the six `DebrisPile`s all get the band-coverage
+  assertion at `:282-295` and three of them get the two-edge walk. Since the crate's shape is a
+  hand-authored 44×300 sub-resource and its Y was changed by hand during this task, run it through
+  the same two-edge walk (`FloorTop + 20` and `FloorBottom − 20`) or assert its shape spans
+  300…600 — `tests/smoke/level_prologue.gd`.
+- [ ] **AC 26's "minimal route" pass is not run.** `level_prologue_escape.gd:397-419` powers the
+  extractor and then keeps it on through the upper collapse, so the "take no optional machine" run to
+  `Stage.Done` that the plan's *Test strategy* §9 asks for never happens. The dark crossing at
+  `:386-395` and `gs.Energy = 0` from `:423` cover most of the intent; what is missing is reaching
+  `Stage.Done` with `Extractor.IsPowered` never true — `tests/smoke/level_prologue_escape.gd`.
+- [x] **`ForcePower()` on a loaded bus has no coverage** (see S5) — new small script, e.g.
+  `tests/smoke/props_forcepower.gd`, or restored in `tests/smoke/props_circuit.gd`.
+- [x] **Playtest:** the manual checklist in `docs/TASKS.md` is complete and matches the plan, and step
+  18 correctly puts the middle-refusal pacing question to the author. Add one step after step 11:
+  "at the upper collapse, step **back** the instant the roof starts to go — you must never end up on
+  the gas side of the rubble."
+
+#### Nits
+
+- Dan is silenced from `Checkpoint_Crew` until `CaveIn_Upper.Collapsed` (`Level00_Prologue.cs:503-508`,
+  `:633`), which is right for §3 — but `_danSilent` also swallows `DanGasLine`. A player who walks
+  back west into the real pocket during the stealth stretch gets no `LAMP OFF!`; only the haze flare.
+  Cheap guard: let the gas shout bypass `_danSilent`.
+- The `TutorialPrompt` lambda subscriptions at `Level00_Prologue.cs:384-392` have no mirror in
+  `_ExitTree`, unlike every other connection in the file. Harmless — the hints are the level's own
+  children and die with it, and the comment says so — but it is the one asymmetry in an otherwise
+  exemplary `_Ready`/`_ExitTree` pair.
+- `DanBoardLine` is wired to `Hoist.PowerChanged(true)` (`:600-603`) and can never be heard, because
+  the cage only starts after the farewell and Dan is silent from then on. Correctly documented in the
+  done-note as a deliberate faithfulness-to-the-script choice; left as a nit only so it is not
+  mistaken for a bug later.
+- `level_dressing.gd`'s budget constants were raised (`MAX_EMITTERS` 10 → 24, `MAX_LIGHTS` 12 → 30).
+  I checked whether this is a weakening and it is **not**: the new per-room caps are the ones with
+  teeth, and the measured census on the built level is total 26 lights / 20 emitters with per-room
+  peaks of 8 lights (`Room_Gas`) and 2 ambient emitters — against `MAX_ROOM_LIGHTS = 12` and
+  `MAX_FX_EMITTERS = 3`. The re-scoping is honest and every original assertion survived.
+
+#### What's done well
+
+- **The structural idea works.** `Checkpoint.Label` as the level's event key gives room bounds, FX
+  gating, the armed respawn and the beat from one node, and it is why "a checkpoint before every
+  hazard" is true by construction: Gas1 260 px before the rehearsal pocket, Gas2 90 px before the
+  real one, Crew 100 px before the watch zone, PastPocket right after.
+- **The circuit hand-over is correct and adversarially tested.** `level_prologue_escape.gd:489-504`
+  deliberately re-powers the floodlight *after* arming the last fall and then asserts
+  `Used == 0` — that is the test a reviewer hopes to find and rarely does.
+- **The text discipline is exact.** Six cutscenes lifted verbatim from `script-en.md`, variants A
+  where the script recommends A, `LAMP OFF!` untouched at 9 characters, zero Cyrillic in anything a
+  player can read, and the cut cues recorded in the plan instead of being papered over with invented
+  lines. The `Cue mapping` block is exactly the right way to handle a script that disagreed with the
+  plan.
+- **Dan is safe by construction, not by care.** `collision_layer = 0`, no `Hurtbox`, `Companion = null`
+  at the farewell, `SetCheckpoint(FarewellCheckpoint)` on the hero's side, and a test that teleports
+  him 4 000 px away before a refusal and still expects the beat to fire.
+- **`WatchZone` is a clean copy of a proven lifecycle** — `SetPhysicsProcess` off whenever empty, one
+  bool polled, `_ExitTree` unconditional, `Disabled` retiring it at the upper collapse, and a
+  `Room`-based band warning copied from `GasZone`. For "the only new mechanic", it is the least risky
+  possible version of one.
+- **The scene is clean.** No dangling `ext_resource`, every `node_paths` entry resolves, `Props` and
+  the root y-sorted, six rooms wired to six distinct `Fx` groups (asserted pairwise), and both
+  headless loads are silent — including no `WarnUnlessTheBandIsCovered` warning from any of the four
+  hazards (AC 7 ✓).
+
+#### Verdict
+
+Ship: **no** — one blocker. `CaveIn_Upper` sits 60 px from the seal it drops with nothing freezing
+the hero for the 0.35 s delay, so walking back into the fall strands the run permanently on the gas
+side of the rubble with the only powered machine beyond it; reproduced directly. Everything else is
+recoverable: the crew's lamp pools detect 36 px further than they are drawn, Dan's segment-4 lines
+arrive in the wrong order, and a death in the first seconds of the surface fight respawns inside the
+mine. Plan conformance is otherwise high and the bookkeeping is truthful.
+
+First: **1)** fix B1 — move `CaveIn_Upper` to the 180 px margin `CaveIn_Final` already has, or guard
+the hero's side inside `CaveIn.Collapse()`, and add the "which side of the seal" test for all three
+falls. **2)** S1 — make the drawn lamp pools the pools the physics uses (±146 × ±121). **3)** S2 and
+S3 — put Dan's segment-4 chain on positions instead of timers, and `SetCheckpoint` the surface
+checkpoint when the cage arrives.
+
+### Round 1 — fix pass (2026-09-11)
+
+One blocker and all five Should-fix closed, together with the four Tests items that belong to them.
+Every new assertion was checked against a reverted fix — what each one prints on the broken build is
+quoted below, because a test nobody has seen fail is not evidence.
+
+- **B1 — closed by option A, applied to all three falls and not only the upper one.** The reviewer's
+  own point that the last fall is safe *because of its margin* is now the rule for every seal:
+  `CaveIn_Blast` 1 520 → **1 640**, `CaveIn_Upper` 7 600 → **7 760**, `CaveIn_Final` 10 880 →
+  **10 920** — a uniform **220 px** between the trigger and the pile it drops. The arithmetic now
+  lives in `CaveIn`'s class remarks so the next level that copies the prefab cannot get it wrong: the
+  trigger fires when the hero's body (half-width 14) reaches the trigger shape (half-width 24), and
+  during `Delay = 0.35 s` he covers `Player.MoveSpeed × Delay` = 77 px against a blocker half-width
+  of 28 — 220 px leaves ≈63 px of clearance in the worst case, for each of the three. Option B (a
+  push inside `CaveIn.Collapse()`) was deliberately **not** taken: the trigger side is only reliably
+  the open side for a seal-the-way-back collapse, and a level that ever drops rubble *ahead* of the
+  hero would have him teleported through it. The class-level protection the review asked for is the
+  test instead. Side effect, for the better: `CaveIn_Upper` now sits 40 px past `Checkpoint_Upper`
+  (7 720), so the respawn point is armed on the open side **before** the roof goes.
+- **B1 test — `tests/smoke/level_seals.gd` (new).** Three falls × two directions = six runs, each
+  one *walked* into the trigger (never teleported onto it) so the trigger X is the real one, plus a
+  static margin assertion that fails before a frame is simulated. Falsified by putting the three
+  triggers back at 1 520 / 7 600 / 10 880:
+  `CaveIn_Upper/back: the hero tripped the trigger at x 7567 and the rubble left him at x 7413 - his
+  left edge 7399 is behind the seal (blocker ends at x 7568). The pile has HeavyHitsToClear = 0, so
+  the run is locked with no exit but the main menu.` — the reviewer's probe numbers (trigger@7566,
+  after=7408) reproduced to within one physics frame, from inside the suite.
+- **S1 — fixed, and the review's measurement corrected.** The premise was off by a factor of four:
+  `Player/LightSensor` uses `CircleShape2D_sensor`, **radius 8**, not 36 — radius 36 is
+  `CircleShape2D_interact` on `InteractionArea` (`scenes/player/Player.tscn:23-30` and `:738-753`).
+  So the lit footprint is 236×186, not 292×242, and the far dark lane is 127 px deep rather than 99.
+  The direction of the finding stands and is fixed: `PH_CrewPool_1/2` are now ±118 × ±93, exactly
+  the rectangle that makes the hero lit. The decal can no longer drift from it —
+  `props_watchzone.gd` derives the expected size from the `LitZone` shape **plus the sensor radius it
+  reads off the player**, so changing either one fails the test instead of silently re-opening the
+  gap. Falsified by restoring ±110 × ±85: `PH_CrewPool_1 is drawn 220x170 but the hero is lit over
+  236x186 (LitZone (220.0, 170.0) grown by the 8 px LightSensor radius) - he would be spotted 8 px
+  outside the light he can see`. The mechanic and `WatchZone` were left alone, as advised; the
+  `GasZone` fallback was not taken.
+- **S2 — fixed with the reviewer's preferred option (positions, not timers).** `script-en.md` rows
+  28–30 ask for positions anyway («середина дороги до кліті», «далі по дорозі», «останні кроки
+  сегмента»), and the road is only 740 px — no timer chain fits in it. Three new checkpoints in
+  `Room_Upper` — `Checkpoint_RoadPower` (9 050), `Checkpoint_RoadPay` (9 250),
+  `Checkpoint_RoadDays` (9 450) — carry `road_power` / `road_pay` / `road_days`; `DanMumLine` stays
+  on `Checkpoint_Cage`, which now calls `ClearPendingLines()` first so nothing queued can land on top
+  of the last line before the fall. `SightFollowUpSeconds` and `RoadLineSeconds` are gone (no other
+  user). The order is geometric now and cannot be outrun. `level_prologue_escape.gd` walks the
+  920 px from before `Checkpoint_Sight` to past `Checkpoint_Cage` and asserts the five lines
+  verbatim; falsified by restoring the 4 / 5 / 5 s chain: `walking the road to the cage Dan said
+  ["That's the cage. Ray, that's the cage.", "Mum'll be at the gate. She always is.", "Cage has power
+  up top. It'll lift."], expected [… the five lines in script order …]` — the Mum line second and the
+  last two never heard, exactly as reported.
+- **S3 — fixed with the explicit `SetCheckpoint`, not by moving `SurfaceArrival`.** New
+  `[Export] SurfaceCheckpoint` (wired to `Checkpoints/Checkpoint_Surface`); `OnCageDeparted` arms it
+  immediately after `ApplyRoomBounds(SurfaceRoom)`. Falsified by removing that one line: `the armed
+  checkpoint on arrival is farewell, expected the one labelled 'surface'; the checkpoint armed on the
+  surface re-applies a room that is not Room_Surface`.
+- **S4 — fixed exactly as prescribed.** `WatchZone._PhysicsProcess` treats a knocked-out hero as not
+  watched, ahead of the `IsLit` poll, and disarms a window that was already running. Falsified by
+  disabling the guard: `the crew re-armed on a knocked-out hero (Spotted 5 times, expected 3); the
+  crew caught a hero who was already down (Caught 2 times, expected 1); a warning window is running
+  over a knocked-out hero; the alert light is flaring over a knocked-out hero` — the second `Caught`
+  on a body, confirmed.
+- **S5 — note rewritten to the evidence, and the coverage restored.** T-B21 now records what was
+  actually measured: the warning on its own is harmless (5 runs out of 5, exit 0), and the crash
+  needs the warning **plus** a script that has already instantiated and freed many scenes (0 / 139 /
+  139 on a copy of `props_circuit.gd`) — a context-dependent flake, not "any C# warning kills the
+  process". The rule for test authors is spelled out: provoke C# warnings in a small dedicated
+  script. That script is `tests/smoke/props_forcepower.gd` (new), covering the refusal branch on a
+  loaded bus — not powered, not activated, no `PowerChanged`, the holder keeps its unit, and the same
+  call goes through once the bus frees. Measured 5 runs out of 5, exit 0, the warning printed once.
+  Falsified by dropping the `return` after the warning: `ForcePower started a machine on a bus that
+  was already full; a refused ForcePower marked the panel activated anyway; a refused ForcePower
+  emitted PowerChanged [true]`. T-B13 and T-B21 are cross-linked **without** claiming a shared root
+  cause: different codes (`0xC000001D` vs `0xC0000005`), different moment (mid-run vs at exit), the
+  same Godot 4.7.2-mono object-lifetime interop surface, and T-B21 named as the far cheaper
+  reproducer to start from.
+- **Crate depth probe — added.** `level_prologue.gd` asserts the crate's shape spans the band and
+  walks into it at `FloorTop + 20`, 450 and `FloorBottom − 20`. Falsified by moving the crate to
+  y 500: `the crate blocks Y 350..650, expected the whole walk band 300..600 — it could be walked
+  around in depth; walking right at Y 320 the hero reached x 909, past the crate at x 820`.
+- **Playtest — both requested edits made** in `docs/TASKS.md`: a new instruction inside step 11 to
+  step **back** the instant the upper roof starts to go and check which side of the rubble you end up
+  on; and step 18 re-worded as a yes/no question the author answers after the run, naming the
+  one-field remedy (`Capacity = 2` in the gas room) and recording that the refusal itself is author
+  decision №1 and is not up for review.
+
+**Still open, deliberately:** the fourth Tests item — *AC 26's "minimal route" pass* (reach
+`Stage.Done` with `Extractor.IsPowered` never true). It cannot be folded into
+`level_prologue_escape.gd`: that script has to power the extractor to prove route B through the gas
+and to give the upper hand-over something behind the seal to switch off, and the two pockets clear
+for good. Proving it needs a second full run of the level in a script of its own, which is a
+test-writing task rather than part of this fix pass; the intent is already covered in pieces (the
+dark crossing with the pockets untouched, and everything from the crew on played with
+`GameState.Energy = 0`). The four Nits are left for the author, per the fix-pass brief.

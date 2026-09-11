@@ -129,6 +129,21 @@ public partial class WatchZone : Area2D
             return;
         }
 
+        if (_player.IsKnockedOut)
+        {
+            // A hero who is already down is not watched. Player.Kill() is a no-op while he is
+            // knocked out and his head lamp only goes out on the revive, so without this the zone
+            // re-arms on the very next frame and flares (and would fire Spotted/Caught a second
+            // time) over a body for the whole respawn delay.
+            if (_warning)
+            {
+                Disarm();
+                EmitSignalLostSight();
+            }
+
+            return;
+        }
+
         if (!_player.IsLit)
         {
             if (_warning)

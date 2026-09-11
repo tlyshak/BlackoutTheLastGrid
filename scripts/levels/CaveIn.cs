@@ -13,11 +13,23 @@ namespace BlackoutLastGrid.Levels;
 /// <see cref="CollapsedEventHandler"/> (a companion line, a stage advance).
 /// </summary>
 /// <remarks>
+/// <para>
 /// Scene contract: root <c>Area2D</c> with <c>collision_layer = 0</c>, <c>collision_mask = 2</c>
 /// (Player), <c>monitorable = false</c> and one <c>CollisionShape2D</c> strip across the floor band.
 /// The pile it drops is a <see cref="DebrisPile"/> placed where the roof gives way, exported here and
 /// authored with <c>StartsCleared = true</c> (and normally <c>HeavyHitsToClear = 0</c>, so the way
 /// back stays shut).
+/// </para>
+/// <para>
+/// <b>Placement rule — the trigger's margin.</b> The trigger must sit far enough past
+/// <see cref="Blockage"/> that a hero who turns round the instant the roof starts to go still ends
+/// up on the open side of the rubble. Nothing freezes him during <see cref="Delay"/>, so the margin
+/// has to cover the trigger's own half-width (24 px), the hero's (14 px), the pile's blocker
+/// half-width (28 px) and the distance he can walk back, <c>Player.MoveSpeed × Delay</c> (220 × 0.35
+/// ≈ 77 px at the defaults). The prologue's three falls use <b>220 px</b>, which leaves ~63 px of
+/// clearance in the worst case. A short margin does not read as a bug in the editor and it seals the
+/// run with no way out but the main menu, so it is checked by <c>tests/smoke/level_seals.gd</c>.
+/// </para>
 /// </remarks>
 public partial class CaveIn : Area2D
 {

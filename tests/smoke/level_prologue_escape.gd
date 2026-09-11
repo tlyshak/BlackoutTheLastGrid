@@ -79,12 +79,14 @@ const CREW_LANE1 := Vector2(6650, 360)
 const CREW_LANE1_END := 7000.0
 const CREW_LANE2 := Vector2(7050, 540)
 const CREW_LANE2_END := 7420.0
-const CAVEIN_UPPER := Vector2(7600, 450)
+const CAVEIN_UPPER := Vector2(7760, 450)
 const CP_UPPER := Vector2(7720, 450)
 const CP_SIGHT := Vector2(8900, 450)
+const ROAD_START := Vector2(8800, 450)   # just short of Checkpoint_Sight; the road to the cage is walked, not teleported
+const ROAD_END_X := 9720.0              # just past Checkpoint_Cage
 const CP_CAGE := Vector2(9640, 450)
 const NEAR_FLOODLIGHT := Vector2(10075, 450)
-const CAVEIN_FINAL := Vector2(10880, 450)
+const CAVEIN_FINAL := Vector2(10920, 450)
 const NEAR_HOIST := Vector2(11195, 450)
 const SURFACE_ARRIVAL := Vector2(11640, 480)
 const REHEARSAL_WINDOW := 1.5
@@ -456,10 +458,20 @@ func _run() -> void:
 	_check(is_equal_approx(player.FloorTop, 300.0) and is_equal_approx(player.FloorBottom, 600.0),
 		"the floor band changed in Room_Upper (%s..%s)" % [player.FloorTop, player.FloorBottom])
 	await _check_gate(player, ramp, "DebrisPile_Ramp")
-	await _place(player, CP_SIGHT)
+
+	# 8b. Dan's five segment-4 lines, in the order script-en.md requires: fact -> future -> mother,
+	#     immediately before the fall. They hang off positions, not off a cumulative timer chain,
+	#     because the road from the first sight of the cage to the cage itself is 740 px — 3.4 s of
+	#     walking — and a timed chain let the hero outrun it and hear the Mum line second, 0.6 s
+	#     before the next one overwrote it. Walked, never teleported: the order is the assertion.
+	var road: Array = []
+	dan.LineShown.connect(func(t: String): road.append(t))
+	var expected_road: Array = [level.DanCageSeenLine, level.DanCagePowerLine, level.DanPayLine,
+		level.DanDaysOffLine, level.DanMumLine]
+	await _walk(player, ROAD_START, ROAD_END_X - ROAD_START.x)
+	_check(road == expected_road, "walking the road to the cage Dan said %s, expected %s" % [road, expected_road])
 
 	# 9. Segment 5: the cage refuses while the floodlight runs (acceptance 13).
-	await _place(player, CP_CAGE)
 	_check(level.CurrentStage == STAGE_CAGE, "at Checkpoint_Cage the stage is %s, expected Cage" % level.CurrentStage)
 	_check(_limits(camera) == ROOM_CAGE_LIMITS, "camera limits %s in Room_Cage, expected %s" % [_limits(camera), ROOM_CAGE_LIMITS])
 	# Nothing in this level ever waits for Dan: half a level away, the beat still happens — and his
@@ -526,6 +538,14 @@ func _run() -> void:
 	_check(level.CurrentStage == STAGE_SURFACE, "after the cage the stage is %s, expected Surface" % level.CurrentStage)
 	_check(player.global_position.distance_to(SURFACE_ARRIVAL) <= 2.0,
 		"the cage put the hero down at %s, expected %s" % [player.global_position, SURFACE_ARRIVAL])
+	# The cage puts him down a few px short of Checkpoint_Surface's own trigger, so the level has to
+	# arm it by hand: until he walks those px, a KO in the first seconds of the surface fight would
+	# respawn him at the farewell checkpoint — inside the sealed mine, under a cage that has gone.
+	_check(level.ArmedCheckpoint != null and level.ArmedCheckpoint.Label == "surface",
+		"the armed checkpoint on arrival is %s, expected the one labelled 'surface'"
+		% [level.ArmedCheckpoint.Label if level.ArmedCheckpoint != null else "none"])
+	_check(level.ArmedCheckpoint == null or level.ArmedCheckpoint.Room == level.get("SurfaceRoom"),
+		"the checkpoint armed on the surface re-applies a room that is not Room_Surface")
 	_check(_limits(camera) == ROOM_SURFACE_LIMITS, "camera limits %s on the surface, expected %s" % [_limits(camera), ROOM_SURFACE_LIMITS])
 	_check(cutscene.IsPlaying == true, "the foreman's cutscene did not start when the cage arrived")
 	await _real_wait(level.DarknessFadeSeconds + FADE_MARGIN)

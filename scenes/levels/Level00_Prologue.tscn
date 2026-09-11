@@ -199,7 +199,7 @@ tracks/0/keys = {
 _data = {
 &"spin": SubResource("Animation_fan")
 }
-[node name="Level00_Prologue" type="Node2D" node_paths=PackedStringArray("Player", "Camera", "Pause", "Hud", "Companion", "Checkpoints", "StartRoom", "SurfaceRoom", "Circuit", "Lights", "Pump", "Extractor", "Floodlight", "Cage", "GasPockets", "Crew", "BlastCollapse", "UpperCollapse", "FinalCollapse", "TimberPile", "FirstOutlet", "WorkLamps", "BlastSparks", "BlastSparkLight", "GuardSpawner", "FarewellCheckpoint", "Cutscene", "Darkness", "Tutorial", "MovePrompt", "JumpPrompt", "FlashlightPrompt", "DebugLabel")]
+[node name="Level00_Prologue" type="Node2D" node_paths=PackedStringArray("Player", "Camera", "Pause", "Hud", "Companion", "Checkpoints", "StartRoom", "SurfaceRoom", "Circuit", "Lights", "Pump", "Extractor", "Floodlight", "Cage", "GasPockets", "Crew", "BlastCollapse", "UpperCollapse", "FinalCollapse", "TimberPile", "FirstOutlet", "WorkLamps", "BlastSparks", "BlastSparkLight", "GuardSpawner", "FarewellCheckpoint", "SurfaceCheckpoint", "Cutscene", "Darkness", "Tutorial", "MovePrompt", "JumpPrompt", "FlashlightPrompt", "DebugLabel")]
 y_sort_enabled = true
 script = ExtResource("1_level")
 IntroLines = PackedStringArray("Lower horizon. Fourth hour of the shift. The lamps hold. The air does not move.", "DAN: Sixty carts today. Sixty. Two weeks over quota now, and they count it, Ray. They have to count it.", "DAN: You work, they give you more. That's the whole thing. That's all it is.", "RAY: Sure.", "Ray taps the methane head on the rib with two fingers. The needle does not move. It has not moved in eight days.", "DAN: You wrote them about that one. Week back. They wrote you back, yeah?", "RAY: They wrote back.")
@@ -232,6 +232,7 @@ BlastSparks = NodePath("Fx_Face/BlastSparks")
 BlastSparkLight = NodePath("Fx_Face/BlastSparkLight")
 GuardSpawner = NodePath("GuardSpawner")
 FarewellCheckpoint = NodePath("Checkpoints/Checkpoint_Farewell")
+SurfaceCheckpoint = NodePath("Checkpoints/Checkpoint_Surface")
 Cutscene = NodePath("Cutscene")
 Darkness = NodePath("Darkness")
 Tutorial = NodePath("Tutorial")
@@ -402,12 +403,12 @@ z_index = -20
 [node name="PH_CrewPool_1" type="Polygon2D" parent="PH_Decals"]
 position = Vector2(6850, 520)
 color = Color(1.0, 0.85098, 0.541176, 0.14)
-polygon = PackedVector2Array(-110, -85, 110, -85, 110, 85, -110, 85)
+polygon = PackedVector2Array(-118, -93, 118, -93, 118, 93, -118, 93)
 
 [node name="PH_CrewPool_2" type="Polygon2D" parent="PH_Decals"]
 position = Vector2(7200, 380)
 color = Color(1.0, 0.85098, 0.541176, 0.14)
-polygon = PackedVector2Array(-110, -85, 110, -85, 110, 85, -110, 85)
+polygon = PackedVector2Array(-118, -93, 118, -93, 118, 93, -118, 93)
 
 [node name="PH_HitStrip_Timber" type="Polygon2D" parent="PH_Decals"]
 position = Vector2(2450, 450)
@@ -901,6 +902,21 @@ position = Vector2(8900, 450)
 Room = NodePath("../../Rooms/Room_Upper")
 Label = "sight"
 
+[node name="Checkpoint_RoadPower" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
+position = Vector2(9050, 450)
+Room = NodePath("../../Rooms/Room_Upper")
+Label = "road_power"
+
+[node name="Checkpoint_RoadPay" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
+position = Vector2(9250, 450)
+Room = NodePath("../../Rooms/Room_Upper")
+Label = "road_pay"
+
+[node name="Checkpoint_RoadDays" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
+position = Vector2(9450, 450)
+Room = NodePath("../../Rooms/Room_Upper")
+Label = "road_days"
+
 [node name="Checkpoint_Cage" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
 position = Vector2(9640, 450)
 Room = NodePath("../../Rooms/Room_Cage")
@@ -924,7 +940,7 @@ SaveId = "blast_seal"
 StartsCleared = true
 
 [node name="CaveIn_Blast" parent="." node_paths=PackedStringArray("Level", "Blockage") instance=ExtResource("24_cavein")]
-position = Vector2(1520, 450)
+position = Vector2(1640, 450)
 Level = NodePath("..")
 Blockage = NodePath("../DebrisPile_BlastSeal")
 Delay = 0.35
@@ -1057,7 +1073,7 @@ SaveId = "upper_seal"
 StartsCleared = true
 
 [node name="CaveIn_Upper" parent="." node_paths=PackedStringArray("Level", "Blockage") instance=ExtResource("24_cavein")]
-position = Vector2(7600, 450)
+position = Vector2(7760, 450)
 Level = NodePath("..")
 Blockage = NodePath("../DebrisPile_UpperSeal")
 Delay = 0.35
@@ -1083,7 +1099,7 @@ SaveId = "final_seal"
 StartsCleared = true
 
 [node name="CaveIn_Final" parent="." node_paths=PackedStringArray("Level", "Blockage") instance=ExtResource("24_cavein")]
-position = Vector2(10880, 450)
+position = Vector2(10920, 450)
 monitoring = false
 Level = NodePath("..")
 Blockage = NodePath("../DebrisPile_Final")
