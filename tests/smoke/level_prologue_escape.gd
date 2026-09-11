@@ -69,6 +69,8 @@ const CP_PAST_GAS := Vector2(5000, 450)
 const CP_CAGE := Vector2(7700, 450)
 const NEAR_LIGHTS := Vector2(7860, 450)
 const NEAR_HOIST := Vector2(8370, 450)     # on the cage panel's reach, short of the boarding strip (8480..8560)
+const NEAR_CAGE := Vector2(8200, 450)      # within HeroCloseDistance of WP_cage (8180), out of the cage panel's reach (prompt from x ~ 8286)
+const LINE_WALK_MIN := 200.0               # px of walk a route-point line gets before a prop prompt can hide its bubble (~0.9 s)
 const BOARD_CAP := 60                      # frames of walking right from the panel into the boarding strip
 const OVERLOAD_TEXT := "Not enough power: Work lights is running"
 const HERO_FAR_EDGE := Vector2(8300, 320)  # the second boarding: from the far edge of the band
@@ -373,9 +375,23 @@ func _run() -> void:
 	var drift_lamps: Node = lights.get("RunFx")
 	_check(drift_lamps != null and drift_lamps.visible == true, "the drift lamps are dark although the work lights hold the bus")
 	await _wait_until(func(): return dan.IsAtLeadTarget, DAN_CAP)
-	await _place(player, NEAR_HOIST)
+	# S3 (v3 review): the cage line must live before the cage panel's prompt can hide its bubble —
+	# HeroReached fires HeroCloseDistance short of WP_cage, the prompt where the hero's
+	# InteractionArea meets the panel's reach; the walk between the two is the bubble's life.
+	var cage_reach: CollisionShape2D = cage.get_node("CollisionShape2D")
+	var hero_reach: CollisionShape2D = player.get("InteractionArea").get_node("CollisionShape2D")
+	var cage_prompt_x: float = cage.global_position.x + cage_reach.position.x - cage_reach.shape.radius - hero_reach.shape.radius
+	var cage_line_x: float = _wp(level, "cage").x - dan.HeroCloseDistance
+	_check(cage_prompt_x - cage_line_x >= LINE_WALK_MIN, "the cage line fires at x %.0f and the cage panel's prompt at x %.0f: %.0f px of walk for the bubble, expected >= %.0f (the prompt would hide it the moment it is said)" % [cage_line_x, cage_prompt_x, cage_prompt_x - cage_line_x, LINE_WALK_MIN])
+	await _place(player, NEAR_CAGE)
 	await _wait_until(func(): return lines.has(level.DanCageLine), BUBBLE_CAP)
 	_check(lines.has(level.DanCageLine), "Dan did not say the cage line when the hero reached him (%s)" % [lines])
+	await _step(3)
+	_check(hud.PromptText == "", "the HUD shows '%s' where the cage line is said — a prompt hides the bubble" % hud.PromptText)
+	_check(dan.Bubble.visible == true and dan.Bubble.text == level.DanCageLine, "the cage line is not on screen (bubble visible %s, text '%s') — it must be seen, not only emitted" % [dan.Bubble.visible, dan.Bubble.text])
+	# S2 (v3 review): the lights panel's prompt must not name the solution before the cage refused.
+	_check(not lights.ActivatedPromptText.to_lower().contains("cut"), "the lights panel's prompt '%s' hands the puzzle its answer" % lights.ActivatedPromptText)
+	await _place(player, NEAR_HOIST)
 	await _use_panel(cage, player, [])
 	_check(refused.size() == 1 and refusals.size() == 1, "the cage was refused %d / %d times, expected once" % [refused.size(), refusals.size()])
 	if refusals.size() > 0:
@@ -384,6 +400,11 @@ func _run() -> void:
 	await _place(player, NEAR_HOIST)
 	_check(hud.PromptText.contains(OVERLOAD_TEXT), "the HUD reads '%s', expected it to contain '%s'" % [hud.PromptText, OVERLOAD_TEXT])
 	_check(lines.count(level.DanRuleLine) == 1, "Dan said the rule line %d times after one refusal (%s)" % [lines.count(level.DanRuleLine), lines])
+	_check(dan.Bubble.visible == false, "Dan's bubble shows under the cage panel's prompt — a bubble loses to a prompt")
+	await _place(player, NEAR_CAGE)
+	await _step(2)
+	_check(hud.PromptText == "" and dan.Bubble.visible == true and dan.Bubble.text == level.DanRuleLine, "a step back from the panel did not bring the rule line back (prompt '%s', bubble visible %s, text '%s')" % [hud.PromptText, dan.Bubble.visible, dan.Bubble.text])
+	await _place(player, NEAR_HOIST)
 	await _real_wait(3.1)   # the ≥ 3 s gap between two lines
 	await _use_panel(cage, player, [])
 	_check(refused.size() == 2, "the second attempt was refused %d times in total, expected 2" % refused.size())

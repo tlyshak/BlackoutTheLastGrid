@@ -461,6 +461,7 @@ public partial class Level00_Prologue : LevelBase
     private bool _ruleSaid;
     private bool _diedInGas;
     private bool _patrolNoticed;
+    private bool _neverLookedSaid;
     private bool _enemiesRetired;
     private bool _callAgain;
 
@@ -712,14 +713,17 @@ public partial class Level00_Prologue : LevelBase
                 break;
             case "cage":
                 SetStage(Stage.Cage);
+                EndPatrolSilence();   // whatever the route — spotted and ran, a partial fight, the band centre — the patrol is behind him here
                 break;
         }
     }
 
     /// <summary>
-    /// A soft respawn put the hero back at the armed checkpoint: Dan keeps his route point
-    /// (re-issuing it is a no-op) and gets the stance of that point back — <see cref="Companion.LeadTo"/>
-    /// clears the warning stance, so it is re-applied here. Gone, he needs nothing.
+    /// A soft respawn put the hero back at the armed checkpoint: Dan keeps his route point —
+    /// re-issuing it is a true no-op (<see cref="Companion.LeadTo"/> leaves the leash, the gait and
+    /// the warning stance of the current point alone), so a KO in the wave keeps him facing the
+    /// fight and a KO with him mid-run keeps him running. Only the gas edge re-applies its stance
+    /// and lamp, because the death there may have moved him. Gone, he needs nothing.
     /// </summary>
     private void OnRespawned()
     {
@@ -925,6 +929,24 @@ public partial class Level00_Prologue : LevelBase
 
         _danSilent = false;
         SayLine(DanFoughtLine);
+    }
+
+    /// <summary>
+    /// The patrol is over: the silence lifts, and the exit line is said once if nobody looked. Called
+    /// at the exit point and at <c>Checkpoint_Cage</c>, so a hero who never came to Dan at the exit
+    /// (spotted and ran, a fight that dropped one or two, a pass along the band centre) gets his
+    /// cage lines all the same.
+    /// </summary>
+    private void EndPatrolSilence()
+    {
+        _danSilent = false;
+        if (_patrolNoticed || _neverLookedSaid)
+        {
+            return;
+        }
+
+        _neverLookedSaid = true;
+        SayLine(DanNeverLookedLine);
     }
 
     // ---- segment 4: the lights and the cage ---------------------------------------------
@@ -1202,12 +1224,7 @@ public partial class Level00_Prologue : LevelBase
                 _danSilent = true;   // §3: the only full silence of the level
                 break;
             case KeyP3Out:
-                _danSilent = false;
-                if (!_patrolNoticed)
-                {
-                    SayLine(DanNeverLookedLine);
-                }
-
+                EndPatrolSilence();
                 break;
             case KeyCage:
                 SayLine(DanCageLine);

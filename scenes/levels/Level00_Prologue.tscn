@@ -355,8 +355,12 @@ position = Vector2(7320, 410)
 color = Color(1.0, 0.85098, 0.541176, 0.14)
 polygon = PackedVector2Array(-218, -118, 218, -118, 218, 118, -218, 118)
 
-[node name="PH_DarkStripe_Near" type="Polygon2D" parent="PH_Decals"]
-polygon = PackedVector2Array(5990, 529, 7530, 529, 7530, 600, 5990, 600)
+[node name="PH_DarkStripe_Near_A" type="Polygon2D" parent="PH_Decals"]
+polygon = PackedVector2Array(5990, 529, 6542, 529, 6542, 600, 5990, 600)
+color = Color(0.039216, 0.05098, 0.078431, 0.45)
+
+[node name="PH_DarkStripe_Near_B" type="Polygon2D" parent="PH_Decals"]
+polygon = PackedVector2Array(6978, 529, 7530, 529, 7530, 600, 6978, 600)
 color = Color(0.039216, 0.05098, 0.078431, 0.45)
 
 [node name="PH_DarkStripe_Far" type="Polygon2D" parent="PH_Decals"]
@@ -840,7 +844,7 @@ Label = "surface"
 [node name="DanRoute" type="Node2D" parent="."]
 
 [node name="WP_charge" type="Marker2D" parent="DanRoute"]
-position = Vector2(1040, 470)
+position = Vector2(1000, 470)
 
 [node name="WP_props" type="Marker2D" parent="DanRoute"]
 position = Vector2(1620, 470)
@@ -891,7 +895,7 @@ position = Vector2(7370, 585)
 position = Vector2(7600, 585)
 
 [node name="WP_cage" type="Marker2D" parent="DanRoute"]
-position = Vector2(8420, 470)
+position = Vector2(8180, 470)
 
 [node name="WP_board" type="Marker2D" parent="DanRoute"]
 position = Vector2(8500, 470)
@@ -1081,7 +1085,7 @@ shape = SubResource("RectangleShape2D_pool")
 [node name="Lights_Drift" parent="." node_paths=PackedStringArray("Circuit", "RunFx") instance=ExtResource("20_machine")]
 position = Vector2(7900, 450)
 PromptText = "Switch on the work lights"
-ActivatedPromptText = "Work lights on - cut the power"
+ActivatedPromptText = "Work lights on"
 Circuit = NodePath("../Circuit")
 DisplayName = "Work lights"
 StartsPowered = true

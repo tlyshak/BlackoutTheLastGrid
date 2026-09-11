@@ -537,14 +537,14 @@ public partial class Companion : CharacterBody2D
             return;
         }
 
+        if (IsLeading && LeadTarget == target)
+        {
+            return;   // the same point again: a true no-op — the leash, the gait and the stance stay, Arrived must not fire twice
+        }
+
         LeadLeashed = leashed;
         LeadMoveSpeed = speed;
         IsWarning = false;
-        if (IsLeading && LeadTarget == target)
-        {
-            return;   // the same point again: nothing to restart, Arrived must not fire twice
-        }
-
         LeadTarget = target;
         float dx = target.X - GlobalPosition.X;
         TravelSign = dx == 0f ? Facing : dx > 0f ? 1 : -1;

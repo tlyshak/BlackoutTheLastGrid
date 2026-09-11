@@ -80,6 +80,8 @@ const PICKUP_AMOUNT := 25.0
 const PICKUP_PROMPT := "E: Take the bank"
 const BUBBLE_CAP := 30
 const DAN_ARRIVE_CAP := 300
+const RESPAWN_MARGIN := 0.4          # seconds on top of LevelBase.RespawnDelay for the soft respawn
+const LINE_WALK_MIN := 200.0        # px of walk a route-point line gets before a prop prompt can hide its bubble (~0.9 s)
 const CP_DRIFT := Vector2(2900, 450)
 
 var _started := false
@@ -526,6 +528,24 @@ func _run() -> void:
 		main.queue_free()
 		_finish()
 		return
+	# 9b. S1 (v3 review): a KO in the wave. The soft respawn at Checkpoint_Dark re-issues Dan's
+	#     current point, which must be a true no-op — he keeps the warning stance (faces the fight,
+	#     no calls at the player) with the wave still running.
+	var said_before_ko: int = lines.size()
+	player.Kill()
+	await _step(2)
+	_check(player.IsKnockedOut == true, "Kill() did not knock the hero out in the wave")
+	await _real_wait(level.RespawnDelay + RESPAWN_MARGIN)
+	_check(player.IsKnockedOut == false, "the hero did not respawn %.1f s after the KO in the wave" % (level.RespawnDelay + RESPAWN_MARGIN))
+	_check(level.CurrentStage == STAGE_FIGHT and spawner.IsCleared == false, "the wave did not survive the respawn (stage %s, cleared %s)" % [level.CurrentStage, spawner.IsCleared])
+	_check(dan.IsWarning == true, "Dan dropped the warning stance on the respawn in the wave — re-issuing his point must not clear it")
+	_check(dan.LeadTarget == route.get_node("WP_dark").global_position, "after the respawn Dan's point is %s, expected still WP_dark" % dan.LeadTarget)
+	for call in [level.DanCallLine, level.DanCallAgainLine, level.DanCountingLine]:
+		_check(not lines.slice(said_before_ko).has(call), "Dan called '%s' at the player mid-fight after the respawn (%s)" % [call, lines.slice(said_before_ko)])
+	var charge_prompt_x: float = charge.global_position.x + charge.get_node("CollisionShape2D").position.x - charge.get_node("CollisionShape2D").shape.radius - player.get("InteractionArea").get_node("CollisionShape2D").shape.radius
+	var charge_line_x: float = route.get_node("WP_charge").global_position.x - dan.HeroCloseDistance
+	_check(charge_prompt_x - charge_line_x >= LINE_WALK_MIN, "the motor line fires at x %.0f and the charge panel's prompt at x %.0f: %.0f px of walk for the bubble, expected >= %.0f (the prompt would hide it the moment it is said)" % [charge_line_x, charge_prompt_x, charge_prompt_x - charge_line_x, LINE_WALK_MIN])
+
 	guards[0].TakeDamage(5.0, 0.0, false, 0)
 	await _step(3)
 	_check(heavy_hint.IsShown == true, "the heavy hint did not show after the first hit")

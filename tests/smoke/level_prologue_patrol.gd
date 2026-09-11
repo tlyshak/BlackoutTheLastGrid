@@ -6,7 +6,8 @@ extends SceneTree
 #     few steps back (lamp off, energy ≥ the floor, the level instance intact); Dan says «Told you»
 #     and, the hero's lamp being off now, crosses the pocket dark;
 #   * the patrol geometry — every lamp pool is a 420 × 220 zone whose decal is the zone grown by
-#     the hero's LightSensor radius (what is drawn lit is what makes him lit), and every guard's
+#     the hero's LightSensor radius (what is drawn lit is what makes him lit), no dark stripe decal
+#     overlaps a lit rect (what is drawn dark is dark — B1 of the v3 review), and every guard's
 #     dark stripe lies farther in depth than its unlit perception reach;
 #   * the stealth route — walked with input along the near stripe, up the dark column, along the
 #     far stripe, down and along the near stripe again: the hero is never lit, no guard notices,
@@ -14,7 +15,9 @@ extends SceneTree
 #     the exit («Never looked. Go.»);
 #   * the fight route (a second instance) — lit at x 6100 the first guard notices within 30 frames;
 #     all three down leave three powerbanks under Patrol and Dan's «Or that»; the lamp pools go off
-#     with the work lights (a hero inside one reads unlit) and come back with them.
+#     with the work lights (a hero inside one reads unlit) and come back with them; walked along the
+#     near edge into pool 2 with the lamp off, the hero reads lit under a pool decal and unlit under
+#     a stripe decal on every frame (the drawn/lit agreement).
 # Needs physics frames.
 # Run: godot --headless --path . -s tests/smoke/level_prologue_patrol.gd
 
@@ -58,6 +61,9 @@ const NEAR_END_X := 7620.0
 const AFTER_PATROL := Vector2(7860, 450)
 const FIGHT_SPOT := Vector2(6100, 450)
 const POOL2_CENTRE := Vector2(6760, 490)
+const AGREE_END_X := 6700.0        # the agreement walk: from the first column into pool 2 along the near edge
+const AGREE_CAP := 120
+const DECAL_INSET_X := 24.0        # judge only frames well inside a decal's x span (the sensor is 8 px wide)
 
 var _started := false
 var _frames := 0
@@ -176,6 +182,20 @@ func _pickups_of(patrol: Node) -> int:
 		if script != null and str(script.resource_path).ends_with("EnergyPickup.cs"):
 			n += 1
 	return n
+
+# [name, global rect] of every Polygon2D under PH_Decals whose name starts with `prefix`.
+func _decal_rects(level: Node, prefix: String) -> Array:
+	var out: Array = []
+	var decals: Node = level.get_node_or_null("PH_Decals")
+	if decals == null:
+		return out
+	for d in decals.get_children():
+		if d is Polygon2D and d.name.begins_with(prefix):
+			out.append([d.name, _poly_rect(d)])
+	return out
+
+func _inset_x(r: Rect2) -> Rect2:
+	return Rect2(r.position.x + DECAL_INSET_X, r.position.y, r.size.x - 2.0 * DECAL_INSET_X, r.size.y)
 
 func _poly_rect(poly: Polygon2D) -> Rect2:
 	var min_v := Vector2(INF, INF)
@@ -320,6 +340,15 @@ func _run() -> void:
 			_check(drawn.position.distance_to(lit_rect.position) <= 1.0 and drawn.size.distance_to(lit_rect.size) <= 1.0,
 				"%s is drawn %s but the hero is lit over %s (zone %s grown by the %.0f px LightSensor radius) — he would be spotted outside the light he can see"
 				% [decal.name, drawn, lit_rect, POOL_SIZE, radius])
+	# The dark stripes: a decal drawn black must not overlap any lit rect — what is drawn dark is dark.
+	var stripes: Array = _decal_rects(level, "PH_DarkStripe_")
+	_check(stripes.size() >= 2, "PH_Decals holds %d PH_DarkStripe_* decals, expected the near and the far lane" % stripes.size())
+	for s in stripes:
+		for i in pools.size():
+			var lit_rect := Rect2(pools[i].global_position - POOL_SIZE * 0.5 - Vector2(radius, radius), POOL_SIZE + Vector2(2.0 * radius, 2.0 * radius))
+			_check(not s[1].intersects(lit_rect),
+				"%s is drawn dark over %s but %s lights the hero over %s — a lane drawn black is lit there (he would be spotted with no visible cause)"
+				% [s[0], s[1], pools[i].name, lit_rect])
 	var stripe_of := {"Guard_1": NEAR_Y, "Guard_2": FAR_Y, "Guard_3": NEAR_Y}
 	for g in guards:
 		var reach: float = g.PerceptionRange * g.DarkPerceptionFactor
@@ -401,7 +430,31 @@ func _run() -> void:
 	_check(_pickups_of(patrol2) == 3, "the fallen patrol left %d banks under Patrol, expected 3" % _pickups_of(patrol2))
 	await _wait_until(func(): return lines2.has(level2.DanFoughtLine), BUBBLE_CAP)
 	_check(lines2.has(level2.DanFoughtLine), "Dan did not say the fought line with the patrol down (%s)" % [lines2])
+	# The drawn/lit agreement, walked: along the near edge from the first column into pool 2 with
+	# the lamp off (the patrol is down, nobody reacts) — on every frame well inside a pool decal the
+	# hero must read lit, and well inside a dark stripe decal he must read unlit.
 	lamp2.SetOn(false)
+	var pool_rects2: Array = _decal_rects(level2, "PH_PatrolPool_")
+	var dark_rects2: Array = _decal_rects(level2, "PH_DarkStripe_")
+	player2.global_position = Vector2(COLUMN1_X, NEAR_Y)
+	await _step(2)
+	var disagreements: Array = []
+	Input.action_press("move_right")
+	for i in AGREE_CAP:
+		await physics_frame
+		var feet: Vector2 = player2.global_position
+		for r in pool_rects2:
+			if _inset_x(r[1]).has_point(feet) and not player2.IsLit:
+				disagreements.append("%s is drawn lit at %s but the hero is unlit" % [r[0], feet])
+		for r in dark_rects2:
+			if _inset_x(r[1]).has_point(feet) and player2.IsLit:
+				disagreements.append("%s is drawn dark at %s but the hero is lit" % [r[0], feet])
+		if feet.x >= AGREE_END_X:
+			break
+	Input.action_release("move_right")
+	await _step(1)
+	_check(player2.global_position.x >= AGREE_END_X, "the agreement walk never reached x %.0f (at %s)" % [AGREE_END_X, player2.global_position])
+	_check(disagreements.is_empty(), "the drawn light and the lit zones disagree on %d frame(s) of the near edge — first: %s" % [disagreements.size(), disagreements[0] if not disagreements.is_empty() else "-"])
 	await _place(player2, POOL2_CENTRE)
 	_check(player2.IsLit == true, "a hero standing in a lamp pool with the work lights on is not lit")
 	lights2.PowerDown()
