@@ -1,0 +1,79 @@
+[gd_scene load_steps=5 format=3 uid="uid://dr5ukx5xkw7wk"]
+
+[ext_resource type="Script" path="res://scripts/props/DebrisPile.cs" id="1_debris"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_blocker"]
+size = Vector2(56, 320)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hurt"]
+size = Vector2(72, 72)
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_dust"]
+particle_flag_disable_z = true
+emission_shape = 3
+emission_box_extents = Vector3(28, 18, 1)
+direction = Vector3(0, -1, 0)
+spread = 60.0
+initial_velocity_min = 20.0
+initial_velocity_max = 90.0
+gravity = Vector3(0, 140, 0)
+damping_min = 40.0
+damping_max = 120.0
+scale_min = 0.1
+scale_max = 0.3
+color = Color(0.145098, 0.176471, 0.227451, 0.8)
+
+[node name="DebrisPile" type="StaticBody2D" node_paths=PackedStringArray("BlockerShape", "Hurtbox", "Rubble", "Dust")]
+collision_layer = 1
+collision_mask = 0
+script = ExtResource("1_debris")
+BlockerShape = NodePath("CollisionShape2D")
+Hurtbox = NodePath("Hurtbox")
+Rubble = NodePath("PH_Rubble")
+Dust = NodePath("PH_Dust")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_blocker")
+
+[node name="Hurtbox" type="Area2D" parent="."]
+position = Vector2(0, -36)
+collision_layer = 4
+collision_mask = 0
+monitoring = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
+shape = SubResource("RectangleShape2D_hurt")
+
+[node name="PH_Rubble" type="Node2D" parent="."]
+
+[node name="PH_RockFar" type="Polygon2D" parent="PH_Rubble"]
+position = Vector2(0, -104)
+color = Color(0.0705882, 0.0862745, 0.113725, 1)
+polygon = PackedVector2Array(-28, 58, -28, -14, -16, -34, 12, -38, 28, -16, 28, 58)
+
+[node name="PH_RockNear" type="Polygon2D" parent="PH_Rubble"]
+position = Vector2(0, 152)
+color = Color(0.0705882, 0.0862745, 0.113725, 1)
+polygon = PackedVector2Array(-28, 8, -26, -136, -8, -152, 16, -146, 28, -128, 28, 8)
+
+[node name="PH_Rock" type="Polygon2D" parent="PH_Rubble"]
+color = Color(0.145098, 0.176471, 0.227451, 1)
+polygon = PackedVector2Array(-28, 0, -20, -34, 4, -46, 24, -30, 28, 0)
+
+[node name="PH_TimberA" type="Polygon2D" parent="PH_Rubble"]
+color = Color(0.352941, 0.215686, 0.133333, 1)
+polygon = PackedVector2Array(-26, -6, 22, -40, 27, -32, -21, 2)
+
+[node name="PH_TimberB" type="Polygon2D" parent="PH_Rubble"]
+color = Color(0.352941, 0.215686, 0.133333, 1)
+polygon = PackedVector2Array(-27, -30, -22, -38, 26, -10, 21, -2)
+
+[node name="PH_Dust" type="GPUParticles2D" parent="."]
+position = Vector2(0, -20)
+emitting = false
+amount = 14
+process_material = SubResource("ParticleProcessMaterial_dust")
+lifetime = 0.7
+one_shot = true
+explosiveness = 0.85
+visibility_rect = Rect2(-80, -120, 160, 160)

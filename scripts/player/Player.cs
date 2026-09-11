@@ -313,9 +313,7 @@ public partial class Player : CharacterBody2D, IHittable
         // MinEnergy is a flinch, not a KO.
         if (hit.Damage > 0f && state.Energy <= state.MinEnergy)
         {
-            _knockedOut = true;
-            StateMachine.TransitionToOrRestart(PlayerState.StateKO);
-            EmitSignalKnockedOut();
+            KnockOut();
         }
         else
         {
@@ -331,6 +329,51 @@ public partial class Player : CharacterBody2D, IHittable
     /// </summary>
     public bool TakeDamage(float damage, float knockback, bool knockdown, int hitStopFrames) =>
         TakeHit(new HitInfo(damage, knockback, knockdown, hitStopFrames, DepthTolerance, GlobalPosition.Y));
+
+    /// <summary>
+    /// Kills the hero outright — the death path of an environmental hazard (a gas blast), which
+    /// costs no energy and needs no hit to exist. Routes into the same KO as a lethal hit, so the
+    /// level's KO handling (restart or a checkpoint respawn) and the camera shake are unchanged.
+    /// A hero who is already knocked out is left alone.
+    /// </summary>
+    public void Kill()
+    {
+        if (_knockedOut)
+        {
+            return;
+        }
+
+        KnockOut();
+    }
+
+    /// <summary>
+    /// Brings the hero back at a checkpoint without reloading the scene: clears the KO, drops the
+    /// knockback and the jump, closes the attack window, forces the head lamp off (so a respawn
+    /// next to a gas pocket cannot re-ignite it in the same second) and returns to Idle from the
+    /// rest pose. The caller places the hero and restores the energy — <see cref="Revive"/> only
+    /// makes him playable again.
+    /// </summary>
+    public void Revive()
+    {
+        _knockedOut = false;
+        Velocity = Vector2.Zero;
+        _z = 0f;
+        _zVelocity = 0f;
+        HitboxOff();
+        Flashlight.SetOn(false);
+        ResetPose();
+        StateMachine.TransitionToOrRestart(PlayerState.StateIdle);
+        UpdateVisual();
+    }
+
+    /// <summary>The single KO path: closes the attack window, goes down and announces it once.</summary>
+    private void KnockOut()
+    {
+        _knockedOut = true;
+        HitboxOff();
+        StateMachine.TransitionToOrRestart(PlayerState.StateKO);
+        EmitSignalKnockedOut();
+    }
 
     private void OnStateChanged(string from, string to) => EmitSignalStateChanged(from, to);
 

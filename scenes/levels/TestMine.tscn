@@ -1,0 +1,288 @@
+[gd_scene load_steps=19 format=3 uid="uid://bwp0vctrh1hxg"]
+
+[ext_resource type="Script" path="res://scripts/levels/TestMine.cs" id="1_mine"]
+[ext_resource type="Script" path="res://scripts/levels/RoomBounds.cs" id="2_room"]
+[ext_resource type="Script" path="res://scripts/core/PowerCircuit.cs" id="3_circuit"]
+[ext_resource type="Script" path="res://scripts/levels/LevelFx.cs" id="4_levelfx"]
+[ext_resource type="PackedScene" uid="uid://ct2db4jsifoal" path="res://scenes/player/Player.tscn" id="5_player"]
+[ext_resource type="PackedScene" uid="uid://4lm22kxy31wt" path="res://scenes/actors/Companion.tscn" id="6_companion"]
+[ext_resource type="PackedScene" uid="uid://2adcecasbtv6" path="res://scenes/ui/HUD.tscn" id="7_hud"]
+[ext_resource type="PackedScene" uid="uid://b01co21wm8ogb" path="res://scenes/ui/PauseMenu.tscn" id="8_pause"]
+[ext_resource type="PackedScene" uid="uid://dd7kx0ipvfynt" path="res://scenes/ui/Vignette.tscn" id="9_vignette"]
+[ext_resource type="PackedScene" uid="uid://yok8kunrm1id" path="res://scenes/fx/ImpactFx.tscn" id="10_impactfx"]
+[ext_resource type="PackedScene" uid="uid://bhku23d0vfuqb" path="res://scenes/props/Outlet.tscn" id="11_outlet"]
+[ext_resource type="PackedScene" uid="uid://swljglbv3lut" path="res://scenes/props/PoweredMachine.tscn" id="12_machine"]
+[ext_resource type="PackedScene" uid="uid://b7xei8jrwrket" path="res://scenes/props/Hoist.tscn" id="13_hoist"]
+[ext_resource type="PackedScene" uid="uid://dmfwxybc8a2y0" path="res://scenes/props/GasZone.tscn" id="14_gas"]
+[ext_resource type="PackedScene" uid="uid://dr5ukx5xkw7wk" path="res://scenes/props/DebrisPile.tscn" id="15_debris"]
+[ext_resource type="PackedScene" uid="uid://b33olo6gf584j" path="res://scenes/levels/CaveIn.tscn" id="16_cavein"]
+[ext_resource type="PackedScene" uid="uid://cpbrpcvs6w23v" path="res://scenes/levels/Checkpoint.tscn" id="17_checkpoint"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
+size = Vector2(40, 400)
+
+[node name="TestMine" type="Node2D" node_paths=PackedStringArray("Player", "Camera", "Pause", "Hud", "Companion", "Checkpoints", "StartRoom", "Circuit", "DebugLabel", "EventLabel", "Cage", "GasPockets", "Collapse")]
+y_sort_enabled = true
+script = ExtResource("1_mine")
+Player = NodePath("Player")
+Camera = NodePath("Camera2D")
+Pause = NodePath("PauseMenu")
+Hud = NodePath("HUD")
+Companion = NodePath("Companion")
+Checkpoints = NodePath("Checkpoints")
+StartRoom = NodePath("Rooms/Room_Main")
+Circuit = NodePath("Circuit")
+DebugLabel = NodePath("UI/DebugLabel")
+EventLabel = NodePath("UI/EventLabel")
+Cage = NodePath("Hoist")
+GasPockets = [NodePath("GasZone_Rehearsal"), NodePath("GasZone_Pocket")]
+Collapse = NodePath("CaveIn_Mid")
+
+[node name="CanvasModulate" type="CanvasModulate" parent="."]
+color = Color(0.0392157, 0.0509804, 0.0784314, 1)
+
+[node name="PH_Background" type="ColorRect" parent="."]
+z_index = -40
+offset_right = 1920.0
+offset_bottom = 300.0
+color = Color(0.105882, 0.129412, 0.168627, 1)
+
+[node name="PH_Floor" type="ColorRect" parent="."]
+z_index = -20
+offset_top = 300.0
+offset_right = 1920.0
+offset_bottom = 640.0
+color = Color(0.145098, 0.176471, 0.227451, 1)
+
+[node name="PH_FloorEdge" type="ColorRect" parent="."]
+z_index = -20
+offset_top = 600.0
+offset_right = 1920.0
+offset_bottom = 604.0
+color = Color(0.223529, 0.266667, 0.337255, 1)
+
+[node name="PH_WallLeft" type="StaticBody2D" parent="."]
+position = Vector2(40, 450)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PH_WallLeft"]
+shape = SubResource("RectangleShape2D_wall")
+
+[node name="PH_WallRight" type="StaticBody2D" parent="."]
+position = Vector2(1880, 450)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PH_WallRight"]
+shape = SubResource("RectangleShape2D_wall")
+
+[node name="Rooms" type="Node2D" parent="."]
+
+[node name="Room_Main" type="Node2D" parent="Rooms"]
+script = ExtResource("2_room")
+Rect = Rect2(0, 0, 1920, 1080)
+FloorTop = 300.0
+FloorBottom = 600.0
+
+[node name="Circuit" type="Node" parent="."]
+script = ExtResource("3_circuit")
+Capacity = 1
+
+[node name="Checkpoints" type="Node2D" parent="."]
+
+[node name="Checkpoint_Start" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("17_checkpoint")]
+position = Vector2(220, 450)
+Room = NodePath("../../Rooms/Room_Main")
+Label = "Start"
+
+[node name="Checkpoint_Gas" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("17_checkpoint")]
+position = Vector2(1080, 450)
+RespawnOffset = Vector2(-32, 0)
+Room = NodePath("../../Rooms/Room_Main")
+Label = "Before the gas"
+
+[node name="Outlet" parent="." instance=ExtResource("11_outlet")]
+position = Vector2(300, 560)
+
+[node name="PH_HitStrip" type="Polygon2D" parent="."]
+position = Vector2(440, 450)
+z_index = -20
+color = Color(0.941176, 0.639216, 0.14902, 0.18)
+polygon = PackedVector2Array(-48, -12, 48, -12, 48, 12, -48, 12)
+
+[node name="DebrisPile_Hand" parent="." instance=ExtResource("15_debris")]
+position = Vector2(440, 450)
+
+[node name="Pump" parent="." node_paths=PackedStringArray("Circuit", "ClearTargets") instance=ExtResource("12_machine")]
+position = Vector2(600, 450)
+PromptText = "Switch on the pump"
+Circuit = NodePath("../Circuit")
+DisplayName = "Pump"
+ClearTargets = [NodePath("../Flood")]
+
+[node name="Flood" parent="." instance=ExtResource("15_debris")]
+modulate = Color(0.45, 0.72, 1, 1)
+position = Vector2(700, 450)
+HeavyHitsToClear = 0
+
+[node name="GasZone_Rehearsal" parent="." node_paths=PackedStringArray("Room") instance=ExtResource("14_gas")]
+position = Vector2(920, 450)
+WarningSeconds = 1.5
+Room = NodePath("../Rooms/Room_Main")
+
+[node name="Extractor" parent="." node_paths=PackedStringArray("Circuit", "ClearTargets") instance=ExtResource("12_machine")]
+position = Vector2(1180, 450)
+PromptText = "Switch on the extractor"
+Circuit = NodePath("../Circuit")
+DisplayName = "Extractor"
+ClearTargets = [NodePath("../GasZone_Pocket")]
+
+[node name="GasZone_Pocket" parent="." node_paths=PackedStringArray("Room") instance=ExtResource("14_gas")]
+position = Vector2(1340, 450)
+Room = NodePath("../Rooms/Room_Main")
+
+[node name="DebrisPile_Back" parent="." instance=ExtResource("15_debris")]
+position = Vector2(1500, 450)
+StartsCleared = true
+
+[node name="CaveIn_Mid" parent="." node_paths=PackedStringArray("Level", "Blockage") instance=ExtResource("16_cavein")]
+position = Vector2(1550, 450)
+Level = NodePath("..")
+Blockage = NodePath("../DebrisPile_Back")
+
+[node name="Hoist" parent="." node_paths=PackedStringArray("Circuit") instance=ExtResource("13_hoist")]
+position = Vector2(1780, 450)
+Circuit = NodePath("../Circuit")
+
+[node name="Player" parent="." instance=ExtResource("5_player")]
+position = Vector2(150, 450)
+
+[node name="Companion" parent="." node_paths=PackedStringArray("Target") instance=ExtResource("6_companion")]
+position = Vector2(90, 460)
+Target = NodePath("../Player")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(960, 540)
+limit_left = 0
+limit_top = 0
+limit_right = 1920
+limit_bottom = 1080
+position_smoothing_enabled = true
+
+[node name="PH_SignDebris" type="Label" parent="."]
+z_index = 5
+offset_left = 396.0
+offset_top = 612.0
+offset_right = 546.0
+offset_bottom = 636.0
+theme_override_colors/font_color = Color(1, 0.85098, 0.541176, 1)
+theme_override_colors/font_outline_color = Color(0.0392157, 0.0509804, 0.0784314, 1)
+theme_override_constants/outline_size = 5
+text = "TIMBER PILE (K x2)"
+
+[node name="PH_SignPump" type="Label" parent="."]
+z_index = 5
+offset_left = 568.0
+offset_top = 644.0
+offset_right = 718.0
+offset_bottom = 668.0
+theme_override_colors/font_color = Color(1, 0.85098, 0.541176, 1)
+theme_override_colors/font_outline_color = Color(0.0392157, 0.0509804, 0.0784314, 1)
+theme_override_constants/outline_size = 5
+text = "PUMP"
+
+[node name="PH_SignFlood" type="Label" parent="."]
+z_index = 5
+offset_left = 656.0
+offset_top = 612.0
+offset_right = 826.0
+offset_bottom = 636.0
+theme_override_colors/font_color = Color(0.45, 0.72, 1, 1)
+theme_override_colors/font_outline_color = Color(0.0392157, 0.0509804, 0.0784314, 1)
+theme_override_constants/outline_size = 5
+text = "FLOODED DRIFT"
+
+[node name="PH_SignRehearsal" type="Label" parent="."]
+z_index = 5
+offset_left = 836.0
+offset_top = 612.0
+offset_right = 1036.0
+offset_bottom = 636.0
+theme_override_colors/font_color = Color(0.713726, 0.760784, 0.290196, 1)
+theme_override_colors/font_outline_color = Color(0.0392157, 0.0509804, 0.0784314, 1)
+theme_override_constants/outline_size = 5
+text = "GAS - REHEARSAL 1.5 s"
+
+[node name="PH_SignPocket" type="Label" parent="."]
+z_index = 5
+offset_left = 1256.0
+offset_top = 612.0
+offset_right = 1436.0
+offset_bottom = 636.0
+theme_override_colors/font_color = Color(0.713726, 0.760784, 0.290196, 1)
+theme_override_colors/font_outline_color = Color(0.0392157, 0.0509804, 0.0784314, 1)
+theme_override_constants/outline_size = 5
+text = "GAS POCKET 0.8 s"
+
+[node name="PH_SignCaveIn" type="Label" parent="."]
+z_index = 5
+offset_left = 1478.0
+offset_top = 644.0
+offset_right = 1658.0
+offset_bottom = 668.0
+theme_override_colors/font_color = Color(0.752941, 0.227451, 0.168627, 1)
+theme_override_colors/font_outline_color = Color(0.0392157, 0.0509804, 0.0784314, 1)
+theme_override_constants/outline_size = 5
+text = "CAVE-IN TRIGGER"
+
+[node name="PH_SignExtractor" type="Label" parent="."]
+z_index = 5
+offset_left = 1140.0
+offset_top = 644.0
+offset_right = 1290.0
+offset_bottom = 668.0
+theme_override_colors/font_color = Color(1, 0.85098, 0.541176, 1)
+theme_override_colors/font_outline_color = Color(0.0392157, 0.0509804, 0.0784314, 1)
+theme_override_constants/outline_size = 5
+text = "EXTRACTOR"
+
+[node name="PH_SignHoist" type="Label" parent="."]
+z_index = 5
+offset_left = 1732.0
+offset_top = 644.0
+offset_right = 1882.0
+offset_bottom = 668.0
+theme_override_colors/font_color = Color(1, 0.85098, 0.541176, 1)
+theme_override_colors/font_outline_color = Color(0.0392157, 0.0509804, 0.0784314, 1)
+theme_override_constants/outline_size = 5
+text = "HOIST (whole circuit)"
+
+[node name="HUD" parent="." instance=ExtResource("7_hud")]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="DebugLabel" type="Label" parent="UI"]
+offset_left = 16.0
+offset_top = 76.0
+offset_right = 560.0
+offset_bottom = 104.0
+text = "Circuit 0/1"
+
+[node name="EventLabel" type="Label" parent="UI"]
+offset_left = 16.0
+offset_top = 104.0
+offset_right = 560.0
+offset_bottom = 132.0
+theme_override_colors/font_color = Color(1, 0.85098, 0.541176, 1)
+text = "-"
+
+[node name="PauseMenu" parent="." instance=ExtResource("8_pause")]
+
+[node name="Vignette" parent="." instance=ExtResource("9_vignette")]
+
+[node name="LevelFx" type="Node" parent="." node_paths=PackedStringArray("Level", "Player")]
+script = ExtResource("4_levelfx")
+Level = NodePath("..")
+Player = NodePath("../Player")
+ImpactFxScene = ExtResource("10_impactfx")

@@ -1,0 +1,69 @@
+[gd_scene load_steps=6 format=3 uid="uid://b7xei8jrwrket"]
+
+[ext_resource type="Script" path="res://scripts/props/Hoist.cs" id="1_hoist"]
+
+[sub_resource type="Gradient" id="Gradient_run"]
+offsets = PackedFloat32Array(0, 0.35, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.55, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_run"]
+gradient = SubResource("Gradient_run")
+width = 128
+height = 128
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_reach"]
+radius = 48.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_boarding"]
+size = Vector2(120, 80)
+
+[node name="Hoist" type="Area2D" node_paths=PackedStringArray("Screen", "RunLight", "BoardingArea")]
+collision_layer = 32
+collision_mask = 0
+monitoring = false
+script = ExtResource("1_hoist")
+PromptText = "Start the hoist"
+Sequence = PackedStringArray()
+ActivatedPromptText = "Hoist running"
+Screen = NodePath("PH_Screen")
+DisplayName = "Hoist"
+RequiresWholeCircuit = true
+RunLight = NodePath("PH_RunLight")
+BoardingArea = NodePath("BoardingArea")
+
+[node name="PH_Cage" type="Polygon2D" parent="."]
+color = Color(0.301961, 0.345098, 0.4, 1)
+polygon = PackedVector2Array(-60, -160, 60, -160, 60, 0, -60, 0)
+
+[node name="PH_CageEdge" type="Line2D" parent="."]
+points = PackedVector2Array(-60, -160, 60, -160, 60, 0, -60, 0, -60, -160)
+width = 3.0
+default_color = Color(0.039216, 0.05098, 0.078431, 1)
+
+[node name="PH_Screen" type="Polygon2D" parent="."]
+position = Vector2(44, -60)
+color = Color(0.6, 0.1, 0.1, 1)
+polygon = PackedVector2Array(-12, -8, 12, -8, 12, 8, -12, 8)
+
+[node name="PH_RunLight" type="PointLight2D" parent="."]
+position = Vector2(0, -150)
+enabled = false
+color = Color(0.941176, 0.639216, 0.14902, 1)
+energy = 1.2
+shadow_enabled = false
+texture = SubResource("GradientTexture2D_run")
+texture_scale = 2.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_reach")
+
+[node name="BoardingArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BoardingArea"]
+shape = SubResource("RectangleShape2D_boarding")
