@@ -176,6 +176,7 @@ func _run() -> void:
 	_check(proto.DisplayName == "Machine", "PoweredMachine.DisplayName default is '%s', expected 'Machine'" % proto.DisplayName)
 	_check(proto.PowerCost == 1, "PoweredMachine.PowerCost default is %s, expected 1" % proto.PowerCost)
 	_check(proto.RequiresWholeCircuit == false, "PoweredMachine.RequiresWholeCircuit default is %s, expected false" % proto.RequiresWholeCircuit)
+	_check(proto.StartsPowered == false, "PoweredMachine.StartsPowered default is %s, expected false (nothing runs unless a level says so)" % proto.StartsPowered)
 	_check(Array(proto.ClearTargets).is_empty(), "PoweredMachine.ClearTargets default is %s, expected empty" % [Array(proto.ClearTargets)])
 	_check(proto.OverloadPromptFormat == OVERLOAD_FORMAT, "PoweredMachine.OverloadPromptFormat is '%s', expected '%s'" % [proto.OverloadPromptFormat, OVERLOAD_FORMAT])
 	_check(is_equal_approx(proto.OverloadPromptSeconds, 3.0), "PoweredMachine.OverloadPromptSeconds default is %s, expected 3" % proto.OverloadPromptSeconds)
@@ -496,6 +497,48 @@ func _run() -> void:
 	_check(repair_changes == [true, false, true], "RepairMachine.PowerChanged history is %s, expected [true, false, true]" % [repair_changes])
 	circuit.Capacity = 1
 	repair.queue_free()
+	await _step(2)
+
+	# 14. StartsPowered / ForcePower (T-07s-b): the level, not the player, may hold the bus. Both are
+	# inert by default, so every machine already in the game behaves exactly as it did before.
+	circuit.Capacity = WIDE_CAPACITY
+	var auto: Node = machine_scene.instantiate()
+	auto.name = "AutoMachine"
+	auto.DisplayName = "Work lights"
+	auto.StartsPowered = true
+	auto.Circuit = circuit
+	auto.position = REPAIR_POS
+	var auto_changes: Array = []
+	room.add_child(auto)
+	# Connected in the same frame as add_child: ForcePower is deferred precisely so a parent level
+	# that subscribes in its own _Ready still sees the machine start.
+	auto.PowerChanged.connect(func(on: bool): auto_changes.append(on))
+	_check(auto.IsPowered == false, "StartsPowered took the bus inside _Ready; it must be deferred so the level sees the event")
+	await _step(2)
+	_check(auto.IsPowered == true, "AutoMachine.IsPowered=%s after its first frame, expected true (StartsPowered)" % auto.IsPowered)
+	_check(auto.IsActivated == true, "AutoMachine holds the bus but its panel is not activated")
+	_check(auto_changes == [true], "AutoMachine.PowerChanged history is %s, expected [true]" % [auto_changes])
+	_check(circuit.Used == 2, "Circuit.Used=%s with the hoist and the auto machine running, expected 2" % circuit.Used)
+
+	# A machine started by the level is an ordinary switch afterwards: one press switches it off.
+	await _use(auto, player, "AutoMachine off")
+	_check(auto.IsPowered == false, "a machine started by the level could not be switched off (IsPowered=%s)" % auto.IsPowered)
+	_check(auto_changes == [true, false], "AutoMachine.PowerChanged history is %s, expected [true, false]" % [auto_changes])
+	_check(circuit.Used == 1, "Circuit.Used=%s after the auto machine was switched off, expected 1" % circuit.Used)
+
+	# ForcePower on a free bus starts the machine, and asking twice never draws the units twice.
+	# The refused branch (a loaded bus) is deliberately NOT driven from here: it ends in
+	# GD.PushWarning, and a C# warning raised under a GDScript SceneTree script crashes this engine
+	# build in a finalizer at shutdown (see T-B21) — the runner would report a crash, not a failure.
+	auto.ForcePower()
+	await _step(1)
+	_check(auto.IsPowered == true and circuit.Used == 2, "ForcePower did not start the machine on a free bus (Used=%s)" % circuit.Used)
+	auto.ForcePower()
+	await _step(1)
+	_check(circuit.Used == 2, "a second ForcePower drew the units twice (Used=%s)" % circuit.Used)
+	_check(auto_changes == [true, false, true], "AutoMachine.PowerChanged history is %s, expected [true, false, true]" % [auto_changes])
+	circuit.Capacity = 1
+	auto.queue_free()
 	await _step(2)
 
 	room.queue_free()

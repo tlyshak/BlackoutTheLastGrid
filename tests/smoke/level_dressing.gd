@@ -3,7 +3,7 @@ extends SceneTree
 # graphics, so this asserts structure, flags, budgets and lifetimes — never particle counts,
 # which the dummy renderer does not simulate.
 #   * depth contract — the visual brief's z_index table on the existing background nodes and on
-#     the new Parallax / Backdrop / Ground / Props / Fx_Room* / Foreground groups, Props y-sorted;
+#     the new Parallax / Backdrop / Ground / Props / Fx_<Room> / Foreground groups, Props y-sorted;
 #   * parallax — three background Parallax2D layers with distinct scroll_scale ordered by depth,
 #     a foreground layer that outruns the camera, nobody ignoring the camera;
 #   * bottom coverage — Ground/PH_NearBand spans the level and reaches past the camera's
@@ -36,19 +36,24 @@ const Z_BACKDROP := -40
 const Z_GROUND := -20
 const Z_FX := 20
 const Z_FOREGROUND := 40
-const BACKDROP_NODES := ["PH_Wall_1", "PH_Wall_2", "PH_Wall_3", "PH_Ceiling", "Backdrop"]
-const GROUND_NODES := ["PH_Floor_1", "PH_Floor_2", "PH_Floor_3", "PH_FloorEdge", "PH_Decals", "Ground"]
-const FX_GROUPS := ["Fx_Room1", "Fx_Room2", "Fx_Room3"]
+const ROOM_NAMES := ["Face", "Flood", "Gas", "Upper", "Cage", "Surface"]
+const BACKDROP_NODES := ["PH_Wall_Face", "PH_Wall_Flood", "PH_Wall_Gas", "PH_Wall_Upper", "PH_Wall_Cage", "PH_Wall_Surface", "PH_Ceiling", "Backdrop"]
+const GROUND_NODES := ["PH_Floor_Face", "PH_Floor_Flood", "PH_Floor_Gas", "PH_Floor_Upper", "PH_Floor_Cage", "PH_Floor_Surface", "PH_FloorEdge", "PH_Decals", "Ground"]
+const FX_GROUPS := ["Fx_Face", "Fx_Flood", "Fx_Gas", "Fx_Upper", "Fx_Cage", "Fx_Surface"]
 const PARALLAX_LAYERS := ["Parallax/PxRockFar", "Parallax/PxRockMid", "Parallax/PxStruct"]
-const LEVEL_WIDTH := 5760.0
+const LEVEL_WIDTH := 13440.0    # six rooms of the rebuilt prologue (T-07s-b)
 const CAMERA_LIMIT_BOTTOM := 1080.0
-# Frame budget (plan, "Performance & frame budget").
-const MAX_EMITTERS := 10
+# Frame budget (plan, "Performance & frame budget"). The caps that matter are per screen, not per
+# level: only one room's ambient FX group runs at a time, and only one room's lights are ever in
+# view. The whole-level totals are kept as a ceiling so a runaway census is still caught.
+const MAX_EMITTERS := 24        # 6 ambient groups + the one-shot bursts of the piles, pockets and falls
+const MAX_FX_EMITTERS := 3      # ambient emitters per room group
 const MAX_PARTICLE_AMOUNT := 32
-const MAX_LIGHTS := 12
+const MAX_LIGHTS := 30
+const MAX_ROOM_LIGHTS := 12     # lights standing inside one room's rect — the on-screen peak
 const PROCESS_DISABLED := 4     # Node.PROCESS_MODE_DISABLED
 const PROCESS_INHERIT := 0
-const STAGE_VENTILATION := 2     # Level00_Prologue.Stage.Ventilation (C# enums arrive as int)
+const STAGE_BLAST := 2          # Level00_Prologue.Stage.Blast (C# enums arrive as int)
 const MANUAL_FX_GROUP := "fx_manual"
 # Shake.
 const SHAKE_AMPLITUDE := 10.0
@@ -229,16 +234,39 @@ func _check_prologue() -> void:
 		_check(min_y <= 604.0, "PH_NearBand starts at y %s, expected the floor edge at 604 or above" % min_y)
 		_check(max_y >= CAMERA_LIMIT_BOTTOM, "PH_NearBand ends at y %s, expected at least the camera's limit_bottom %s" % [max_y, CAMERA_LIMIT_BOTTOM])
 
-	# 4. Frame budget (acceptance criterion 5).
+	# 4. Frame budget (acceptance criterion 5). The level is six rooms wide now, so the budget that
+	#    decides the frame is per room: at most MAX_FX_EMITTERS ambient emitters in the one group
+	#    that runs, and at most MAX_ROOM_LIGHTS lights standing inside one room's rect.
 	var emitters: Array = _emitters_of(level)
 	_check(emitters.size() <= MAX_EMITTERS, "the level holds %d GPUParticles2D, budget is %d" % [emitters.size(), MAX_EMITTERS])
 	for e in emitters:
 		_check(e.amount <= MAX_PARTICLE_AMOUNT, "%s emits %d particles, budget is %d per emitter" % [e.name, e.amount, MAX_PARTICLE_AMOUNT])
+	for path in FX_GROUPS:
+		var group: Node = level.get_node_or_null(path)
+		if group != null:
+			var own: Array = _emitters_of(group)
+			_check(own.size() <= MAX_FX_EMITTERS, "%s runs %d ambient emitters, budget is %d per room" % [path, own.size(), MAX_FX_EMITTERS])
 	var lights: Array = []
 	_collect(level, &"Light2D", lights)
 	_check(lights.size() <= MAX_LIGHTS, "the level holds %d Light2D, budget is %d" % [lights.size(), MAX_LIGHTS])
 	for l in lights:
 		_check(l.shadow_enabled == false, "%s has shadows enabled; shadowed lights are out of budget" % l.name)
+	for room_name in ROOM_NAMES:
+		var room: Node = level.get_node_or_null("Rooms/Room_" + room_name)
+		_check(room != null, "the level has no Rooms/Room_%s" % room_name)
+		if room == null:
+			continue
+		# Uniform walk band: every gate in the level is cut 320 px deep for 300..600, so a room that
+		# moved its band would re-open the depth bypass T-07s-a's review had to close.
+		_check(is_equal_approx(room.FloorTop, 300.0) and is_equal_approx(room.FloorBottom, 600.0),
+			"Room_%s's walk band is %s..%s, expected 300..600 in every room" % [room_name, room.FloorTop, room.FloorBottom])
+		var rect: Rect2 = room.Rect
+		var here := 0
+		for l2 in lights:
+			var x: float = l2.global_position.x
+			if x >= rect.position.x and x < rect.end.x:
+				here += 1
+		_check(here <= MAX_ROOM_LIGHTS, "Room_%s holds %d Light2D, the on-screen budget is %d" % [room_name, here, MAX_ROOM_LIGHTS])
 
 	# 5. Vignette (acceptance criterion 12).
 	var vignette: Node = level.get_node_or_null("Vignette")
@@ -251,55 +279,62 @@ func _check_prologue() -> void:
 			"Vignette/PH_Vignette is %s / mouse_filter %s, expected a mouse-transparent TextureRect" % [rect, rect.get("mouse_filter") if rect != null else null])
 		_check(rect != null and rect.get("texture") != null, "Vignette/PH_Vignette has no texture")
 
-	# 6. Per-room FX gating (acceptance criterion 4). Walking through Door_1 ends in exactly this
-	#    call (Level00_Prologue.PassDoor), so the gating is exercised without replaying the flow —
-	#    level_prologue.gd already covers the walk itself.
-	var fx1: Node = level.get_node_or_null("Fx_Room1")
-	var fx2: Node = level.get_node_or_null("Fx_Room2")
-	var fx3: Node = level.get_node_or_null("Fx_Room3")
-	var vent: Node = level.get_node_or_null("Rooms/Room_Vent")
-	_check(fx1 != null and fx2 != null and fx3 != null and vent != null, "the level lacks Fx_Room1..3 / Rooms/Room_Vent")
-	if fx1 != null and fx2 != null and fx3 != null and vent != null:
-		for room_name in ["Room_Zaboi", "Room_Vent", "Room_Exit"]:
-			var r: Node = level.get_node_or_null("Rooms/" + room_name)
-			_check(r != null and r.get("Fx") != null, "%s has no Fx group wired" % room_name)
-		_check_fx_state(fx1, true, "room 1 at start")
-		_check_fx_state(fx2, false, "room 2 at start")
-		_check_fx_state(fx3, false, "room 3 at start")
-		level.ApplyRoomBounds(vent)
-		await _step(1)
-		_check_fx_state(fx1, false, "room 1 after the hero moved into room 2")
-		_check_fx_state(fx2, true, "room 2 after the hero moved into it")
-		_check_fx_state(fx3, false, "room 3 after the hero moved into room 2")
-		# The dead panel's sparks belong to the level, not to the gating: they must stay off until
-		# the panel reports it has no power (the playtest covers the ignition itself).
-		var sparks: Node = level.get_node_or_null("Fx_Room2/PanelSparks")
-		_check(sparks != null and sparks.is_in_group(MANUAL_FX_GROUP), "Fx_Room2/PanelSparks is not in the '%s' group" % MANUAL_FX_GROUP)
-		_check(sparks != null and sparks.emitting == false, "PanelSparks started emitting when room 2 became active")
-		_check(level.get("PanelSparks") == sparks, "Level00_Prologue.PanelSparks export does not point at Fx_Room2/PanelSparks")
-		var spark_light: Node = level.get_node_or_null("Fx_Room2/PanelSparkLight")
-		_check(spark_light != null and spark_light.enabled == false, "PanelSparkLight is on before the panel failed")
-		_check(level.get("PanelSparkLight") == spark_light, "Level00_Prologue.PanelSparkLight export does not point at Fx_Room2/PanelSparkLight")
+	# 6. Per-room FX gating (acceptance criterion 4). Six rooms, six groups, one active at a time —
+	#    ApplyRoomBounds is exactly what crossing a Checkpoint ends in (Level00_Prologue's room
+	#    transitions), so the gating is exercised without replaying the flow; level_prologue.gd
+	#    already covers the walk itself.
+	var groups: Array = []
+	var wired := true
+	for i in ROOM_NAMES.size():
+		var group: Node = level.get_node_or_null("Fx_" + ROOM_NAMES[i])
+		var room: Node = level.get_node_or_null("Rooms/Room_" + ROOM_NAMES[i])
+		_check(group != null and room != null, "the level lacks Fx_%s / Rooms/Room_%s" % [ROOM_NAMES[i], ROOM_NAMES[i]])
+		if group == null or room == null:
+			wired = false
+			break
+		_check(room.get("Fx") == group, "Room_%s.Fx does not point at Fx_%s — two rooms sharing one group would strand its emitters" % [ROOM_NAMES[i], ROOM_NAMES[i]])
+		groups.append(group)
+	if wired:
+		# No two rooms may look at the same group (the rename trap the plan calls out).
+		for i in groups.size():
+			for j in range(i + 1, groups.size()):
+				_check(groups[i] != groups[j], "Room_%s and Room_%s share one Fx group" % [ROOM_NAMES[i], ROOM_NAMES[j]])
+		for i in groups.size():
+			_check_fx_state(groups[i], i == 0, "%s at start" % ROOM_NAMES[i])
+		for target in [1, 2, 5, 0]:
+			level.ApplyRoomBounds(level.get_node("Rooms/Room_" + ROOM_NAMES[target]))
+			await _step(1)
+			for i in groups.size():
+				_check_fx_state(groups[i], i == target, "%s while the hero is in %s" % [ROOM_NAMES[i], ROOM_NAMES[target]])
+		# The blast sparks belong to the level, not to the gating: they stay off until the roof
+		# comes down, and the gating must never switch them on with the rest of room 1.
+		var sparks: Node = level.get_node_or_null("Fx_Face/BlastSparks")
+		_check(sparks != null and sparks.is_in_group(MANUAL_FX_GROUP), "Fx_Face/BlastSparks is not in the '%s' group" % MANUAL_FX_GROUP)
+		_check(sparks != null and sparks.emitting == false, "BlastSparks started emitting when Room_Face became active")
+		_check(level.get("BlastSparks") == sparks, "Level00_Prologue.BlastSparks export does not point at Fx_Face/BlastSparks")
+		var spark_light: Node = level.get_node_or_null("Fx_Face/BlastSparkLight")
+		_check(spark_light != null and spark_light.enabled == false, "BlastSparkLight is on before the blast")
+		_check(level.get("BlastSparkLight") == spark_light, "Level00_Prologue.BlastSparkLight export does not point at Fx_Face/BlastSparkLight")
 		# A disabled FX group must never take a body out of the physics space.
 		var bodies: Array = []
-		for g in [fx1, fx2, fx3]:
+		for g in groups:
 			_collect(g, &"CollisionObject2D", bodies)
 		_check(bodies.is_empty(), "an Fx group holds %d CollisionObject2D; disabling the group would remove them from physics" % bodies.size())
 
-		# The level, not the gating, ignites them: Door_1.Entered is exactly what walking through
-		# the door emits, and FailedNoPower is what the panel reports when it has no power.
-		var door1: Node = level.get_node_or_null("Door_1")
-		var panel: Node = level.get_node_or_null("FanPanel")
-		_check(door1 != null and panel != null, "the level lacks Door_1 / FanPanel")
-		if door1 != null and panel != null and sparks != null and spark_light != null:
-			door1.emit_signal("Entered", level.get_node("Player"))
+		# The level, not the gating, ignites them: CaveIn.Triggered is exactly what crossing the
+		# blast trigger emits, and the station lighting dies in the same handler.
+		var blast: Node = level.get("BlastCollapse")
+		var lamps: Node = level.get("WorkLamps")
+		_check(blast != null and lamps != null, "the level lacks BlastCollapse / WorkLamps")
+		if blast != null and lamps != null and sparks != null and spark_light != null:
+			_check(lamps.visible == true, "the station lighting is already out before the blast")
+			blast.emit_signal("Triggered")
 			await _step(1)
-			_check(level.CurrentStage == STAGE_VENTILATION,
-				"after Door_1.Entered the stage is %s, expected Ventilation (%d)" % [level.CurrentStage, STAGE_VENTILATION])
-			panel.emit_signal("FailedNoPower")
-			await _step(1)
-			_check(sparks.emitting == true, "the dead panel does not spark after the NoPower stage")
-			_check(spark_light.enabled == true, "the panel sparks have no light after the NoPower stage")
+			_check(level.CurrentStage == STAGE_BLAST,
+				"after CaveIn_Blast.Triggered the stage is %s, expected Blast (%d)" % [level.CurrentStage, STAGE_BLAST])
+			_check(sparks.emitting == true, "the torn cable does not spark after the blast")
+			_check(spark_light.enabled == true, "the blast sparks have no light")
+			_check(lamps.visible == false, "the station lighting survived the blast")
 
 	# 7. Camera shake (acceptance criterion 7).
 	var camera: Camera2D = level.get_node_or_null("Camera2D")

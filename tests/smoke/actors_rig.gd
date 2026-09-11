@@ -288,19 +288,21 @@ func _check_dummy() -> void:
 	await _step(1)
 
 # Dan is checked on the instantiated (but not running) prologue: booting the whole level here
-# would only duplicate level_prologue.gd, and the rig colours are stored export values.
+# would only duplicate level_prologue.gd, and the rig colours are stored export values. Since
+# T-07s-b he is the level's Companion (LevelBase.Companion) and no longer a decorative Node2D, so
+# his rig sits under Visual/ — the palette contract below is unchanged.
 func _check_dan() -> void:
 	var scene: PackedScene = load(PROLOGUE_PATH)
 	_check(scene != null, "%s failed to load" % PROLOGUE_PATH)
 	if scene == null:
 		return
 	var level: Node = scene.instantiate()
-	var dan: Node = level.get("DanFigure")
-	_check(dan is Node2D and String(dan.name) == "Dan", "Level00_Prologue.DanFigure is %s, expected a Node2D named 'Dan'" % dan)
+	var dan: Node = level.get("Companion")
+	_check(dan is CharacterBody2D and String(dan.name) == "Dan", "Level00_Prologue.Companion is %s, expected a CharacterBody2D named 'Dan'" % dan)
 	_check(level.get_node_or_null("PH_Dan") == null, "the prologue still has the old PH_Dan rectangle")
 	if dan != null:
-		var rig: Node = dan.get_node_or_null("Rig")
-		_check(rig != null, "Dan has no Rig child")
+		var rig: Node = dan.get_node_or_null("Visual/Rig")
+		_check(rig != null, "Dan has no Visual/Rig child")
 		if rig != null:
 			_check(_color_eq(rig.get("SuitColor"), DAN_SUIT), "Dan rig SuitColor %s, expected DanSuit %s" % [rig.get("SuitColor"), DAN_SUIT])
 			_check(rig.get("Build") == BUILD_SLIM, "Dan rig Build %s, expected Slim (%d)" % [rig.get("Build"), BUILD_SLIM])

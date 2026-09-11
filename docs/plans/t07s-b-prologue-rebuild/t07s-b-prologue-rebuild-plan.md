@@ -1147,4 +1147,38 @@ teleport.
 
 ## Review findings
 
+### Cue mapping (recorded by `/coder`, 2026-09-11)
+
+The plan owns the cue ids; `script-en.md` turned out to carry a slightly different set. Author-side
+decision 5 ("texts come only from `script-en.md`, do not invent") settles every difference in favour
+of the script. What was actually wired:
+
+| Plan cue | Wired as | Note |
+|---|---|---|
+| `CUT_INTRO`, `CUT_BLAST`, `CUT_FAREWELL`, `CUT_FOREMAN`, `CUT_END` | `IntroLines`, `BlastLines`, `FarewellLines` (variant A), `ForemanLines`, `EndLines` (variant A) | as planned |
+| `CUT_ARRIVAL` (`Hoist.Departed`) | **cut** | `script-en.md` row 35 puts the foreman's cutscene on `Hoist.Departed` itself; there is no arrival text to play |
+| `CUT_DAN_FOUND` | **cut** | segment 1 in `script-en.md` has bubbles only, no cutscene |
+| `DAN_S0_SHIFT` (cue 2) | **cut** | no such line; segment 0 has the two prompt lines plus one ambient line (`DanMotorLine`, 8 s after the intro) |
+| `DAN_S0_MORE` (cue 3) | `DanMoveLine` / `DanJumpLine` on `TutorialPrompt.Shown` | the script binds these to `Shown`, not to `Completed` |
+| `DAN_FOUND` (cue 5) | `DanFoundLine` + `DanUnhurtLine` 3 s later, on `Checkpoint_Blast` | `Companion.Arrived` is never waited on (plan rule) |
+| `DAN_CREW_SEEN` (cue 17) | **cut** | `script-en.md` marks the whole stealth segment as deliberate silence; `WatchZone.Spotted` shows the alert lamp only |
+| `DAN_HANDOVER` (cue 18) | `DanSealingLine` ("They're not digging. They're sealing it.") on `CaveIn_Upper.Collapsed` | the script's "stealth passed" line; the seal falls at that exact moment |
+| `DAN_SIGHT` (cue 19) | `DanCageSeenLine` on `Checkpoint_Sight`, then `DanCagePowerLine`, `DanPayLine`, `DanDaysOffLine` on a timer chain, then `DanMumLine` on `Checkpoint_Cage` | the script's five segment-4 lines, in its order |
+| `DAN_FLOODLIGHT` (cue 20) | `DanHoistRefusedLine` | as planned |
+| — | `DanBoardLine` on `Hoist.PowerChanged(true)` | wired per the script, but unreachable in a normal run: the cage only starts after the farewell, and Dan is silent from then on (`script-en.md` row 34). Kept rather than moved, so the script stays the source of truth. |
+
+Two placements diverge from the plan's table and are recorded here rather than silently changed:
+
+1. **`Crate` sits at y 450, not y 470.** At 470 its 44×300 shape would leave a 20 px lane along the
+   far wall; the crate is the jump lesson and must not be walkable around.
+2. **`CaveIn_Final` sits at x 10 880, not 10 760**, and the level *places* Dan at
+   `DanLastStandAt` (10 600) in the `Collapsed` handler instead of holding him where he happens to
+   stand. With `DebrisPile_Final` at 10 700 there is no trigger position at which a follower 56 px
+   behind the hero reliably ends up on the far side of the rubble; the farewell cutscene requires
+   it, so the level makes it true. A `Checkpoint_Farewell` (trigger off in the scene, armed by the
+   level at the collapse) keeps a death in segment 6 from respawning the hero behind the seal.
+3. **The hand-over also calls `Lights.PowerDown()`**, not only the pump and the extractor: the work
+   lights are behind the same seal, and a player who switched them back on would otherwise strand
+   the bus.
+
 *filled in by /reviewer*

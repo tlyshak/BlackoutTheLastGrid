@@ -37,6 +37,13 @@ public partial class PoweredMachine : PowerPanel
     /// <summary><c>true</c> for a machine that needs the whole bus (the hoist) instead of <see cref="PowerCost"/> units.</summary>
     [Export] public bool RequiresWholeCircuit { get; set; }
 
+    /// <summary>
+    /// <c>true</c> for a machine that already holds the circuit when the level starts — the drift's
+    /// work lights, which the player has to switch off before anything else can run. Applied once,
+    /// deferred, from <c>_Ready</c>; <c>false</c> (the default) leaves the machine exactly as it was.
+    /// </summary>
+    [Export] public bool StartsPowered { get; set; }
+
     /// <summary>Obstacles removed permanently when this machine starts; each entry must implement <see cref="IClearable"/>.</summary>
     [Export] public Node2D[] ClearTargets { get; set; } = { };
 
@@ -77,6 +84,15 @@ public partial class PoweredMachine : PowerPanel
         }
 
         Circuit.Register(this);
+        if (StartsPowered)
+        {
+            // Deferred on purpose: the level is this node's parent, so its own _Ready (where it
+            // subscribes to PowerChanged and to the circuit) has not run yet. Calling next frame
+            // means the level sees the machine start instead of finding it already running.
+            // Deferred by method name, not through a Callable over a delegate: a custom callable
+            // would outlive a machine freed before the frame ends.
+            CallDeferred(MethodName.ForcePower);
+        }
     }
 
     /// <inheritdoc/>
@@ -101,6 +117,31 @@ public partial class PoweredMachine : PowerPanel
         _overloadTime = 0f;
         SetProcess(false);
         NotifyPromptChanged();
+    }
+
+    /// <summary>
+    /// Starts the machine without an interaction — the level's own hand, not the player's: the work
+    /// lights that already run when the prologue opens, and the cage floodlight the mine hands the
+    /// last power unit to when the upper horizon comes down. The circuit is asked exactly as it is
+    /// from a panel, so the invariant "one bus, one machine" holds; a refusal changes nothing and
+    /// says so. A machine that is already running is left alone.
+    /// </summary>
+    public void ForcePower()
+    {
+        if (IsPowered)
+        {
+            return;
+        }
+
+        if (Circuit is null || !Circuit.TryPower(this, out _))
+        {
+            GD.PushWarning($"{Name}: ForcePower refused — the bus is already loaded.");
+            return;
+        }
+
+        MarkActivated();
+        NotifyPromptChanged();
+        SetPowered(true);
     }
 
     /// <summary>
