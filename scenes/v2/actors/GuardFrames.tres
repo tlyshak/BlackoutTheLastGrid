@@ -1,0 +1,182 @@
+[gd_resource type="SpriteFrames" format=3 uid="uid://iwm6u1caglfc"]
+
+[ext_resource type="Texture2D" path="res://assets/art/v2/keyframes/guard_keyframes.svg" id="1_sheet"]
+
+[sub_resource type="AtlasTexture" id="Atlas_attack_windup"]
+resource_name = "attack_windup"
+atlas = ExtResource("1_sheet")
+region = Rect2(86, 422, 226, 322)
+margin = Rect2(150, 0, 262, 0)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_attack_hit"]
+resource_name = "attack_hit"
+atlas = ExtResource("1_sheet")
+region = Rect2(436, 486, 328, 258)
+margin = Rect2(160, 64, 160, 64)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_stance"]
+resource_name = "stance"
+atlas = ExtResource("1_sheet")
+region = Rect2(46, 66, 218, 278)
+margin = Rect2(150, 44, 270, 44)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_knockdown"]
+resource_name = "knockdown"
+atlas = ExtResource("1_sheet")
+region = Rect2(972, 1002, 368, 138)
+margin = Rect2(104, 180, 120, 184)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_hurt"]
+resource_name = "hurt"
+atlas = ExtResource("1_sheet")
+region = Rect2(52, 848, 234, 296)
+margin = Rect2(136, 26, 254, 26)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_stagger"]
+resource_name = "stagger"
+atlas = ExtResource("1_sheet")
+region = Rect2(314, 860, 306, 284)
+margin = Rect2(118, 38, 182, 38)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_idle_1"]
+resource_name = "idle_1"
+atlas = ExtResource("1_sheet")
+region = Rect2(46, 1266, 218, 278)
+margin = Rect2(150, 44, 270, 44)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_idle_2"]
+resource_name = "idle_2"
+atlas = ExtResource("1_sheet")
+region = Rect2(286, 1262, 218, 282)
+margin = Rect2(150, 40, 270, 40)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_idle_3"]
+resource_name = "idle_3"
+atlas = ExtResource("1_sheet")
+region = Rect2(526, 1266, 218, 278)
+margin = Rect2(150, 44, 270, 44)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_idle_4"]
+resource_name = "idle_4"
+atlas = ExtResource("1_sheet")
+region = Rect2(766, 1268, 218, 276)
+margin = Rect2(150, 46, 270, 46)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_knockback"]
+resource_name = "knockback"
+atlas = ExtResource("1_sheet")
+region = Rect2(656, 880, 316, 264)
+margin = Rect2(100, 58, 172, 58)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_1"]
+resource_name = "walk_1"
+atlas = ExtResource("1_sheet")
+region = Rect2(282, 66, 226, 278)
+margin = Rect2(146, 44, 262, 44)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_pass"]
+resource_name = "walk_pass"
+atlas = ExtResource("1_sheet")
+region = Rect2(546, 62, 198, 282)
+margin = Rect2(170, 40, 290, 40)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_2"]
+resource_name = "walk_2"
+atlas = ExtResource("1_sheet")
+region = Rect2(788, 66, 184, 278)
+margin = Rect2(172, 44, 304, 44)
+filter_clip = true
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_attack_windup")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_attack_hit")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_stance")
+}],
+"loop": 0,
+"name": &"attack",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_knockdown")
+}],
+"loop": 0,
+"name": &"down",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_hurt")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_stagger")
+}],
+"loop": 0,
+"name": &"hurt",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_idle_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_idle_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_idle_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_idle_4")
+}],
+"loop": 1,
+"name": &"idle",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_knockback")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_knockdown")
+}],
+"loop": 0,
+"name": &"ko",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_pass")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_pass")
+}],
+"loop": 1,
+"name": &"walk",
+"speed": 1.0
+}]

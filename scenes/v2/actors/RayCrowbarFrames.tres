@@ -1,0 +1,192 @@
+[gd_resource type="SpriteFrames" format=3 uid="uid://djihnwg1r3ct1"]
+
+[ext_resource type="Texture2D" path="res://assets/art/v2/keyframes/rey_crowbar_keyframes.svg" id="1_sheet"]
+
+[sub_resource type="AtlasTexture" id="Atlas_attack_windup"]
+resource_name = "attack_windup"
+atlas = ExtResource("1_sheet")
+region = Rect2(50, 492, 196, 250)
+margin = Rect2(92, 60, 248, 60)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_attack_hit"]
+resource_name = "attack_hit"
+atlas = ExtResource("1_sheet")
+region = Rect2(420, 492, 302, 250)
+margin = Rect2(142, 60, 142, 60)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_attack_recover"]
+resource_name = "attack_recover"
+atlas = ExtResource("1_sheet")
+region = Rect2(794, 492, 188, 250)
+margin = Rect2(156, 60, 256, 60)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_hurt"]
+resource_name = "hurt"
+atlas = ExtResource("1_sheet")
+region = Rect2(54, 888, 248, 254)
+margin = Rect2(96, 56, 196, 56)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_knockback"]
+resource_name = "knockback"
+atlas = ExtResource("1_sheet")
+region = Rect2(378, 870, 280, 272)
+margin = Rect2(80, 38, 164, 38)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_idle_1"]
+resource_name = "idle_1"
+atlas = ExtResource("1_sheet")
+region = Rect2(70, 1292, 144, 250)
+margin = Rect2(152, 60, 300, 60)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_idle_2"]
+resource_name = "idle_2"
+atlas = ExtResource("1_sheet")
+region = Rect2(310, 1288, 144, 254)
+margin = Rect2(152, 56, 300, 56)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_idle_3"]
+resource_name = "idle_3"
+atlas = ExtResource("1_sheet")
+region = Rect2(550, 1292, 144, 250)
+margin = Rect2(152, 60, 300, 60)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_idle_4"]
+resource_name = "idle_4"
+atlas = ExtResource("1_sheet")
+region = Rect2(790, 1294, 144, 248)
+margin = Rect2(152, 62, 300, 62)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_jump_crouch"]
+resource_name = "jump_crouch"
+atlas = ExtResource("1_sheet")
+region = Rect2(902, 116, 188, 226)
+margin = Rect2(144, 84, 256, 84)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_jump_air"]
+resource_name = "jump_air"
+atlas = ExtResource("1_sheet")
+region = Rect2(1114, 32, 212, 310)
+margin = Rect2(136, 0, 232, 0)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_knockdown"]
+resource_name = "knockdown"
+atlas = ExtResource("1_sheet")
+region = Rect2(824, 934, 326, 208)
+margin = Rect2(106, 102, 118, 102)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_1"]
+resource_name = "walk_1"
+atlas = ExtResource("1_sheet")
+region = Rect2(268, 92, 162, 250)
+margin = Rect2(150, 60, 282, 60)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_pass"]
+resource_name = "walk_pass"
+atlas = ExtResource("1_sheet")
+region = Rect2(470, 88, 144, 254)
+margin = Rect2(152, 56, 300, 56)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_2"]
+resource_name = "walk_2"
+atlas = ExtResource("1_sheet")
+region = Rect2(670, 92, 148, 250)
+margin = Rect2(152, 60, 296, 60)
+filter_clip = true
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_attack_windup")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_attack_hit")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_attack_recover")
+}],
+"loop": 0,
+"name": &"crowbar_1",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_hurt")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_knockback")
+}],
+"loop": 0,
+"name": &"hurt",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_idle_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_idle_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_idle_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_idle_4")
+}],
+"loop": 1,
+"name": &"idle",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_jump_crouch")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_jump_air")
+}],
+"loop": 0,
+"name": &"jump",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_knockback")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_knockdown")
+}],
+"loop": 0,
+"name": &"ko",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_pass")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_pass")
+}],
+"loop": 1,
+"name": &"walk",
+"speed": 1.0
+}]
