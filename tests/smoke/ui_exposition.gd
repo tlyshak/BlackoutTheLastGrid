@@ -104,6 +104,10 @@ func _run() -> void:
 		return
 	gs.ResetRun()
 	gs.CurrentScenePath = ""
+	var gset: Node = root.get_node_or_null("GameSettings")
+	_check(gset != null, "GameSettings autoload not in tree")
+	if gset != null:
+		gset.GameVersion = 0   # pin v1: a persisted «v2» on this machine would route the exposition to v2/Main (T-V2-01)
 
 	# 1. The menu's New Game path is the exposition, and it loads.
 	var menu_scene: PackedScene = load(MENU_PATH)

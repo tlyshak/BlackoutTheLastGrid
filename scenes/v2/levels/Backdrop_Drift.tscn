@@ -1,0 +1,21 @@
+[gd_scene load_steps=7 format=3 uid="uid://bu8m1fn4aguw8"]
+
+[ext_resource type="PackedScene" uid="uid://b2p2i0v3m0xeh" path="res://scenes/v2/levels/SectionBackdrop.tscn" id="1_base"]
+[ext_resource type="Texture2D" uid="uid://dv5upr4gy76o7" path="res://assets/art/v2/backgrounds/level0_section2_ventilation_back.svg" id="2_back"]
+[ext_resource type="Texture2D" uid="uid://cg5yxc5mdkgr1" path="res://assets/art/v2/backgrounds/level0_section2_ventilation_mid.svg" id="3_mid"]
+[ext_resource type="Texture2D" uid="uid://bfkm1hlhhiilq" path="res://assets/art/v2/backgrounds/level0_section2_ventilation_floor.svg" id="4_floor"]
+[ext_resource type="Texture2D" uid="uid://puex54shemd1" path="res://assets/art/v2/backgrounds/level0_section1_mineface_mid.svg" id="5_mid_fill"]
+[ext_resource type="Texture2D" uid="uid://dhkl3ooaabfc0" path="res://assets/art/v2/backgrounds/level0_section1_mineface_floor.svg" id="6_floor_fill"]
+
+[node name="Backdrop_Drift" instance=ExtResource("1_base")]
+BackTexture = ExtResource("2_back")
+MidTexture = ExtResource("3_mid")
+FloorTexture = ExtResource("4_floor")
+LeftFillTexture = ExtResource("5_mid_fill")
+RightFillTexture = ExtResource("5_mid_fill")
+FloorFillTexture = ExtResource("6_floor_fill")
+LeftFillSlice = Vector2(370, 470)
+RightFillSlice = Vector2(370, 470)
+SectionX = 842.4
+FillFrom = -163.4
+FillTo = 2807

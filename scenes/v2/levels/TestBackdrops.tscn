@@ -1,0 +1,81 @@
+[gd_scene load_steps=6 format=3 uid="uid://bpx5dot6juaye"]
+
+[ext_resource type="PackedScene" uid="uid://dj2civlpl88b2" path="res://scenes/v2/levels/Backdrop_Face.tscn" id="1_face"]
+[ext_resource type="PackedScene" uid="uid://bu8m1fn4aguw8" path="res://scenes/v2/levels/Backdrop_Drift.tscn" id="2_drift"]
+[ext_resource type="PackedScene" uid="uid://bgngpp8wg67s7" path="res://scenes/v2/levels/Backdrop_Patrol.tscn" id="3_patrol"]
+
+[sub_resource type="Animation" id="Anim_pan"]
+resource_name = "pan"
+length = 24.0
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Camera2D:position:x")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 24),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [640.0, 8000.0]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_pan"]
+_data = {
+&"pan": SubResource("Anim_pan")
+}
+
+[node name="TestBackdrops" type="Node2D"]
+
+[node name="Backdrop_Face" parent="." instance=ExtResource("1_face")]
+
+[node name="Backdrop_Drift" parent="." instance=ExtResource("2_drift")]
+position = Vector2(2880, 0)
+
+[node name="Backdrop_Patrol" parent="." instance=ExtResource("3_patrol")]
+position = Vector2(5760, 0)
+
+[node name="PH_WalkBand" type="ColorRect" parent="."]
+offset_top = 300.0
+offset_right = 8640.0
+offset_bottom = 600.0
+mouse_filter = 2
+color = Color(0.2, 0.9, 0.4, 0.18)
+
+[node name="PH_Hero_Far" type="Polygon2D" parent="."]
+position = Vector2(900, 300)
+color = Color(0.878431, 0.541176, 0.117647, 1.0)
+polygon = PackedVector2Array(-22, -108, 22, -108, 22, 0, -22, 0)
+
+[node name="PH_Hero" type="Polygon2D" parent="."]
+position = Vector2(640, 450)
+color = Color(0.878431, 0.541176, 0.117647, 1.0)
+polygon = PackedVector2Array(-22, -108, 22, -108, 22, 0, -22, 0)
+
+[node name="PH_Hero_Near" type="Polygon2D" parent="."]
+position = Vector2(1160, 600)
+color = Color(0.878431, 0.541176, 0.117647, 1.0)
+polygon = PackedVector2Array(-22, -108, 22, -108, 22, 0, -22, 0)
+
+[node name="PH_NearLip" type="ColorRect" parent="."]
+z_index = 40
+offset_top = 601.0
+offset_right = 8640.0
+offset_bottom = 1080.0
+mouse_filter = 2
+color = Color(0.039216, 0.05098, 0.078431, 1.0)
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(640, 450)
+zoom = Vector2(1.5, 1.5)
+limit_left = 0
+limit_top = 0
+limit_right = 8640
+limit_bottom = 1080
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_pan")
+}
+autoplay = "pan"

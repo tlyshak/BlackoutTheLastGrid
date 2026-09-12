@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3 uid="uid://b22t1hblic328"]
+
+[ext_resource type="Script" path="res://scripts/Main.cs" id="1_main"]
+[ext_resource type="PackedScene" uid="uid://dkswkamsuv26r" path="res://scenes/v2/levels/Level00_Prologue.tscn" id="2_prologue"]
+
+[node name="Main" type="Node"]
+script = ExtResource("1_main")
+StartLevel = ExtResource("2_prologue")

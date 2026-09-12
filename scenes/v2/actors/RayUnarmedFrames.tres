@@ -1,0 +1,241 @@
+[gd_resource type="SpriteFrames" format=3 uid="uid://8u4h6252ynmf"]
+
+[ext_resource type="Texture2D" path="res://assets/art/v2/sprites/rey_unarmed_keyframes.svg" id="1_sheet"]
+
+[sub_resource type="AtlasTexture" id="Atlas_attack_windup"]
+resource_name = "attack_windup"
+atlas = ExtResource("1_sheet")
+region = Rect2(102, 492, 144, 250)
+margin = Rect2(86, 60, 184, 60)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_attack_hit"]
+resource_name = "attack_hit"
+atlas = ExtResource("1_sheet")
+region = Rect2(420, 492, 244, 250)
+margin = Rect2(84, 60, 84, 60)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_attack_recover"]
+resource_name = "attack_recover"
+atlas = ExtResource("1_sheet")
+region = Rect2(734, 492, 148, 250)
+margin = Rect2(98, 60, 180, 60)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_hurt"]
+resource_name = "hurt"
+atlas = ExtResource("1_sheet")
+region = Rect2(54, 888, 204, 254)
+margin = Rect2(38, 56, 124, 56)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_knockback"]
+resource_name = "knockback"
+atlas = ExtResource("1_sheet")
+region = Rect2(378, 870, 216, 272)
+margin = Rect2(22, 38, 112, 38)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_idle_1"]
+resource_name = "idle_1"
+atlas = ExtResource("1_sheet")
+region = Rect2(70, 1292, 130, 250)
+margin = Rect2(94, 60, 198, 60)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_idle_2"]
+resource_name = "idle_2"
+atlas = ExtResource("1_sheet")
+region = Rect2(310, 1288, 130, 254)
+margin = Rect2(94, 56, 198, 56)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_idle_3"]
+resource_name = "idle_3"
+atlas = ExtResource("1_sheet")
+region = Rect2(550, 1292, 130, 250)
+margin = Rect2(94, 60, 198, 60)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_idle_4"]
+resource_name = "idle_4"
+atlas = ExtResource("1_sheet")
+region = Rect2(790, 1294, 130, 248)
+margin = Rect2(94, 62, 198, 62)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_jump_crouch"]
+resource_name = "jump_crouch"
+atlas = ExtResource("1_sheet")
+region = Rect2(902, 116, 164, 226)
+margin = Rect2(86, 84, 164, 84)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_jump_air"]
+resource_name = "jump_air"
+atlas = ExtResource("1_sheet")
+region = Rect2(1114, 32, 172, 310)
+margin = Rect2(78, 0, 156, 0)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_knockdown"]
+resource_name = "knockdown"
+atlas = ExtResource("1_sheet")
+region = Rect2(824, 934, 268, 208)
+margin = Rect2(48, 102, 60, 102)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_kick"]
+resource_name = "kick"
+atlas = ExtResource("1_sheet")
+region = Rect2(990, 492, 252, 250)
+margin = Rect2(74, 60, 76, 60)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_1"]
+resource_name = "walk_1"
+atlas = ExtResource("1_sheet")
+region = Rect2(268, 92, 150, 250)
+margin = Rect2(92, 60, 178, 60)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_pass"]
+resource_name = "walk_pass"
+atlas = ExtResource("1_sheet")
+region = Rect2(470, 88, 132, 254)
+margin = Rect2(94, 56, 196, 56)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_2"]
+resource_name = "walk_2"
+atlas = ExtResource("1_sheet")
+region = Rect2(670, 92, 148, 250)
+margin = Rect2(94, 60, 180, 60)
+filter_clip = true
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_attack_windup")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_attack_hit")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_attack_recover")
+}],
+"loop": 0,
+"name": &"heavy",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_hurt")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_knockback")
+}],
+"loop": 0,
+"name": &"hurt",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_idle_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_idle_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_idle_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_idle_4")
+}],
+"loop": 1,
+"name": &"idle",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_jump_crouch")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_jump_air")
+}],
+"loop": 0,
+"name": &"jump",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_knockback")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_knockdown")
+}],
+"loop": 0,
+"name": &"ko",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_attack_windup")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_attack_hit")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_attack_recover")
+}],
+"loop": 0,
+"name": &"light_1",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_attack_windup")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_attack_hit")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_attack_recover")
+}],
+"loop": 0,
+"name": &"light_2",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_attack_windup")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_kick")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_attack_recover")
+}],
+"loop": 0,
+"name": &"light_3",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_pass")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_pass")
+}],
+"loop": 1,
+"name": &"walk",
+"speed": 1.0
+}]

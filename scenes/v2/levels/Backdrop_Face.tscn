@@ -1,0 +1,14 @@
+[gd_scene load_steps=5 format=3 uid="uid://dj2civlpl88b2"]
+
+[ext_resource type="PackedScene" uid="uid://b2p2i0v3m0xeh" path="res://scenes/v2/levels/SectionBackdrop.tscn" id="1_base"]
+[ext_resource type="Texture2D" uid="uid://bby1cl2v4v8ku" path="res://assets/art/v2/backgrounds/level0_section1_mineface_back.svg" id="2_back"]
+[ext_resource type="Texture2D" uid="uid://puex54shemd1" path="res://assets/art/v2/backgrounds/level0_section1_mineface_mid.svg" id="3_mid"]
+[ext_resource type="Texture2D" uid="uid://dhkl3ooaabfc0" path="res://assets/art/v2/backgrounds/level0_section1_mineface_floor.svg" id="4_floor"]
+
+[node name="Backdrop_Face" instance=ExtResource("1_base")]
+BackTexture = ExtResource("2_back")
+MidTexture = ExtResource("3_mid")
+FloorTexture = ExtResource("4_floor")
+RightFillSlice = Vector2(370, 470)
+SectionX = 0.0
+FillTo = 2716.6

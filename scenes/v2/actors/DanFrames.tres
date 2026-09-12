@@ -1,0 +1,89 @@
+[gd_resource type="SpriteFrames" format=3 uid="uid://bvb3wbf763ykd"]
+
+[ext_resource type="Texture2D" path="res://assets/art/v2/sprites/dan_keyframes.svg" id="1_sheet"]
+
+[sub_resource type="AtlasTexture" id="Atlas_idle_1"]
+resource_name = "idle_1"
+atlas = ExtResource("1_sheet")
+region = Rect2(74, 1300, 126, 242)
+margin = Rect2(96, 80, 198, 80)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_idle_2"]
+resource_name = "idle_2"
+atlas = ExtResource("1_sheet")
+region = Rect2(314, 1296, 126, 246)
+margin = Rect2(96, 76, 198, 76)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_idle_3"]
+resource_name = "idle_3"
+atlas = ExtResource("1_sheet")
+region = Rect2(554, 1300, 126, 242)
+margin = Rect2(96, 80, 198, 80)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_idle_4"]
+resource_name = "idle_4"
+atlas = ExtResource("1_sheet")
+region = Rect2(794, 1302, 126, 240)
+margin = Rect2(96, 82, 198, 82)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_1"]
+resource_name = "walk_1"
+atlas = ExtResource("1_sheet")
+region = Rect2(272, 100, 142, 242)
+margin = Rect2(94, 80, 182, 80)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_pass"]
+resource_name = "walk_pass"
+atlas = ExtResource("1_sheet")
+region = Rect2(474, 96, 126, 246)
+margin = Rect2(96, 76, 198, 76)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_2"]
+resource_name = "walk_2"
+atlas = ExtResource("1_sheet")
+region = Rect2(674, 100, 142, 242)
+margin = Rect2(96, 80, 182, 80)
+filter_clip = true
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_idle_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_idle_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_idle_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_idle_4")
+}],
+"loop": 1,
+"name": &"idle",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_pass")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_pass")
+}],
+"loop": 1,
+"name": &"walk",
+"speed": 1.0
+}]

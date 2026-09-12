@@ -84,6 +84,17 @@ const RESPAWN_MARGIN := 0.4          # seconds on top of LevelBase.RespawnDelay 
 const LINE_WALK_MIN := 200.0        # px of walk a route-point line gets before a prop prompt can hide its bubble (~0.9 s)
 const CP_DRIFT := Vector2(2900, 450)
 
+# The scene set under test. A v2 script (tests/smoke/v2_level_prologue.gd) extends this one and overrides
+# these three to run the same steps against scenes/v2/ — the v1 constants stay the defaults.
+func _name() -> String:
+	return NAME
+
+func _main_path() -> String:
+	return MAIN_PATH
+
+func _prologue_path() -> String:
+	return PROLOGUE_PATH
+
 var _started := false
 var _frames := 0
 var _failures: Array[String] = []
@@ -98,7 +109,7 @@ func _process(_delta: float) -> bool:
 		_run()
 	_frames += 1
 	if _frames > MAX_FRAMES:
-		print("SMOKE %s FAIL: exceeded %d frames without quit()" % [NAME, MAX_FRAMES])
+		print("SMOKE %s FAIL: exceeded %d frames without quit()" % [_name(), MAX_FRAMES])
 		quit(1)
 	return false
 
@@ -129,10 +140,10 @@ func _finish() -> void:
 	if gs != null:
 		gs.ResetRun()
 	if _failures.is_empty():
-		print("SMOKE %s PASS" % NAME)
+		print("SMOKE %s PASS" % _name())
 		quit(0)
 	else:
-		print("SMOKE %s FAIL: %s" % [NAME, "; ".join(_failures)])
+		print("SMOKE %s FAIL: %s" % [_name(), "; ".join(_failures)])
 		quit(1)
 
 func _tap(action: String) -> void:
@@ -232,6 +243,32 @@ func _check_pile_band(level: Node, pile_name: String, player: Node) -> void:
 			"%s blocks Y %.0f..%.0f, expected the whole walk band %.0f..%.0f — it could be walked around in depth"
 			% [pile_name, ptop, pbottom, player.FloorTop, player.FloorBottom])
 
+# Segment 0's obstacle: the crate row at CRATE_X spans the whole band, blocks a walk at every depth
+# and yields to a jump. The v2 script overrides this — the author's playtest of 2026-09-12 took
+# the crates out of the v2 first room (tests/smoke/v2_level_prologue.gd).
+func _check_crate(level: Node, player: Node) -> void:
+	var crate: Node = level.get_node_or_null("Crate")
+	_check(crate != null, "the prologue has no 'Crate'")
+	if crate != null and crate.Shape != null and crate.Shape.shape is RectangleShape2D:
+		var cbox: RectangleShape2D = crate.Shape.shape
+		var ctop: float = crate.Shape.global_position.y - cbox.size.y * 0.5
+		var cbottom: float = crate.Shape.global_position.y + cbox.size.y * 0.5
+		_check(ctop <= player.FloorTop and cbottom >= player.FloorBottom,
+			"the crate blocks Y %.0f..%.0f, expected the whole walk band" % [ctop, cbottom])
+	for crate_depth in [player.FloorTop + BAND_MARGIN, 450.0, player.FloorBottom - BAND_MARGIN]:
+		var blocked: float = await _walk_right(player, Vector2(BEFORE_CRATE.x, crate_depth))
+		_check(blocked <= CRATE_BLOCK_MAX_X, "walking right at Y %.0f the hero reached x %.0f, past the crate at x %.0f" % [crate_depth, blocked, CRATE_X])
+	_release_all()
+	player.global_position = BEFORE_CRATE
+	await _step(2)
+	Input.action_press("move_right")
+	await _tap("jump")
+	await _step(JUMP_CAP)
+	Input.action_release("move_right")
+	await _step(2)
+	_check(player.global_position.x >= CRATE_CLEAR_X, "jumping the crate the hero only reached x %.0f, expected past %.0f" % [player.global_position.x, CRATE_CLEAR_X])
+	_release_all()
+
 func _run() -> void:
 	for a in ["move_right", "move_up", "move_down", "jump", "attack", "heavy_attack", "interact", "flashlight"]:
 		_check(InputMap.has_action(a), "InputMap missing action '%s'" % a)
@@ -244,8 +281,8 @@ func _run() -> void:
 	gs.ResetRun()
 	gs.CurrentScenePath = ""
 
-	var main_scene: PackedScene = load(MAIN_PATH)
-	_check(main_scene != null, "%s failed to load" % MAIN_PATH)
+	var main_scene: PackedScene = load(_main_path())
+	_check(main_scene != null, "%s failed to load" % _main_path())
 	if main_scene == null:
 		_finish()
 		return
@@ -287,9 +324,9 @@ func _run() -> void:
 	for child in root.get_children():
 		_check(not _is_script(child, "Exposition.cs"), "an Exposition node is in the tree when the run boots through Main")
 
-	_check(level.name == "Level00_Prologue" and level.scene_file_path == PROLOGUE_PATH,
+	_check(level.name == "Level00_Prologue" and level.scene_file_path == _prologue_path(),
 		"Main.CurrentLevel is '%s' (%s), expected Level00_Prologue" % [level.name, level.scene_file_path])
-	_check(gs.CurrentScenePath == PROLOGUE_PATH, "GameState.CurrentScenePath='%s' after boot, expected %s" % [gs.CurrentScenePath, PROLOGUE_PATH])
+	_check(gs.CurrentScenePath == _prologue_path(), "GameState.CurrentScenePath='%s' after boot, expected %s" % [gs.CurrentScenePath, _prologue_path()])
 	_check(level.get("y_sort_enabled") == true, "the prologue root lacks y_sort_enabled")
 	_check(level.CutsceneSkippable == true, "Level00_Prologue.CutsceneSkippable=%s, expected true" % level.CutsceneSkippable)
 	var counts: Array = [Array(level.IntroLines).size(), Array(level.ChargeLines).size(), Array(level.BlastLines).size(),
@@ -370,27 +407,7 @@ func _run() -> void:
 	_check(hint != null and hint.IsShown == true, "the move hint never appeared where the hero walks")
 	await _wait_until(func(): return lines.has(level.DanMoveLine), BUBBLE_CAP)
 	_check(lines.has(level.DanMoveLine), "Dan did not say the move line (%s)" % [lines])
-	var crate: Node = level.get_node_or_null("Crate")
-	_check(crate != null, "the prologue has no 'Crate'")
-	if crate != null and crate.Shape != null and crate.Shape.shape is RectangleShape2D:
-		var cbox: RectangleShape2D = crate.Shape.shape
-		var ctop: float = crate.Shape.global_position.y - cbox.size.y * 0.5
-		var cbottom: float = crate.Shape.global_position.y + cbox.size.y * 0.5
-		_check(ctop <= player.FloorTop and cbottom >= player.FloorBottom,
-			"the crate blocks Y %.0f..%.0f, expected the whole walk band" % [ctop, cbottom])
-	for crate_depth in [player.FloorTop + BAND_MARGIN, 450.0, player.FloorBottom - BAND_MARGIN]:
-		var blocked: float = await _walk_right(player, Vector2(BEFORE_CRATE.x, crate_depth))
-		_check(blocked <= CRATE_BLOCK_MAX_X, "walking right at Y %.0f the hero reached x %.0f, past the crate at x %.0f" % [crate_depth, blocked, CRATE_X])
-	_release_all()
-	player.global_position = BEFORE_CRATE
-	await _step(2)
-	Input.action_press("move_right")
-	await _tap("jump")
-	await _step(JUMP_CAP)
-	Input.action_release("move_right")
-	await _step(2)
-	_check(player.global_position.x >= CRATE_CLEAR_X, "jumping the crate the hero only reached x %.0f, expected past %.0f" % [player.global_position.x, CRATE_CLEAR_X])
-	_release_all()
+	await _check_crate(level, player)
 
 	# 5. The jam blocks the drift at every depth before the blast; the charge panel is reachable.
 	for depth in [player.FloorTop + BAND_MARGIN, 450.0, player.FloorBottom - BAND_MARGIN]:

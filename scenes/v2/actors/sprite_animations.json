@@ -1,0 +1,56 @@
+{
+  "_comment": "Animation table for tools/build_spriteframes.gd (T-V2-01 01b). Lengths and key times are v1's AnimationPlayer values, frozen; each key is [time, pose id from <sheet>.frames.json]. The SpriteFrames animation holds the poses in key order (duplicates allowed), so the AnimationPlayer's Sprite:frame keys are 0,1,2,... at the listed times. tests/smoke/v2_actors.gd asserts the v2 scenes match this table.",
+  "actors": {
+    "RayUnarmed": {
+      "sheet": "res://assets/art/v2/sprites/rey_unarmed_keyframes.svg",
+      "map": "res://assets/art/v2/keyframes/rey_unarmed_keyframes.frames.json",
+      "output": "res://scenes/v2/actors/RayUnarmedFrames.tres",
+      "animations": {
+        "idle": {"length": 1.6, "loop": true, "keys": [[0.0, "idle_1"], [0.4, "idle_2"], [0.8, "idle_3"], [1.2, "idle_4"]]},
+        "walk": {"length": 0.6, "loop": true, "keys": [[0.0, "walk_1"], [0.15, "walk_pass"], [0.3, "walk_2"], [0.45, "walk_pass"]]},
+        "jump": {"length": 0.25, "loop": false, "keys": [[0.0, "jump_crouch"], [0.1, "jump_air"]]},
+        "light_1": {"length": 0.3, "loop": false, "keys": [[0.0, "attack_windup"], [0.08, "attack_hit"], [0.18, "attack_recover"]]},
+        "light_2": {"length": 0.3, "loop": false, "keys": [[0.0, "attack_windup"], [0.08, "attack_hit"], [0.18, "attack_recover"]]},
+        "light_3": {"length": 0.4, "loop": false, "keys": [[0.0, "attack_windup"], [0.12, "kick"], [0.24, "attack_recover"]]},
+        "heavy": {"length": 0.55, "loop": false, "keys": [[0.0, "attack_windup"], [0.22, "attack_hit"], [0.36, "attack_recover"]]},
+        "hurt": {"length": 0.3, "loop": false, "keys": [[0.0, "hurt"], [0.12, "knockback"]]},
+        "ko": {"length": 0.6, "loop": false, "keys": [[0.0, "knockback"], [0.3, "knockdown"]]}
+      }
+    },
+    "RayCrowbar": {
+      "sheet": "res://assets/art/v2/sprites/rey_crowbar_keyframes.svg",
+      "map": "res://assets/art/v2/keyframes/rey_crowbar_keyframes.frames.json",
+      "output": "res://scenes/v2/actors/RayCrowbarFrames.tres",
+      "animations": {
+        "idle": {"length": 1.6, "loop": true, "keys": [[0.0, "idle_1"], [0.4, "idle_2"], [0.8, "idle_3"], [1.2, "idle_4"]]},
+        "walk": {"length": 0.6, "loop": true, "keys": [[0.0, "walk_1"], [0.15, "walk_pass"], [0.3, "walk_2"], [0.45, "walk_pass"]]},
+        "jump": {"length": 0.25, "loop": false, "keys": [[0.0, "jump_crouch"], [0.1, "jump_air"]]},
+        "hurt": {"length": 0.3, "loop": false, "keys": [[0.0, "hurt"], [0.12, "knockback"]]},
+        "ko": {"length": 0.6, "loop": false, "keys": [[0.0, "knockback"], [0.3, "knockdown"]]},
+        "crowbar_1": {"length": 0.55, "loop": false, "keys": [[0.0, "attack_windup"], [0.22, "attack_hit"], [0.36, "attack_recover"]]}
+      }
+    },
+    "Dan": {
+      "sheet": "res://assets/art/v2/sprites/dan_keyframes.svg",
+      "map": "res://assets/art/v2/keyframes/dan_keyframes.frames.json",
+      "output": "res://scenes/v2/actors/DanFrames.tres",
+      "animations": {
+        "idle": {"length": 1.6, "loop": true, "keys": [[0.0, "idle_1"], [0.4, "idle_2"], [0.8, "idle_3"], [1.2, "idle_4"]]},
+        "walk": {"length": 0.6, "loop": true, "keys": [[0.0, "walk_1"], [0.15, "walk_pass"], [0.3, "walk_2"], [0.45, "walk_pass"]]}
+      }
+    },
+    "Guard": {
+      "sheet": "res://assets/art/v2/sprites/guard_keyframes.svg",
+      "map": "res://assets/art/v2/keyframes/guard_keyframes.frames.json",
+      "output": "res://scenes/v2/actors/GuardFrames.tres",
+      "animations": {
+        "idle": {"length": 1.6, "loop": true, "keys": [[0.0, "idle_1"], [0.4, "idle_2"], [0.8, "idle_3"], [1.2, "idle_4"]]},
+        "walk": {"length": 0.6, "loop": true, "keys": [[0.0, "walk_1"], [0.15, "walk_pass"], [0.3, "walk_2"], [0.45, "walk_pass"]]},
+        "attack": {"length": 0.55, "loop": false, "keys": [[0.0, "attack_windup"], [0.3, "attack_hit"], [0.45, "stance"]]},
+        "hurt": {"length": 0.25, "loop": false, "keys": [[0.0, "hurt"], [0.12, "stagger"]]},
+        "ko": {"length": 0.6, "loop": false, "keys": [[0.0, "knockback"], [0.3, "knockdown"]]},
+        "down": {"length": 0.1, "loop": false, "keys": [[0.0, "knockdown"]]}
+      }
+    }
+  }
+}

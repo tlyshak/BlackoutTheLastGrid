@@ -3,13 +3,28 @@ using Godot;
 namespace BlackoutLastGrid.Core;
 
 /// <summary>
-/// Autoload holding the machine preferences — window mode and master volume — persisted to
-/// <see cref="ConfigPath"/> with a <see cref="ConfigFile"/>. Registered in project.godot as
-/// "GameSettings". It is the only place that calls <c>DisplayServer.WindowSetMode</c> or
-/// <c>AudioServer</c> for the master bus and the only owner of the global
-/// <c>toggle_fullscreen</c> hotkey, so the settings screen and the hotkey can never disagree.
-/// This is not run state (that lives in <see cref="GameState"/> and is reset by «New Game»):
-/// these values are per machine, survive a new run and are never written into a save slot.
+/// Which prologue a «New Game» starts (GAME_DESIGN §6a): <see cref="V1"/> is the procedural
+/// rig-and-placeholder build under <c>scenes/</c>, <see cref="V2"/> the drawn-asset build under
+/// <c>scenes/v2/</c>. Both run the same scripts; only the scenes differ.
+/// </summary>
+public enum GameVersion
+{
+    /// <summary>The v1 scene set (<c>res://scenes/Main.tscn</c>).</summary>
+    V1 = 0,
+
+    /// <summary>The v2 scene set (<c>res://scenes/v2/Main.tscn</c>).</summary>
+    V2 = 1,
+}
+
+/// <summary>
+/// Autoload holding the machine preferences — window mode, master volume and the game version a
+/// new run starts in — persisted to <see cref="ConfigPath"/> with a <see cref="ConfigFile"/>.
+/// Registered in project.godot as "GameSettings". It is the only place that calls
+/// <c>DisplayServer.WindowSetMode</c> or <c>AudioServer</c> for the master bus and the only owner
+/// of the global <c>toggle_fullscreen</c> hotkey, so the settings screen and the hotkey can never
+/// disagree. This is not run state (that lives in <see cref="GameState"/> and is reset by
+/// «New Game»): these values are per machine, survive a new run and are never written into a
+/// save slot — a run remembers its version through <see cref="GameState.CurrentScenePath"/>.
 /// </summary>
 public partial class GameSettings : Node
 {
@@ -20,8 +35,10 @@ public partial class GameSettings : Node
 
     private const string SectionDisplay = "display";
     private const string SectionAudio = "audio";
+    private const string SectionGame = "game";
     private const string KeyFullscreen = "fullscreen";
     private const string KeyMasterVolume = "master_volume";
+    private const string KeyVersion = "version";
 
     /// <summary>Index of the always-present <c>Master</c> audio bus.</summary>
     private const int MasterBus = 0;
@@ -36,6 +53,10 @@ public partial class GameSettings : Node
     /// <summary>Emitted when <see cref="MasterVolume"/> actually changes; the payload is linear 0…1.</summary>
     [Signal]
     public delegate void MasterVolumeChangedEventHandler(float volume);
+
+    /// <summary>Emitted when <see cref="GameVersion"/> actually changes; the payload is the enum as an <c>int</c>.</summary>
+    [Signal]
+    public delegate void GameVersionChangedEventHandler(int version);
 
     /// <summary>
     /// Where the preferences live. Settable at runtime so a smoke test can redirect it to a
@@ -52,8 +73,12 @@ public partial class GameSettings : Node
     /// <summary>Linear volume at or below which the master bus is muted instead of set to −∞ dB.</summary>
     [Export] public float MuteThreshold { get; set; } = 0.001f;
 
+    /// <summary>Game version used when <see cref="ConfigPath"/> does not exist yet or holds an unknown value.</summary>
+    [Export] public GameVersion DefaultGameVersion { get; set; } = GameVersion.V1;
+
     private bool _fullscreen = true;
     private float _masterVolume = 0.8f;
+    private GameVersion _gameVersion = GameVersion.V1;
 
     /// <summary>
     /// <c>true</c> while the game runs fullscreen. Setting it <b>always</b> applies the mode to
@@ -95,6 +120,27 @@ public partial class GameSettings : Node
             {
                 EmitSignalMasterVolumeChanged(_masterVolume);
             }
+        }
+    }
+
+    /// <summary>
+    /// The scene set a «New Game» starts in. Read once, by the exposition when it hands over to
+    /// the run; nothing applies it to a run already going, so flipping it mid-run changes
+    /// nothing until the next «New Game». Emits <see cref="GameVersionChangedEventHandler"/>
+    /// only on a real change.
+    /// </summary>
+    public GameVersion GameVersion
+    {
+        get => _gameVersion;
+        set
+        {
+            if (value == _gameVersion)
+            {
+                return;
+            }
+
+            _gameVersion = value;
+            EmitSignalGameVersionChanged((int)_gameVersion);
         }
     }
 
@@ -140,8 +186,9 @@ public partial class GameSettings : Node
 
     /// <summary>
     /// Reads the preferences from <see cref="ConfigPath"/> and applies them. A missing or broken
-    /// file is normal (first launch) and falls back to <see cref="DefaultFullscreen"/> and
-    /// <see cref="DefaultMasterVolume"/> without logging an error.
+    /// file is normal (first launch) and falls back to <see cref="DefaultFullscreen"/>,
+    /// <see cref="DefaultMasterVolume"/> and <see cref="DefaultGameVersion"/> without logging an
+    /// error; so does a version number outside the <see cref="Core.GameVersion"/> range.
     /// </summary>
     public void Load()
     {
@@ -150,11 +197,13 @@ public partial class GameSettings : Node
         {
             Fullscreen = DefaultFullscreen;
             MasterVolume = DefaultMasterVolume;
+            GameVersion = DefaultGameVersion;
             return;
         }
 
         Fullscreen = config.GetValue(SectionDisplay, KeyFullscreen, DefaultFullscreen).AsBool();
         MasterVolume = config.GetValue(SectionAudio, KeyMasterVolume, DefaultMasterVolume).AsSingle();
+        GameVersion = ParseVersion(config.GetValue(SectionGame, KeyVersion, (int)DefaultGameVersion).AsInt32());
     }
 
     /// <summary>Writes the current preferences to <see cref="ConfigPath"/>; a write error warns, never throws.</summary>
@@ -163,6 +212,7 @@ public partial class GameSettings : Node
         var config = new ConfigFile();
         config.SetValue(SectionDisplay, KeyFullscreen, _fullscreen);
         config.SetValue(SectionAudio, KeyMasterVolume, _masterVolume);
+        config.SetValue(SectionGame, KeyVersion, (int)_gameVersion);
 
         Error error = config.Save(ConfigPath);
         if (error != Error.Ok)
@@ -170,6 +220,10 @@ public partial class GameSettings : Node
             GD.PushWarning($"{Name}: could not write '{ConfigPath}' ({error}); settings stay for this session only.");
         }
     }
+
+    /// <summary>Maps a stored version number back to the enum; anything outside the range is <see cref="DefaultGameVersion"/>.</summary>
+    private GameVersion ParseVersion(int stored) =>
+        System.Enum.IsDefined(typeof(GameVersion), stored) ? (GameVersion)stored : DefaultGameVersion;
 
     /// <summary>Applies the stored window mode; a no-op under the headless display driver.</summary>
     private void ApplyFullscreen()
