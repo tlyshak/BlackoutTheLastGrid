@@ -16,6 +16,7 @@ namespace BlackoutLastGrid.Enemies;
 public partial class Guard : CharacterBody2D, IHittable
 {
     private static readonly StringName ResetAnimation = "RESET";
+    private static readonly StringName DownAnimation = "down";
 
     /// <summary>Emitted after every hit that was applied, with the remaining HP.</summary>
     [Signal]
@@ -408,9 +409,30 @@ public partial class Guard : CharacterBody2D, IHittable
     public bool TakeDamage(float damage, float knockback, bool knockdown, int hitStopFrames) =>
         TakeHit(new HitInfo(damage, knockback, knockdown, hitStopFrames, DepthTolerance, GlobalPosition.Y));
 
-    /// <summary>Lays the visual on its side (knockdown) or stands it back up.</summary>
-    /// <param name="down"><c>true</c> to rotate the visual by 90°.</param>
-    public void SetDown(bool down) => Visual.Rotation = down ? Mathf.Pi / 2f : 0f;
+    /// <summary>
+    /// Shows the knockdown pose or stands back up. A scene whose <see cref="AnimationPlayer"/>
+    /// has a <c>down</c> animation (the v2 sprite guard) plays it and returns through
+    /// <see cref="ResetPose"/>; without one (the v1 rig) the visual is laid on its side by 90°.
+    /// </summary>
+    /// <param name="down"><c>true</c> for the knockdown pose.</param>
+    public void SetDown(bool down)
+    {
+        if (AnimationPlayer.HasAnimation(DownAnimation))
+        {
+            if (down)
+            {
+                PlayAnimation(DownAnimation);
+            }
+            else
+            {
+                ResetPose();
+            }
+
+            return;
+        }
+
+        Visual.Rotation = down ? Mathf.Pi / 2f : 0f;
+    }
 
     /// <summary>Darkens the visual (KO) or restores its normal colour; cancels a running flash.</summary>
     /// <param name="dimmed"><c>true</c> to dim.</param>
