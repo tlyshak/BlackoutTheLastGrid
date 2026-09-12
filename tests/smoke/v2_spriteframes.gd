@@ -2,12 +2,16 @@ extends SceneTree
 # Smoke: the v2 keyframe sprite pipeline (T-V2-01 01b) — the four generated SpriteFrames in
 # scenes/v2/actors/*Frames.tres are exactly what tools/build_spriteframes.gd derives from the
 # region maps (assets/art/v2/keyframes/<sheet>.frames.json) and the animation table
-# (scenes/v2/actors/sprite_animations.json): the sheets import at svg/scale 2.0 (1360x1600 for the
-# 680x800 viewBox), every table animation exists with one frame per key (>= 1) and the table's loop
+# (scenes/v2/actors/sprite_animations.json): the sheets are the derived copies under
+# assets/art/v2/sprites/ (tools/derive_sprite_sheets.py: the author's keyframe boards without the
+# baked canvas rect, row stripes and labels) and import at svg/scale 2.0 (1360x1600 for the 680x800
+# viewBox), every table animation exists with one frame per key (>= 1) and the table's loop
 # flag, every frame is an AtlasTexture on the sheet whose region is the pose bbox x2 and lies inside
 # the texture, whose margin pads it to the sheet's uniform cell (region.size + margin.size is the
 # same for every frame of a sheet), whose feet line and origin x land on the cell's shared feet
-# line / origin (no per-pose centring), and nothing else is in the resource (no leftover
+# line / origin (no per-pose centring), whose four corner texels are fully transparent (the pose
+# bbox is tight to the ink, so an opaque corner means the sheet still carries the board background
+# and the actor would draw a dark card), and nothing else is in the resource (no leftover
 # "default"). Then the three v2 actor scenes: Visual/Sprite carries the right SpriteFrames at
 # scale 0.5, never autoplays, and its position puts the cell's feet line on the actor origin
 # (Visual.position.y + Sprite.position.y + (feet - cellH/2) * 0.5 == 0 +- 1 px, with Visual at
@@ -19,7 +23,8 @@ const NAME := "v2_spriteframes"   # must equal the file basename
 # Safety net: quit(1) instead of hanging into the runner timeout (60 s).
 const MAX_FRAMES := 600
 const TABLE_PATH := "res://scenes/v2/actors/sprite_animations.json"
-const IMPORT_SCALE := 2.0       # svg/scale in the keyframe .import sidecars
+const IMPORT_SCALE := 2.0       # svg/scale in the sprites/*.svg.import sidecars
+const SHEET_DIR := "res://assets/art/v2/sprites/"   # the derived sheets; keyframes/ still has the board chrome
 const SPRITE_SCALE := Vector2(0.5, 0.5)
 const FEET_TOL := 1.0           # px the feet line may miss the actor origin by
 # actor id in the table -> the v2 scene that must carry its frames
@@ -87,10 +92,13 @@ func _check_actor(id: String, actor: Dictionary) -> void:
 	if map == null or not (map is Dictionary) or not map.has("poses") or not map.has("uniform_cell"):
 		_check(false, "%s: region map %s unusable" % [id, actor.get("map", "")])
 		return
+	_check(String(actor["sheet"]).begins_with(SHEET_DIR), "%s: table sheet %s is not under %s (the keyframe boards carry a baked background)" % [id, actor["sheet"], SHEET_DIR])
 	var tex: Texture2D = load(actor["sheet"])
 	_check(tex != null, "%s: sheet %s did not load" % [id, actor["sheet"]])
 	if tex == null:
 		return
+	var texels: Image = tex.get_image()
+	_check(texels != null, "%s: sheet %s has no readable image (cannot check the region corners)" % [id, actor["sheet"]])
 	var expected_size := Vector2(float(map["viewbox"][0]), float(map["viewbox"][1])) * IMPORT_SCALE
 	_check(tex.get_size() == expected_size, "%s: sheet imports at %s, expected %s (svg/scale=%s in the .import sidecar)" % [id, tex.get_size(), expected_size, IMPORT_SCALE])
 	var s: float = IMPORT_SCALE
@@ -122,12 +130,12 @@ func _check_actor(id: String, actor: Dictionary) -> void:
 		_check(frames.get_animation_loop(anim_name) == bool(anims[anim_name].get("loop", false)), "%s/%s: loop=%s, expected %s" % [id, anim_name, frames.get_animation_loop(anim_name), anims[anim_name].get("loop", false)])
 		_check(is_equal_approx(frames.get_animation_speed(anim_name), 1.0), "%s/%s: speed=%s, expected 1.0 (never played)" % [id, anim_name, frames.get_animation_speed(anim_name)])
 		for i in mini(count, keys.size()):
-			_check_frame(id, anim_name, i, String(keys[i][1]), frames.get_frame_texture(anim_name, i), tex, poses, feet_per_pose, s, cell_size, feet_y, origin_x)
+			_check_frame(id, anim_name, i, String(keys[i][1]), frames.get_frame_texture(anim_name, i), tex, texels, poses, feet_per_pose, s, cell_size, feet_y, origin_x)
 
 	if ACTOR_SCENES.has(id):
 		_check_scene(id, ACTOR_SCENES[id], actor["output"], cell_size, feet_y)
 
-func _check_frame(id: String, anim_name: String, i: int, pose_id: String, texture: Texture2D, sheet: Texture2D, poses: Dictionary, feet_per_pose: Dictionary, s: float, cell_size: Vector2, feet_y: float, origin_x: float) -> void:
+func _check_frame(id: String, anim_name: String, i: int, pose_id: String, texture: Texture2D, sheet: Texture2D, texels: Image, poses: Dictionary, feet_per_pose: Dictionary, s: float, cell_size: Vector2, feet_y: float, origin_x: float) -> void:
 	var label := "%s/%s[%d]=%s" % [id, anim_name, i, pose_id]
 	_check(poses.has(pose_id), "%s: pose not in the region map" % label)
 	if not poses.has(pose_id):
@@ -152,6 +160,20 @@ func _check_frame(id: String, anim_name: String, i: int, pose_id: String, textur
 		_check(is_equal_approx(feet, feet_y), "%s: feet line at %s in the cell, expected the shared %s" % [label, feet, feet_y])
 	var ox: float = atlas.margin.position.x + (float(pose["origin"][0]) - float(pose["x"])) * s
 	_check(is_equal_approx(ox, origin_x), "%s: origin x at %s in the cell, expected the shared %s" % [label, ox, origin_x])
+	if texels != null:
+		_check_region_corners(label, texels, atlas.region)
+
+# The "no card" check: the pose bbox is tight to the ink and no figure fills its corners, so the four
+# corner texels of the region must be fully transparent. An opaque corner means the texture still
+# carries the sheet's board background (the keyframes/ original) and the actor draws a dark card.
+func _check_region_corners(label: String, texels: Image, region: Rect2) -> void:
+	var r := Rect2i(region)
+	var size: Vector2i = texels.get_size()
+	for corner in [r.position, Vector2i(r.end.x - 1, r.position.y), Vector2i(r.position.x, r.end.y - 1), r.end - Vector2i.ONE]:
+		if not Rect2i(Vector2i.ZERO, size).has_point(corner):
+			continue
+		var a: float = texels.get_pixelv(corner).a
+		_check(is_zero_approx(a), "%s: corner texel %s of the region is opaque (alpha %.2f) - the sheet still carries the board background, so the actor draws a dark card; derive it with tools/derive_sprite_sheets.py and point the table at assets/art/v2/sprites/" % [label, corner, a])
 
 # The actor scene wiring: the right SpriteFrames, scale 0.5, no autoplay, feet on the origin.
 func _check_scene(id: String, scene_path: String, frames_path: String, cell_size: Vector2, feet_y: float) -> void:

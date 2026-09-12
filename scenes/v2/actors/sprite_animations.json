@@ -2,7 +2,7 @@
   "_comment": "Animation table for tools/build_spriteframes.gd (T-V2-01 01b). Lengths and key times are v1's AnimationPlayer values, frozen; each key is [time, pose id from <sheet>.frames.json]. The SpriteFrames animation holds the poses in key order (duplicates allowed), so the AnimationPlayer's Sprite:frame keys are 0,1,2,... at the listed times. tests/smoke/v2_actors.gd asserts the v2 scenes match this table.",
   "actors": {
     "RayUnarmed": {
-      "sheet": "res://assets/art/v2/keyframes/rey_unarmed_keyframes.svg",
+      "sheet": "res://assets/art/v2/sprites/rey_unarmed_keyframes.svg",
       "map": "res://assets/art/v2/keyframes/rey_unarmed_keyframes.frames.json",
       "output": "res://scenes/v2/actors/RayUnarmedFrames.tres",
       "animations": {
@@ -18,7 +18,7 @@
       }
     },
     "RayCrowbar": {
-      "sheet": "res://assets/art/v2/keyframes/rey_crowbar_keyframes.svg",
+      "sheet": "res://assets/art/v2/sprites/rey_crowbar_keyframes.svg",
       "map": "res://assets/art/v2/keyframes/rey_crowbar_keyframes.frames.json",
       "output": "res://scenes/v2/actors/RayCrowbarFrames.tres",
       "animations": {
@@ -31,7 +31,7 @@
       }
     },
     "Dan": {
-      "sheet": "res://assets/art/v2/keyframes/dan_keyframes.svg",
+      "sheet": "res://assets/art/v2/sprites/dan_keyframes.svg",
       "map": "res://assets/art/v2/keyframes/dan_keyframes.frames.json",
       "output": "res://scenes/v2/actors/DanFrames.tres",
       "animations": {
@@ -40,7 +40,7 @@
       }
     },
     "Guard": {
-      "sheet": "res://assets/art/v2/keyframes/guard_keyframes.svg",
+      "sheet": "res://assets/art/v2/sprites/guard_keyframes.svg",
       "map": "res://assets/art/v2/keyframes/guard_keyframes.frames.json",
       "output": "res://scenes/v2/actors/GuardFrames.tres",
       "animations": {

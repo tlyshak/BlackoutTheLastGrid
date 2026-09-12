@@ -1,6 +1,6 @@
 [gd_resource type="SpriteFrames" format=3 uid="uid://8u4h6252ynmf"]
 
-[ext_resource type="Texture2D" path="res://assets/art/v2/keyframes/rey_unarmed_keyframes.svg" id="1_sheet"]
+[ext_resource type="Texture2D" path="res://assets/art/v2/sprites/rey_unarmed_keyframes.svg" id="1_sheet"]
 
 [sub_resource type="AtlasTexture" id="Atlas_attack_windup"]
 resource_name = "attack_windup"
