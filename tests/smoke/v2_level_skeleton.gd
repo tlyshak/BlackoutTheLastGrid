@@ -11,7 +11,8 @@ extends SceneTree
 #     lamp, landmarks and jam carts that are physical), outside the actors' art (Visual/Rig,
 #     Visual/Sprite) and outside the HeldGuards figures (compared by name and position only) the
 #     path, class, global position, collision layer/mask and shape rect are the same; the camera
-#     is compared by its limits (v2 may zoom).
+#     is compared by its limits (v2 may zoom) and an actor's Flashlight by its class only (its
+#     HeadOffset follows the drawn head, not the rig's).
 # The skip list is the contract for steps 01b/01c: they may swap actors and dressing and this
 # script must stay green; anything else that drifts fails here.
 # Run: godot --headless --path . -s tests/smoke/v2_level_skeleton.gd
@@ -28,6 +29,7 @@ const DRESSING_ROOTS := ["Backgrounds", "Parallax", "Backdrop", "Ground", "Props
 const PHYSICAL_PH := ["PH_Decals", "PH_ArenaLamp", "PH_JamCarts"]
 const PHYSICAL_PH_PREFIXES := ["PH_Wall", "PH_Landmark_"]
 const ART_NODES := ["Rig", "Sprite"]    # under an actor's Visual
+const ACTOR_LAMP := "Flashlight"        # under an actor's root: compared by class, its offset is art
 const MAX_REPORTED := 8                 # differences listed before the message is cut
 const POS_DECIMALS := 2
 
@@ -110,6 +112,8 @@ func _fmt(v: float) -> String:
 
 func _record(node: Node) -> String:
 	var parts: PackedStringArray = [node.get_class()]
+	if node.name == ACTOR_LAMP and node.get_parent() is CharacterBody2D:
+		return " | ".join(parts)
 	if node is Camera2D:
 		parts.append("limits %d %d %d %d" % [node.limit_left, node.limit_top, node.limit_right, node.limit_bottom])
 		return " | ".join(parts)

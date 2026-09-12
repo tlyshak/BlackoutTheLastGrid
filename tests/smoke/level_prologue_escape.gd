@@ -81,6 +81,14 @@ const SCENE_CHANGE_CAP_MS := 2000
 const EXIT_APPROACH := Vector2(10100, 450)
 const EXIT_WALK_CAP := 120
 
+# The scene set under test. A v2 script (tests/smoke/v2_level_prologue_escape.gd) extends this one and overrides
+# these three to run the same steps against scenes/v2/ — the v1 constants stay the defaults.
+func _name() -> String:
+	return NAME
+
+func _prologue_path() -> String:
+	return PROLOGUE_PATH
+
 var _started := false
 var _frames := 0
 var _failures: Array[String] = []
@@ -95,7 +103,7 @@ func _process(_delta: float) -> bool:
 		_run()
 	_frames += 1
 	if _frames > MAX_FRAMES:
-		print("SMOKE %s FAIL: exceeded %d frames without quit()" % [NAME, MAX_FRAMES])
+		print("SMOKE %s FAIL: exceeded %d frames without quit()" % [_name(), MAX_FRAMES])
 		quit(1)
 	return false
 
@@ -127,10 +135,10 @@ func _finish() -> void:
 		gs.ResetRun()
 		gs.CurrentScenePath = ""
 	if _failures.is_empty():
-		print("SMOKE %s PASS" % NAME)
+		print("SMOKE %s PASS" % _name())
 		quit(0)
 	else:
-		print("SMOKE %s FAIL: %s" % [NAME, "; ".join(_failures)])
+		print("SMOKE %s FAIL: %s" % [_name(), "; ".join(_failures)])
 		quit(1)
 
 func _tap(action: String) -> void:
@@ -193,8 +201,8 @@ func _wp(level: Node, key: String) -> Vector2:
 	return level.get("DanRoute").get_node("WP_" + key).global_position
 
 func _build_level() -> Node:
-	var scene: PackedScene = load(PROLOGUE_PATH)
-	_check(scene != null, "%s failed to load" % PROLOGUE_PATH)
+	var scene: PackedScene = load(_prologue_path())
+	_check(scene != null, "%s failed to load" % _prologue_path())
 	if scene == null:
 		return null
 	var level: Node = scene.instantiate()

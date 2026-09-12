@@ -84,6 +84,17 @@ const RESPAWN_MARGIN := 0.4          # seconds on top of LevelBase.RespawnDelay 
 const LINE_WALK_MIN := 200.0        # px of walk a route-point line gets before a prop prompt can hide its bubble (~0.9 s)
 const CP_DRIFT := Vector2(2900, 450)
 
+# The scene set under test. A v2 script (tests/smoke/v2_level_prologue.gd) extends this one and overrides
+# these three to run the same steps against scenes/v2/ — the v1 constants stay the defaults.
+func _name() -> String:
+	return NAME
+
+func _main_path() -> String:
+	return MAIN_PATH
+
+func _prologue_path() -> String:
+	return PROLOGUE_PATH
+
 var _started := false
 var _frames := 0
 var _failures: Array[String] = []
@@ -98,7 +109,7 @@ func _process(_delta: float) -> bool:
 		_run()
 	_frames += 1
 	if _frames > MAX_FRAMES:
-		print("SMOKE %s FAIL: exceeded %d frames without quit()" % [NAME, MAX_FRAMES])
+		print("SMOKE %s FAIL: exceeded %d frames without quit()" % [_name(), MAX_FRAMES])
 		quit(1)
 	return false
 
@@ -129,10 +140,10 @@ func _finish() -> void:
 	if gs != null:
 		gs.ResetRun()
 	if _failures.is_empty():
-		print("SMOKE %s PASS" % NAME)
+		print("SMOKE %s PASS" % _name())
 		quit(0)
 	else:
-		print("SMOKE %s FAIL: %s" % [NAME, "; ".join(_failures)])
+		print("SMOKE %s FAIL: %s" % [_name(), "; ".join(_failures)])
 		quit(1)
 
 func _tap(action: String) -> void:
@@ -244,8 +255,8 @@ func _run() -> void:
 	gs.ResetRun()
 	gs.CurrentScenePath = ""
 
-	var main_scene: PackedScene = load(MAIN_PATH)
-	_check(main_scene != null, "%s failed to load" % MAIN_PATH)
+	var main_scene: PackedScene = load(_main_path())
+	_check(main_scene != null, "%s failed to load" % _main_path())
 	if main_scene == null:
 		_finish()
 		return
@@ -287,9 +298,9 @@ func _run() -> void:
 	for child in root.get_children():
 		_check(not _is_script(child, "Exposition.cs"), "an Exposition node is in the tree when the run boots through Main")
 
-	_check(level.name == "Level00_Prologue" and level.scene_file_path == PROLOGUE_PATH,
+	_check(level.name == "Level00_Prologue" and level.scene_file_path == _prologue_path(),
 		"Main.CurrentLevel is '%s' (%s), expected Level00_Prologue" % [level.name, level.scene_file_path])
-	_check(gs.CurrentScenePath == PROLOGUE_PATH, "GameState.CurrentScenePath='%s' after boot, expected %s" % [gs.CurrentScenePath, PROLOGUE_PATH])
+	_check(gs.CurrentScenePath == _prologue_path(), "GameState.CurrentScenePath='%s' after boot, expected %s" % [gs.CurrentScenePath, _prologue_path()])
 	_check(level.get("y_sort_enabled") == true, "the prologue root lacks y_sort_enabled")
 	_check(level.CutsceneSkippable == true, "Level00_Prologue.CutsceneSkippable=%s, expected true" % level.CutsceneSkippable)
 	var counts: Array = [Array(level.IntroLines).size(), Array(level.ChargeLines).size(), Array(level.BlastLines).size(),

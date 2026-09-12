@@ -210,15 +210,19 @@
 
 ## Лінія v2 — пролог на згенерованих асетах (від 2026-09-12; див. `GAME_DESIGN.md` §6a)
 
-### T-V2-01 · Каркас v2: перемикач версій, асети, пайплайн спрайтів · `in_progress`
+### T-V2-01 · Каркас v2: перемикач версій, асети, пайплайн спрайтів · `done`
 - Асети автора в `assets/art/v2/` (SVG, не редагувати). Перемикач **Game version: v1 / v2** у `SettingsMenu` (`GameSettings`, персистенція), New Game веде в `Main` (v1) або `v2/Main` (v2); KO-рестарт лишається у своїй версії.
 - Пайплайн «аркуш ключових кадрів → `SpriteFrames`»: карта регіонів по позах, імпорт SVG з масштабом, ступінчаста анімація; `Player`/`Guard`/`Companion` v2 — ті самі скрипти, інший `Visual` (`AnimatedSprite2D` замість ріга), хітбокси/хертбокси й баланс без змін.
 - Похідні фони без персонажів із трьох мокапів; v2-пролог як копія v3-прологу з новими фонами й спрайтами.
 - Готово, коли: у Settings перемикач працює; New Game у v2 запускає пролог v3 зі спрайтами й намальованими фонами до рівня 1; v1 не змінився; smoke зелений для обох версій.
 - Кроки (план `docs/plans/t-v2-01-prologue-v2/t-v2-01-prologue-v2-plan.md`, одна гілка, коміт на крок):
   - [x] **01a · перемикач версій і маршрутизація** — `GameSettings.GameVersion` (enum `V1`/`V2`, `[game] version` у `settings.cfg`, сигнал `GameVersionChanged`), рядок «Game version» в `SettingsMenu`, `Exposition.NextScenePathV2` як єдина точка розгалуження; `scenes/v2/Main.tscn` + `scenes/v2/levels/Level00_Prologue.tscn` як копія v1 на тих самих скриптах (свіжі uid, точки підміни для 01b/01c позначено `;`-коментарями, порожній вузол `Backgrounds`); `tools/check-v1-untouched.ps1`; тести `v2_version_switch.gd`, `v2_level_skeleton.gd`, `v2_v1_untouched.gd`, пін V1 у `ui_menu.gd`/`ui_exposition.gd`.
-  - [ ] **01b · пайплайн спрайтів і персонажі v2** — `.import` аркушів (`svg/scale=2.0`), `tools/build_spriteframes.gd`, `sprite_animations.json`, чотири `*Frames.tres`; `scenes/v2/{player/Player,enemies/Guard,actors/Companion}.tscn` на тих самих скриптах з таймінгами v1; `Guard.SetDown` → `down`; у v2-пролозі — актори v2, `Camera2D.zoom 1.5 / y 450`, `HeldGuards` як `Sprite2D`; тести `v2_sprites.gd`, `v2_actors.gd`, `v2_level_prologue.gd`.
-  - [ ] **01c · намальовані фони** — `.import` похідних секцій (`svg/scale=3.0`); `Backgrounds` у v2-пролозі: секція на кімнату + слайси, `Room_Surface` процедурна; прибрати `PH_`-декорації v1, лишити світло/декалі/колізії; тест `v2_backgrounds.gd`.
+  - [x] **01b · пайплайн спрайтів і персонажі v2** — `.import` аркушів (`svg/scale=2.0`), `tools/build_spriteframes.gd`, `sprite_animations.json`, чотири `*Frames.tres`; `scenes/v2/{player/Player,enemies/Guard,actors/Companion}.tscn` на тих самих скриптах з таймінгами v1; `Guard.SetDown` → `down`; у v2-пролозі — актори v2, `Camera2D.zoom 1.5 / y 450`, `HeldGuards` як `Sprite2D`; тести `v2_sprites.gd`, `v2_actors.gd`, `v2_level_prologue.gd`.
+  - [x] **01c · намальовані фони** — `.import` похідних секцій (`svg/scale=3.0`); `Backgrounds` у v2-пролозі: секція на кімнату + слайси, `Room_Surface` процедурна; прибрати `PH_`-декорації v1, лишити світло/декалі/колізії; тест `v2_backgrounds.gd`.
+  - [x] **01d · інтеграція** — у `scenes/v2/levels/Level00_Prologue.tscn` актори v2, три `Backdrop_*` під `Backgrounds`, камера 1.5/450, `HeldGuards` як `Sprite2D`, v1-дресинг трьох шахтних кімнат прибрано; тести `v2_prologue_integration.gd`, `v2_level_prologue.gd`, `v2_level_prologue_escape.gd`.
+- **Зроблено:** перемикач версій і маршрутизація (01a), пайплайн спрайтів і v2-актори на спільних скриптах (01b), намальовані секції-задники (01c), інтеграція (01d): `Player`/`Dan`/`Patrol/Guard_1..3`/`GuardWave.EnemyScene` → `scenes/v2/actors/*`; `Backgrounds` = `Backdrop_Face` (0), `Backdrop_Drift` (2880), `Backdrop_Patrol` (5760); `Camera2D` zoom 1.5, y 450 (вікно 90…810); `HeldGuards/Overseer|PH_Guard_A|PH_Guard_B` — `Sprite2D` з регіоном `stance` аркуша охоронця (46,66,218,278), scale 0.5, ноги на origin, `PH_Gun`/`PH_HeldLamp` лишились; прибрано `Parallax`, `PH_Support_*`, `PH_Floor_*`/`PH_Ceiling`/`PH_FloorEdge`, конвеєр/вугілля/шахту кліті, `Backdrop`/`Ground`/`Props`/`Foreground`-дресинг шахтних кімнат (лишились лише вузли `Room_Surface`, блокери `Cart_1`/`Scaffold_1`/`Cart_2` і сховані `PH_Wall_Face|Drift|Patrol`), `PH_NearLip` опущено на 681, додано непрозоре `PH_Sky_Surface` (z −60) над далеким шаром Patrol; `level_prologue.gd`/`level_prologue_escape.gd` отримали перевизначувані `_name()/_main_path()/_prologue_path()`, v2-варіанти проходять ті самі кроки; `v2_level_skeleton.gd` порівнює `Flashlight` актора лише за класом (`HeadOffset` 92 — арт голови). Smoke: 38 passed, 0 failed; `check-v1-untouched.ps1` PASS.
+- **Не зроблено:** аркуші ключових кадрів мають запечений темний фон полотна (`<rect fill="#0d1018">` у `*_keyframes.svg`), тому кожен v2-спрайт несе темну «картку» позаду фігури — потрібна похідна без фону від агента-різника (T-B30); блокери `Props/Cart_1|Scaffold_1|Cart_2` лишились полігональними над намальованою підлогою і `PH_Wall_Face|Drift|Patrol` лише сховані (T-B29); T-B26–T-B28 з плану — у беклозі; `Room_Surface` лишилась процедурною (за планом).
+- **Плейтест:** (1) F5 → Settings → Game version `v1` → New Game: пролог як раніше (риги, процедурні стіни), `TestRoom.tscn`/`TestMine.tscn` F6 без змін. (2) Settings → `v2` → New Game: намальований забій, Рей з налобним ліхтарем ≈108 px, Дан біля стрічки; D/A — крокова ходьба й фліп лампи; Space біля дальнього краю — голова у вікні; заряд → вибух → темрява лише під ліхтарем; хвиля з двох v2-охоронців (J/K, нокдаун — поза `down`); штрек (секція 2), газ, патруль (секція 3, плями й смуги на місці); кліть — наглядач і двоє охоронців як намальовані стійки, полон, поверхня як у v1 без параллаксу масиву (плаский `PH_Sky_Surface`); смерть у газі — респавн у намальованій шахті. (3) Esc → Settings → `v1` → Resume: нічого не перевантажується.
 
 ### T-V2-02 · Лом як зброя · `todo`
 - `Weapon`-стан героя: підбір лома (`E`), другий набір атак (кадри `rey_crowbar`), дальність/шкода `[Export]`, лом відкриває те, що кулаком не відкрити (завали, ґрати, замки). Втрата/викидання — рішення в плані.
@@ -427,6 +431,21 @@
 ### T-B25 · «Продовжити» після T-09 має минати експозицію · `backlog`
 - `Exposition.tscn` стоїть між меню і `Main` лише на шляху «New Game». Кнопка «Продовжити» (T-B05)
   має завантажувати `GameState.CurrentScenePath` напряму, ніколи не через експозицію.
+
+### T-B26 · v2: пропорції хітбоксів під спрайти · `backlog`
+- У v2 герой 108 px, а `Hurtbox` 32×64 / `Hitbox` 36×40 на висоті 16…56 px лишились від 72-px ріга (баланс заморожений у T-V2-01). Після плейтесту вирішити: лишити, або підняти/масштабувати форми **лише у сценах `scenes/v2/**`** (скрипти й `Damage`/`Knockback`/таймінги без змін).
+
+### T-B27 · v2: параллакс із пошарових похідних секцій · `backlog`
+- `SectionBackdrop` (T-V2-01 01c) уже кладе `_back` у `Parallax2D (0.6, 1)`; далі — окремий далекий шар на кімнату (небо/пагорби з мокапу), не спільна плитка, і `_near`-шар перед героєм, якщо агент-різник дасть такі похідні. Без шарів — як є.
+
+### T-B28 · v2: конус ліхтаря з мокапа як текстура `Flashlight` · `backlog`
+- `assets/art/v2/backgrounds/cone.svg` (вирізаний конус) як `texture` ліхтаря у `scenes/v2/actors/Player.tscn`; порівняти з `GradientTexture2D_beam` v1. Тільки вигляд — `PerceptionRange`/`LitZone` не чіпати.
+
+### T-B29 · v2: залишки v1-дресингу у намальованому пролозі · `backlog`
+- У `scenes/v2/levels/Level00_Prologue.tscn` після T-V2-01 лишились: `Props/Cart_1`, `Props/Scaffold_1`, `Props/Cart_2` — полігональні `PH_`-пропи з `Blocker`-колізією (геймплей, тому не прибрані) поверх намальованої підлоги; приховані `PH_Wall_Face|Drift|Patrol` (`visible = false`, бо `v2_level_skeleton.gd` рахує `PH_Wall*` фізичними); `PH_ArenaLamp`/`WorkLamps`/`DriftLamps`/`PH_Landmark_*` з полігональними корпусами над намальованими лампами. Замінити мальованими пропами (колізії ті самі) або перенести блокери на намальовані вагонетки секцій; звузити префікс у скелет-тесті до `PH_WallLeft/Right/Shaft` і видалити приховані тони.
+
+### T-B30 · v2: аркуші ключових кадрів без запеченого фону полотна · `backlog`
+- `assets/art/v2/keyframes/*_keyframes.svg` починаються з `<rect width="680" height="800" fill="#0d1018"/>`, тож кожен регіон `AtlasTexture` (T-V2-01 01b) і `HeldGuards`-спрайти несуть темну картку позаду фігури — видно на рендерах v2-прологу. Оригінали не чіпати: агент-різник дає похідні `*_keyframes_clean.svg` (без фонового прямокутника й лінійок рядів), `.import`/`*Frames.tres`/`scenes/v2/**` перенаправити на них.
 
 ## Backlog (фази 2–3, не в MVP)
 - Фінал «Угода» (фаза 2)
