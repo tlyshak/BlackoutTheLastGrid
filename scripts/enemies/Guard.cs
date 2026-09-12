@@ -29,6 +29,10 @@ public partial class Guard : CharacterBody2D, IHittable
     [Signal]
     public delegate void NoticedEventHandler();
 
+    /// <summary>Emitted after the <see cref="DropScene"/> instance entered the tree (levels connect its own signals from here).</summary>
+    [Signal]
+    public delegate void DroppedEventHandler(Node2D drop);
+
     /// <summary>Hit points at start.</summary>
     [Export] public float MaxHp { get; set; } = 30f;
 
@@ -94,6 +98,17 @@ public partial class Guard : CharacterBody2D, IHittable
 
     /// <summary>+1 facing right, -1 facing left. Set in the scene for a placed guard; updated by the states at runtime.</summary>
     [Export] public int Facing { get; set; } = 1;
+
+    /// <summary>
+    /// Scene instanced once when the guard is knocked out — the powerbank off its belt
+    /// (<see cref="Props.EnergyPickup"/>). Added as a <b>sibling</b> at the guard's position plus
+    /// <see cref="DropOffset"/>, so it y-sorts with the body under the same parent. <c>null</c>
+    /// (the default) drops nothing and leaves the guard exactly as it was.
+    /// </summary>
+    [Export] public PackedScene? DropScene { get; set; }
+
+    /// <summary>Px added to the guard's position for the drop — just in front of the fallen body, clear of the HP label.</summary>
+    [Export] public Vector2 DropOffset { get; set; } = new(0f, 6f);
 
     /// <summary>Container for the body art; flipped by facing, flashed on hit, rotated when down, dimmed in KO.</summary>
     [Export] public Node2D Visual { get; set; } = null!;
@@ -415,7 +430,28 @@ public partial class Guard : CharacterBody2D, IHittable
         }
 
         IsKnockedOut = true;
+        if (DropScene is not null)
+        {
+            // Deferred: the KO usually lands inside a hitbox overlap callback, where adding a new
+            // collision object to the tree is not allowed.
+            CallDeferred(MethodName.SpawnDrop);
+        }
+
         EmitSignalKnockedOut();
+    }
+
+    /// <summary>Instances <see cref="DropScene"/> next to the fallen body and announces it with <see cref="DroppedEventHandler"/>.</summary>
+    private void SpawnDrop()
+    {
+        if (DropScene is null || !IsInsideTree() || GetParent() is not Node parent)
+        {
+            return;
+        }
+
+        Node2D drop = DropScene.Instantiate<Node2D>();
+        parent.AddChild(drop);
+        drop.GlobalPosition = GlobalPosition + DropOffset;
+        EmitSignalDropped(drop);
     }
 
     private Color RestingModulate => _dimmed ? DimmedColor : Colors.White;

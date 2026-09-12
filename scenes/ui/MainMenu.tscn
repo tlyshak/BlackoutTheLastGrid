@@ -42,6 +42,7 @@ NewGameButton = NodePath("Center/Buttons/NewGameButton")
 SettingsButton = NodePath("Center/Buttons/SettingsButton")
 QuitButton = NodePath("Center/Buttons/QuitButton")
 Settings = NodePath("Settings")
+NewGameScenePath = "res://scenes/ui/Exposition.tscn"
 GlowTexture = SubResource("GradientTexture2D_glow")
 
 [node name="PH_Background" type="ColorRect" parent="."]

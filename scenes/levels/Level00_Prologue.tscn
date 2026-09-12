@@ -1,4 +1,4 @@
-[gd_scene load_steps=57 format=3 uid="uid://d3d1177b7jpkm"]
+[gd_scene load_steps=58 format=3 uid="uid://d3d1177b7jpkm"]
 
 [ext_resource type="Script" path="res://scripts/levels/Level00_Prologue.cs" id="1_level"]
 [ext_resource type="PackedScene" uid="uid://ct2db4jsifoal" path="res://scenes/player/Player.tscn" id="2_player"]
@@ -26,7 +26,9 @@
 [ext_resource type="PackedScene" uid="uid://b33olo6gf584j" path="res://scenes/levels/CaveIn.tscn" id="24_cavein"]
 [ext_resource type="PackedScene" uid="uid://cpbrpcvs6w23v" path="res://scenes/levels/Checkpoint.tscn" id="25_checkpoint"]
 [ext_resource type="PackedScene" uid="uid://4lm22kxy31wt" path="res://scenes/actors/Companion.tscn" id="26_companion"]
-[ext_resource type="PackedScene" uid="uid://ckq3v7nx1yb2s" path="res://scenes/props/WatchZone.tscn" id="27_watch"]
+[ext_resource type="PackedScene" uid="uid://dmtttbck25go3" path="res://scenes/props/PowerPanel.tscn" id="27_panel"]
+[ext_resource type="PackedScene" uid="uid://cfwn1x5yxrf0r" path="res://scenes/enemies/Guard.tscn" id="28_guard"]
+[ext_resource type="PackedScene" uid="uid://b6rk5avtq4oxg" path="res://scenes/props/EnergyPickup.tscn" id="29_pickup"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
 size = Vector2(40, 400)
@@ -43,14 +45,20 @@ size = Vector2(180, 320)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_prompt_flash"]
 size = Vector2(240, 320)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_prompt_heavy"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_prompt_hint"]
 size = Vector2(220, 320)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_trigger"]
+size = Vector2(80, 320)
+
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_pool"]
-size = Vector2(220, 170)
+size = Vector2(420, 220)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_arena"]
+size = Vector2(480, 320)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_boarding"]
-size = Vector2(120, 320)
+size = Vector2(80, 320)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_cart"]
 size = Vector2(140, 30)
@@ -128,19 +136,6 @@ scale_min = 0.08
 scale_max = 0.22
 color_ramp = SubResource("GradientTexture1D_dust")
 
-[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_drip"]
-particle_flag_disable_z = true
-emission_shape = 3
-emission_box_extents = Vector3(6, 2, 1)
-direction = Vector3(0, 1, 0)
-spread = 2.0
-initial_velocity_min = 10.0
-initial_velocity_max = 26.0
-gravity = Vector3(0, 900, 0)
-scale_min = 0.05
-scale_max = 0.13
-color = Color(0.6, 0.75, 0.85, 0.7)
-
 [sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_spark"]
 particle_flag_disable_z = true
 emission_shape = 1
@@ -178,67 +173,56 @@ _data = {
 &"run": SubResource("Animation_conveyor")
 }
 
-[sub_resource type="Animation" id="Animation_fan"]
-resource_name = "spin"
-length = 1.1
-loop_mode = 1
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath("PH_ExtractorFan:rotation")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0, 1.1),
-"transitions": PackedFloat32Array(1, 1),
-"update": 0,
-"values": [0.0, 6.28319]
-}
-
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_fan"]
-_data = {
-&"spin": SubResource("Animation_fan")
-}
-[node name="Level00_Prologue" type="Node2D" node_paths=PackedStringArray("Player", "Camera", "Pause", "Hud", "Companion", "Checkpoints", "StartRoom", "SurfaceRoom", "Circuit", "Lights", "Pump", "Extractor", "Floodlight", "Cage", "GasPockets", "Crew", "BlastCollapse", "UpperCollapse", "FinalCollapse", "TimberPile", "FirstOutlet", "WorkLamps", "BlastSparks", "BlastSparkLight", "GuardSpawner", "FarewellCheckpoint", "SurfaceCheckpoint", "Cutscene", "Darkness", "Tutorial", "MovePrompt", "JumpPrompt", "FlashlightPrompt", "DebugLabel")]
+[node name="Level00_Prologue" type="Node2D" node_paths=PackedStringArray("Player", "Camera", "Pause", "Hud", "Companion", "Checkpoints", "StartRoom", "SurfaceRoom", "Circuit", "Director", "Lights", "Cage", "Charge", "Jam", "JamDecal", "BlastCollapse", "BlastTrigger", "TimberPile", "GasPockets", "GuardWave", "ArenaZone", "ArenaLamp", "Patrol", "PatrolPools", "Outlets", "DanRoute", "HeldGuards", "SurfaceCheckpoint", "LevelExit", "WorkLamps", "BlastSparks", "BlastSparkLight", "ConveyorAnimation", "Cutscene", "Darkness", "Tutorial", "MovePrompt", "JumpPrompt", "FlashlightPrompt", "AttackPrompt", "HeavyPrompt", "DebugLabel")]
 y_sort_enabled = true
 script = ExtResource("1_level")
-IntroLines = PackedStringArray("Lower horizon. Fourth hour of the shift. The lamps hold. The air does not move.", "DAN: Sixty carts today. Sixty. Two weeks over quota now, and they count it, Ray. They have to count it.", "DAN: You work, they give you more. That's the whole thing. That's all it is.", "RAY: Sure.", "Ray taps the methane head on the rib with two fingers. The needle does not move. It has not moved in eight days.", "DAN: You wrote them about that one. Week back. They wrote you back, yeah?", "RAY: They wrote back.")
-BlastLines = PackedStringArray("A spark off the conveyor motor. The air takes it.", "The horizon folds. The lamp string goes out from the far end, one bulb at a time.")
-FarewellLines = PackedStringArray("The roof comes down between them and the cage. When the dust drops there is one gap left, at the top, the width of a man's shoulders.", "DAN: Up you go.", "RAY: Both of us. Give me your arm —", "DAN: It's one. You can see it's one.", "Dan gets a shoulder under him and pushes him into the gap. Then he pulls the powerbank off his own belt and presses it into Ray's hand.", "DAN: Take it. Yours is down to eleven. You'll make it.", "RAY: Dan —", "The rest of the roof comes down behind him.")
-ForemanLines = PackedStringArray("Lamp room. The shift hands in its tags. The foreman counts them twice and writes one line.", "FOREMAN: Cause of loss: breach of safety procedure by the crew. Fine on the shift. Twenty percent, fourteen days.", "RAY: He was on the bottom horizon because the ventilation was off.", "FOREMAN: Fine's on the shift. That includes his card.", "RAY: He's dead.", "FOREMAN: Card's active to the end of the month. Next.", "Ray asks for the log. Week before last, lower horizon: methane heads, extraction. The page is there. His report is not.")
-GuardLines = PackedStringArray("GUARD: Two banks, one card. Hand the other one in.", "Ray does not hand it in. He does not say anything either.", "GUARD: Have it your way.")
-EndLines = PackedStringArray("Morning. The wind off the spoil tip is cold and full of coal.", "Behind him the district plant stands with its stacks cold. This coal fed that plant.", "The street lamps are dead the whole way down the hill. They have been for years.", "On the horizon the centre is lit. All of it. Every floor.", "Ray's own bank reads eleven percent. Dan's is full.", "He puts Dan's in the inside pocket, where it does not touch anything.", "Then he starts walking down the hill.")
+IntroLines = PackedStringArray("Lower horizon. Last hour of the shift. The belt is running and the lamps hold.", "DAN: The sealed drift, past the old return. I went down it. The bars are new, Ray. New steel.", "DAN: There's light behind them. Not a lamp. And a cable as thick as my arm. You can hear it.", "DAN: Coal's all there is. That's what they tell us. It isn't.", "DAN: We're not going up with the shift. Not tonight.", "Ray does not ask what the light was. He is looking at the belt motor.", "RAY: I know how it breaks.")
+ChargeLines = PackedStringArray("Two minutes with the motor open. He does not hurry. The belt keeps running over his hands.", "DAN: That's it? That's all it takes?", "RAY: That's all it ever takes. Walk.")
+BlastLines = PackedStringArray("The motor goes when Ray said it would. The roof comes down behind them, across the way back.", "The lamp string dies from the far end, one bulb at a time.")
+GuardsLines = PackedStringArray("Two lamps coming down the drift at a run. Miners do not run towards a fall.", "GUARD: Lamps down. Cards out. Against the rib, both of you.")
+HeldLines = PackedStringArray("The cage lifts. It climbs at a walking pace, a man's height in ten seconds, and the gate is still open.", "Lamps in the drift behind them. Six, at a run, forty yards off. The one in front carries a rifle.", "Dan looks at the lamps. At the cage. At the lamps. Then he unclips his bank and puts it in Ray's hand.", "DAN: Hold this.", "He turns his own lamp on and walks back down the drift, towards theirs, not fast. The lamps stop on him.", "They take him by the arms. The cage is at head height, then above it. Nobody fires. Nobody follows it.", "DAN: Lamp off, Ray!", "The lamp goes off. What is left is a guard's back, Dan between two of them, and the way down, past the old return.")
+EndLines = PackedStringArray("Night, or the end of it. The pit head behind him, and no sound from it.", "Down the hill, the district. No lamps. There have not been lamps there for years.", "On the horizon, the centre. Lit. All of it, every floor, the whole way up.", "Dan's bank in his hand. Full. It is not his. He puts it in the inside pocket, where nothing touches it.", "He starts down the hill.")
 NextLevel = ExtResource("12_next")
 StartRoom = NodePath("Rooms/Room_Face")
 SurfaceRoom = NodePath("Rooms/Room_Surface")
 Circuit = NodePath("Circuit")
+Director = NodePath("EnemyDirector")
 Lights = NodePath("Lights_Drift")
-Pump = NodePath("Pump")
-Extractor = NodePath("Extractor")
-Floodlight = NodePath("Lights_Cage")
 Cage = NodePath("Hoist")
-GasPockets = [NodePath("GasZone_Rehearsal"), NodePath("GasZone_Pocket_A"), NodePath("GasZone_Pocket_B")]
-Crew = NodePath("WatchZone_Crew")
+Charge = NodePath("Charge")
+Jam = NodePath("DebrisPile_Jam")
+JamDecal = NodePath("PH_JamCarts")
 BlastCollapse = NodePath("CaveIn_Blast")
-UpperCollapse = NodePath("CaveIn_Upper")
-FinalCollapse = NodePath("CaveIn_Final")
+BlastTrigger = NodePath("BlastTrigger")
 TimberPile = NodePath("DebrisPile_Timber")
-FirstOutlet = NodePath("Outlet_1")
-DanFallenAt = Vector2(1900, 520)
-DanLastStandAt = Vector2(10600, 470)
-SurfaceArrival = Vector2(11640, 480)
+GasPockets = [NodePath("GasZone_Pocket_A"), NodePath("GasZone_Pocket_B")]
+GuardWave = NodePath("GuardWave")
+ArenaZone = NodePath("LitZone_Arena")
+ArenaLamp = NodePath("PH_ArenaLamp")
+Patrol = NodePath("Patrol")
+PatrolPools = [NodePath("LitZone_P1"), NodePath("LitZone_P2"), NodePath("LitZone_P3")]
+PickupScene = ExtResource("29_pickup")
+Outlets = [NodePath("Outlet_1"), NodePath("Outlet_2"), NodePath("Outlet_3")]
+DanRoute = NodePath("DanRoute")
+DanStart = Vector2(960, 470)
+HeroHeldAt = Vector2(8500, 476)
+DanHeldAt = Vector2(8410, 470)
+HeldGuards = NodePath("HeldGuards")
+SurfaceArrival = Vector2(8760, 480)
+SurfaceCheckpoint = NodePath("Checkpoints/Checkpoint_Surface")
+LevelExit = NodePath("LevelExit")
 WorkLamps = NodePath("WorkLamps")
 BlastSparks = NodePath("Fx_Face/BlastSparks")
 BlastSparkLight = NodePath("Fx_Face/BlastSparkLight")
-GuardSpawner = NodePath("GuardSpawner")
-FarewellCheckpoint = NodePath("Checkpoints/Checkpoint_Farewell")
-SurfaceCheckpoint = NodePath("Checkpoints/Checkpoint_Surface")
+ConveyorAnimation = NodePath("Fx_Face/Conveyor/ConveyorAnim")
 Cutscene = NodePath("Cutscene")
 Darkness = NodePath("Darkness")
 Tutorial = NodePath("Tutorial")
 MovePrompt = NodePath("Tutorial/MovePrompt")
 JumpPrompt = NodePath("Tutorial/JumpPrompt")
 FlashlightPrompt = NodePath("Tutorial/FlashlightPrompt")
+AttackPrompt = NodePath("Tutorial/AttackPrompt")
+HeavyPrompt = NodePath("Tutorial/HeavyPrompt")
 DebugLabel = NodePath("UI/DebugLabel")
 Player = NodePath("Player")
 Camera = NodePath("Camera2D")
@@ -259,37 +243,23 @@ FloorTop = 300.0
 FloorBottom = 600.0
 Fx = NodePath("../../Fx_Face")
 
-[node name="Room_Flood" type="Node2D" parent="Rooms" node_paths=PackedStringArray("Fx")]
+[node name="Room_Drift" type="Node2D" parent="Rooms" node_paths=PackedStringArray("Fx")]
 script = ExtResource("8_room")
-Rect = Rect2(2880, 0, 1920, 1080)
+Rect = Rect2(2880, 0, 2880, 1080)
 FloorTop = 300.0
 FloorBottom = 600.0
-Fx = NodePath("../../Fx_Flood")
+Fx = NodePath("../../Fx_Drift")
 
-[node name="Room_Gas" type="Node2D" parent="Rooms" node_paths=PackedStringArray("Fx")]
+[node name="Room_Patrol" type="Node2D" parent="Rooms" node_paths=PackedStringArray("Fx")]
 script = ExtResource("8_room")
-Rect = Rect2(4800, 0, 2880, 1080)
+Rect = Rect2(5760, 0, 2880, 1080)
 FloorTop = 300.0
 FloorBottom = 600.0
-Fx = NodePath("../../Fx_Gas")
-
-[node name="Room_Upper" type="Node2D" parent="Rooms" node_paths=PackedStringArray("Fx")]
-script = ExtResource("8_room")
-Rect = Rect2(7680, 0, 1920, 1080)
-FloorTop = 300.0
-FloorBottom = 600.0
-Fx = NodePath("../../Fx_Upper")
-
-[node name="Room_Cage" type="Node2D" parent="Rooms" node_paths=PackedStringArray("Fx")]
-script = ExtResource("8_room")
-Rect = Rect2(9600, 0, 1920, 1080)
-FloorTop = 300.0
-FloorBottom = 600.0
-Fx = NodePath("../../Fx_Cage")
+Fx = NodePath("../../Fx_Patrol")
 
 [node name="Room_Surface" type="Node2D" parent="Rooms" node_paths=PackedStringArray("Fx")]
 script = ExtResource("8_room")
-Rect = Rect2(11520, 0, 1920, 1080)
+Rect = Rect2(8640, 0, 1920, 1080)
 FloorTop = 300.0
 FloorBottom = 600.0
 Fx = NodePath("../../Fx_Surface")
@@ -301,44 +271,30 @@ offset_right = 2880
 offset_bottom = 300.0
 color = Color(0.352941, 0.215686, 0.133333, 0.72)
 
-[node name="PH_Wall_Flood" type="ColorRect" parent="."]
+[node name="PH_Wall_Drift" type="ColorRect" parent="."]
 z_index = -40
 offset_left = 2880
-offset_right = 4800
+offset_right = 5760
 offset_bottom = 300.0
 color = Color(0.223529, 0.258824, 0.309804, 0.72)
 
-[node name="PH_Wall_Gas" type="ColorRect" parent="."]
+[node name="PH_Wall_Patrol" type="ColorRect" parent="."]
 z_index = -40
-offset_left = 4800
-offset_right = 7680
-offset_bottom = 300.0
-color = Color(0.415686, 0.435294, 0.203922, 0.72)
-
-[node name="PH_Wall_Upper" type="ColorRect" parent="."]
-z_index = -40
-offset_left = 7680
-offset_right = 9600
-offset_bottom = 300.0
-color = Color(0.223529, 0.258824, 0.309804, 0.72)
-
-[node name="PH_Wall_Cage" type="ColorRect" parent="."]
-z_index = -40
-offset_left = 9600
-offset_right = 11520
+offset_left = 5760
+offset_right = 8640
 offset_bottom = 300.0
 color = Color(0.301961, 0.345098, 0.4, 0.72)
 
 [node name="PH_Wall_Surface" type="ColorRect" parent="."]
 z_index = -40
-offset_left = 11520
-offset_right = 13440
+offset_left = 8640
+offset_right = 10560
 offset_bottom = 300.0
 color = Color(0.478431, 0.509804, 0.564706, 0.72)
 
 [node name="PH_Ceiling" type="ColorRect" parent="."]
 z_index = -40
-offset_right = 13440
+offset_right = 10560
 offset_bottom = 36.0
 color = Color(0.058824, 0.054902, 0.047059, 1.0)
 
@@ -350,80 +306,71 @@ offset_right = 2880
 offset_bottom = 640.0
 color = Color(0.301961, 0.227451, 0.156863, 1.0)
 
-[node name="PH_Floor_Flood" type="ColorRect" parent="."]
+[node name="PH_Floor_Drift" type="ColorRect" parent="."]
 z_index = -20
 offset_left = 2880
 offset_top = 300.0
-offset_right = 4800
+offset_right = 5760
 offset_bottom = 640.0
 color = Color(0.180392, 0.227451, 0.27451, 1.0)
 
-[node name="PH_Floor_Gas" type="ColorRect" parent="."]
+[node name="PH_Floor_Patrol" type="ColorRect" parent="."]
 z_index = -20
-offset_left = 4800
+offset_left = 5760
 offset_top = 300.0
-offset_right = 7680
-offset_bottom = 640.0
-color = Color(0.227451, 0.235294, 0.172549, 1.0)
-
-[node name="PH_Floor_Upper" type="ColorRect" parent="."]
-z_index = -20
-offset_left = 7680
-offset_top = 300.0
-offset_right = 9600
-offset_bottom = 640.0
-color = Color(0.223529, 0.25098, 0.290196, 1.0)
-
-[node name="PH_Floor_Cage" type="ColorRect" parent="."]
-z_index = -20
-offset_left = 9600
-offset_top = 300.0
-offset_right = 11520
+offset_right = 8640
 offset_bottom = 640.0
 color = Color(0.235294, 0.258824, 0.298039, 1.0)
 
 [node name="PH_Floor_Surface" type="ColorRect" parent="."]
 z_index = -20
-offset_left = 11520
+offset_left = 8640
 offset_top = 300.0
-offset_right = 13440
+offset_right = 10560
 offset_bottom = 640.0
 color = Color(0.333333, 0.356863, 0.392157, 1.0)
 
 [node name="PH_FloorEdge" type="ColorRect" parent="."]
 z_index = -20
 offset_top = 600.0
-offset_right = 13440
+offset_right = 10560
 offset_bottom = 604.0
 color = Color(0.360784, 0.337255, 0.294118, 1.0)
 
 [node name="PH_Decals" type="Node2D" parent="."]
 z_index = -20
 
-[node name="PH_CrewPool_1" type="Polygon2D" parent="PH_Decals"]
-position = Vector2(6850, 520)
+[node name="PH_PatrolPool_1" type="Polygon2D" parent="PH_Decals"]
+position = Vector2(6200, 410)
 color = Color(1.0, 0.85098, 0.541176, 0.14)
-polygon = PackedVector2Array(-118, -93, 118, -93, 118, 93, -118, 93)
+polygon = PackedVector2Array(-218, -118, 218, -118, 218, 118, -218, 118)
 
-[node name="PH_CrewPool_2" type="Polygon2D" parent="PH_Decals"]
-position = Vector2(7200, 380)
+[node name="PH_PatrolPool_2" type="Polygon2D" parent="PH_Decals"]
+position = Vector2(6760, 490)
 color = Color(1.0, 0.85098, 0.541176, 0.14)
-polygon = PackedVector2Array(-118, -93, 118, -93, 118, 93, -118, 93)
+polygon = PackedVector2Array(-218, -118, 218, -118, 218, 118, -218, 118)
+
+[node name="PH_PatrolPool_3" type="Polygon2D" parent="PH_Decals"]
+position = Vector2(7320, 410)
+color = Color(1.0, 0.85098, 0.541176, 0.14)
+polygon = PackedVector2Array(-218, -118, 218, -118, 218, 118, -218, 118)
+
+[node name="PH_DarkStripe_Near_A" type="Polygon2D" parent="PH_Decals"]
+polygon = PackedVector2Array(5990, 529, 6542, 529, 6542, 600, 5990, 600)
+color = Color(0.039216, 0.05098, 0.078431, 0.45)
+
+[node name="PH_DarkStripe_Near_B" type="Polygon2D" parent="PH_Decals"]
+polygon = PackedVector2Array(6978, 529, 7530, 529, 7530, 600, 6978, 600)
+color = Color(0.039216, 0.05098, 0.078431, 0.45)
+
+[node name="PH_DarkStripe_Far" type="Polygon2D" parent="PH_Decals"]
+polygon = PackedVector2Array(6550, 300, 6970, 300, 6970, 371, 6550, 371)
+color = Color(0.039216, 0.05098, 0.078431, 0.45)
 
 [node name="PH_HitStrip_Timber" type="Polygon2D" parent="PH_Decals"]
-position = Vector2(2450, 450)
+position = Vector2(3300, 450)
 color = Color(0.941176, 0.639216, 0.14902, 0.18)
 polygon = PackedVector2Array(-48, -12, 48, -12, 48, 12, -48, 12)
-
-[node name="PH_HitStrip_Ramp" type="Polygon2D" parent="PH_Decals"]
-position = Vector2(8300, 450)
-color = Color(0.941176, 0.639216, 0.14902, 0.18)
-polygon = PackedVector2Array(-48, -12, 48, -12, 48, 12, -48, 12)
-
-[node name="PH_RampSlope" type="Polygon2D" parent="PH_Decals"]
-position = Vector2(8300, 450)
-color = Color(0.145098, 0.176471, 0.227451, 0.55)
-polygon = PackedVector2Array(-140, 150, 140, 150, 240, -150, -40, -150)
 
 [node name="PH_Support_1" type="Polygon2D" parent="."]
 z_index = -40
@@ -557,42 +504,6 @@ position = Vector2(10320, 300)
 color = Color(0.352941, 0.215686, 0.133333, 1.0)
 polygon = PackedVector2Array(-12, -264, 12, -264, 12, 0, -12, 0)
 
-[node name="PH_Support_23" type="Polygon2D" parent="."]
-z_index = -40
-position = Vector2(10800, 300)
-color = Color(0.352941, 0.215686, 0.133333, 1.0)
-polygon = PackedVector2Array(-12, -264, 12, -264, 12, 0, -12, 0)
-
-[node name="PH_Support_24" type="Polygon2D" parent="."]
-z_index = -40
-position = Vector2(11280, 300)
-color = Color(0.352941, 0.215686, 0.133333, 1.0)
-polygon = PackedVector2Array(-12, -264, 12, -264, 12, 0, -12, 0)
-
-[node name="PH_Support_25" type="Polygon2D" parent="."]
-z_index = -40
-position = Vector2(11760, 300)
-color = Color(0.352941, 0.215686, 0.133333, 1.0)
-polygon = PackedVector2Array(-12, -264, 12, -264, 12, 0, -12, 0)
-
-[node name="PH_Support_26" type="Polygon2D" parent="."]
-z_index = -40
-position = Vector2(12240, 300)
-color = Color(0.352941, 0.215686, 0.133333, 1.0)
-polygon = PackedVector2Array(-12, -264, 12, -264, 12, 0, -12, 0)
-
-[node name="PH_Support_27" type="Polygon2D" parent="."]
-z_index = -40
-position = Vector2(12720, 300)
-color = Color(0.352941, 0.215686, 0.133333, 1.0)
-polygon = PackedVector2Array(-12, -264, 12, -264, 12, 0, -12, 0)
-
-[node name="PH_Support_28" type="Polygon2D" parent="."]
-z_index = -40
-position = Vector2(13200, 300)
-color = Color(0.352941, 0.215686, 0.133333, 1.0)
-polygon = PackedVector2Array(-12, -264, 12, -264, 12, 0, -12, 0)
-
 [node name="PH_WallLeft" type="StaticBody2D" parent="."]
 position = Vector2(40, 450)
 collision_layer = 1
@@ -602,11 +513,19 @@ collision_mask = 0
 shape = SubResource("RectangleShape2D_wall")
 
 [node name="PH_WallRight" type="StaticBody2D" parent="."]
-position = Vector2(13400, 450)
+position = Vector2(10520, 450)
 collision_layer = 1
 collision_mask = 0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PH_WallRight"]
+shape = SubResource("RectangleShape2D_wall")
+
+[node name="PH_WallShaft" type="StaticBody2D" parent="."]
+position = Vector2(8640, 450)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PH_WallShaft"]
 shape = SubResource("RectangleShape2D_wall")
 
 [node name="PH_Conveyor" type="ColorRect" parent="."]
@@ -742,7 +661,7 @@ position = Vector2(2120, 250)
 color = Color(0.6, 0.572549, 0.478431, 1.0)
 polygon = PackedVector2Array(-14, -10, 14, -10, 10, 0, -10, 0)
 
-[node name="PH_Landmark_Flood" type="PointLight2D" parent="."]
+[node name="PH_Landmark_Drift" type="PointLight2D" parent="."]
 position = Vector2(2950, 250)
 color = Color(1.0, 0.811765, 0.580392, 1.0)
 energy = 0.85
@@ -750,65 +669,26 @@ shadow_enabled = false
 texture = SubResource("GradientTexture2D_lamp")
 texture_scale = 2.2
 
-[node name="PH_LandmarkBody_Flood" type="Polygon2D" parent="."]
+[node name="PH_LandmarkBody_Drift" type="Polygon2D" parent="."]
 position = Vector2(2950, 250)
 color = Color(0.6, 0.572549, 0.478431, 1.0)
 polygon = PackedVector2Array(-14, -10, 14, -10, 10, 0, -10, 0)
 
-[node name="PH_Landmark_Gas" type="PointLight2D" parent="."]
-position = Vector2(4900, 250)
+[node name="PH_Landmark_PastGas" type="PointLight2D" parent="."]
+position = Vector2(5100, 250)
 color = Color(1.0, 0.811765, 0.580392, 1.0)
 energy = 0.85
 shadow_enabled = false
 texture = SubResource("GradientTexture2D_lamp")
 texture_scale = 2.2
 
-[node name="PH_LandmarkBody_Gas" type="Polygon2D" parent="."]
-position = Vector2(4900, 250)
-color = Color(0.6, 0.572549, 0.478431, 1.0)
-polygon = PackedVector2Array(-14, -10, 14, -10, 10, 0, -10, 0)
-
-[node name="PH_Landmark_Upper" type="PointLight2D" parent="."]
-position = Vector2(7800, 250)
-color = Color(1.0, 0.843137, 0.639216, 1.0)
-energy = 0.85
-shadow_enabled = false
-texture = SubResource("GradientTexture2D_lamp")
-texture_scale = 2.2
-
-[node name="PH_LandmarkBody_Upper" type="Polygon2D" parent="."]
-position = Vector2(7800, 250)
-color = Color(0.6, 0.572549, 0.478431, 1.0)
-polygon = PackedVector2Array(-14, -10, 14, -10, 10, 0, -10, 0)
-
-[node name="PH_Landmark_Upper2" type="PointLight2D" parent="."]
-position = Vector2(9300, 250)
-color = Color(1.0, 0.843137, 0.639216, 1.0)
-energy = 0.7
-shadow_enabled = false
-texture = SubResource("GradientTexture2D_lamp")
-texture_scale = 2.2
-
-[node name="PH_LandmarkBody_Upper2" type="Polygon2D" parent="."]
-position = Vector2(9300, 250)
-color = Color(0.6, 0.572549, 0.478431, 1.0)
-polygon = PackedVector2Array(-14, -10, 14, -10, 10, 0, -10, 0)
-
-[node name="PH_Landmark_Cage" type="PointLight2D" parent="."]
-position = Vector2(9700, 250)
-color = Color(1.0, 0.843137, 0.639216, 1.0)
-energy = 0.85
-shadow_enabled = false
-texture = SubResource("GradientTexture2D_lamp")
-texture_scale = 2.2
-
-[node name="PH_LandmarkBody_Cage" type="Polygon2D" parent="."]
-position = Vector2(9700, 250)
+[node name="PH_LandmarkBody_PastGas" type="Polygon2D" parent="."]
+position = Vector2(5100, 250)
 color = Color(0.6, 0.572549, 0.478431, 1.0)
 polygon = PackedVector2Array(-14, -10, 14, -10, 10, 0, -10, 0)
 
 [node name="PH_Landmark_Surface" type="PointLight2D" parent="."]
-position = Vector2(11700, 250)
+position = Vector2(8900, 250)
 color = Color(0.764706, 0.807843, 0.870588, 1.0)
 energy = 1.1
 shadow_enabled = false
@@ -816,36 +696,99 @@ texture = SubResource("GradientTexture2D_lamp")
 texture_scale = 2.2
 
 [node name="PH_LandmarkBody_Surface" type="Polygon2D" parent="."]
-position = Vector2(11700, 250)
+position = Vector2(8900, 250)
 color = Color(0.6, 0.572549, 0.478431, 1.0)
 polygon = PackedVector2Array(-14, -10, 14, -10, 10, 0, -10, 0)
+
+[node name="PH_ArenaLamp" type="Node2D" parent="."]
+visible = false
+position = Vector2(2500, 450)
+
+[node name="PH_Light" type="PointLight2D" parent="PH_ArenaLamp"]
+position = Vector2(0, -20)
+color = Color(1.0, 0.901961, 0.741176, 1.0)
+energy = 0.9
+shadow_enabled = false
+texture = SubResource("GradientTexture2D_lamp")
+texture_scale = 2.0
+
+[node name="PH_LampBody" type="Polygon2D" parent="PH_ArenaLamp"]
+position = Vector2(0, -2)
+color = Color(0.6, 0.572549, 0.478431, 1.0)
+polygon = PackedVector2Array(-9, -14, 9, -14, 11, 0, -11, 0)
+
+[node name="PH_Pool" type="Polygon2D" parent="PH_ArenaLamp"]
+z_index = -20
+color = Color(1.0, 0.85098, 0.541176, 0.14)
+polygon = PackedVector2Array(-248, -168, 248, -168, 248, 168, -248, 168)
 
 [node name="DriftLamps" type="Node2D" parent="."]
 visible = false
 
 [node name="PH_DriftLamp_1" type="PointLight2D" parent="DriftLamps"]
-position = Vector2(3300, 250)
+position = Vector2(6200, 250)
 color = Color(1.0, 0.87451, 0.619608, 1.0)
 energy = 1.2
 shadow_enabled = false
 texture = SubResource("GradientTexture2D_lamp")
 texture_scale = 2.4
+
+[node name="PH_DriftLampBody_1" type="Polygon2D" parent="DriftLamps"]
+position = Vector2(6200, 250)
+color = Color(0.6, 0.572549, 0.478431, 1.0)
+polygon = PackedVector2Array(-14, -10, 14, -10, 10, 0, -10, 0)
 
 [node name="PH_DriftLamp_2" type="PointLight2D" parent="DriftLamps"]
-position = Vector2(3700, 250)
+position = Vector2(6760, 250)
 color = Color(1.0, 0.87451, 0.619608, 1.0)
 energy = 1.2
 shadow_enabled = false
 texture = SubResource("GradientTexture2D_lamp")
 texture_scale = 2.4
 
+[node name="PH_DriftLampBody_2" type="Polygon2D" parent="DriftLamps"]
+position = Vector2(6760, 250)
+color = Color(0.6, 0.572549, 0.478431, 1.0)
+polygon = PackedVector2Array(-14, -10, 14, -10, 10, 0, -10, 0)
+
 [node name="PH_DriftLamp_3" type="PointLight2D" parent="DriftLamps"]
-position = Vector2(4100, 250)
+position = Vector2(7320, 250)
 color = Color(1.0, 0.87451, 0.619608, 1.0)
 energy = 1.2
 shadow_enabled = false
 texture = SubResource("GradientTexture2D_lamp")
 texture_scale = 2.4
+
+[node name="PH_DriftLampBody_3" type="Polygon2D" parent="DriftLamps"]
+position = Vector2(7320, 250)
+color = Color(0.6, 0.572549, 0.478431, 1.0)
+polygon = PackedVector2Array(-14, -10, 14, -10, 10, 0, -10, 0)
+
+[node name="PH_DriftLamp_4" type="PointLight2D" parent="DriftLamps"]
+position = Vector2(7900, 250)
+color = Color(1.0, 0.87451, 0.619608, 1.0)
+energy = 1.2
+shadow_enabled = false
+texture = SubResource("GradientTexture2D_lamp")
+texture_scale = 2.4
+
+[node name="PH_DriftLampBody_4" type="Polygon2D" parent="DriftLamps"]
+position = Vector2(7900, 250)
+color = Color(0.6, 0.572549, 0.478431, 1.0)
+polygon = PackedVector2Array(-14, -10, 14, -10, 10, 0, -10, 0)
+
+[node name="PH_DriftLamp_5" type="PointLight2D" parent="DriftLamps"]
+position = Vector2(8460, 250)
+color = Color(1.0, 0.87451, 0.619608, 1.0)
+energy = 1.2
+shadow_enabled = false
+texture = SubResource("GradientTexture2D_lamp")
+texture_scale = 2.4
+
+[node name="PH_DriftLampBody_5" type="Polygon2D" parent="DriftLamps"]
+position = Vector2(8460, 250)
+color = Color(0.6, 0.572549, 0.478431, 1.0)
+polygon = PackedVector2Array(-14, -10, 14, -10, 10, 0, -10, 0)
 
 [node name="Circuit" type="Node" parent="."]
 script = ExtResource("19_circuit")
@@ -861,324 +804,368 @@ position = Vector2(200, 450)
 Room = NodePath("../../Rooms/Room_Face")
 Label = "face"
 
-[node name="Checkpoint_Blast" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
-position = Vector2(1840, 450)
+[node name="Checkpoint_Dark" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
+position = Vector2(1860, 450)
 Room = NodePath("../../Rooms/Room_Face")
-Label = "dan"
+Label = "dark"
 
-[node name="Checkpoint_Flood" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
+[node name="Checkpoint_Drift" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
 position = Vector2(2920, 450)
-Room = NodePath("../../Rooms/Room_Flood")
-Label = "flood"
+Room = NodePath("../../Rooms/Room_Drift")
+Label = "drift"
 
-[node name="Checkpoint_Gas1" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
-position = Vector2(4840, 450)
-Room = NodePath("../../Rooms/Room_Gas")
-Label = "gas_rehearsal"
+[node name="Checkpoint_GasNear" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
+position = Vector2(4200, 450)
+RespawnOffset = Vector2(-32, 0)
+Room = NodePath("../../Rooms/Room_Drift")
+Label = "gas_near"
 
-[node name="Checkpoint_Gas2" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
-position = Vector2(5820, 450)
-RespawnOffset = Vector2(-40, 0)
-Room = NodePath("../../Rooms/Room_Gas")
-Label = "gas_pocket"
+[node name="Checkpoint_PastGas" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
+position = Vector2(5000, 450)
+Room = NodePath("../../Rooms/Room_Drift")
+Label = "past_gas"
 
-[node name="Checkpoint_PastPocket" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
-position = Vector2(6400, 450)
-Room = NodePath("../../Rooms/Room_Gas")
-Label = "past_pocket"
-
-[node name="Checkpoint_Crew" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
-position = Vector2(6560, 450)
-Room = NodePath("../../Rooms/Room_Gas")
-Label = "crew"
-
-[node name="Checkpoint_Upper" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
-position = Vector2(7720, 450)
-Room = NodePath("../../Rooms/Room_Upper")
-Label = "upper"
-
-[node name="Checkpoint_Sight" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
-position = Vector2(8900, 450)
-Room = NodePath("../../Rooms/Room_Upper")
-Label = "sight"
-
-[node name="Checkpoint_RoadPower" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
-position = Vector2(9050, 450)
-Room = NodePath("../../Rooms/Room_Upper")
-Label = "road_power"
-
-[node name="Checkpoint_RoadPay" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
-position = Vector2(9250, 450)
-Room = NodePath("../../Rooms/Room_Upper")
-Label = "road_pay"
-
-[node name="Checkpoint_RoadDays" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
-position = Vector2(9450, 450)
-Room = NodePath("../../Rooms/Room_Upper")
-Label = "road_days"
+[node name="Checkpoint_Patrol" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
+position = Vector2(5800, 450)
+Room = NodePath("../../Rooms/Room_Patrol")
+Label = "patrol"
 
 [node name="Checkpoint_Cage" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
-position = Vector2(9640, 450)
-Room = NodePath("../../Rooms/Room_Cage")
+position = Vector2(7700, 450)
+Room = NodePath("../../Rooms/Room_Patrol")
 Label = "cage"
 
-[node name="Checkpoint_Farewell" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
-position = Vector2(11000, 450)
-monitoring = false
-Room = NodePath("../../Rooms/Room_Cage")
-Label = "farewell"
-
 [node name="Checkpoint_Surface" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("25_checkpoint")]
-position = Vector2(11700, 450)
+position = Vector2(8700, 450)
+monitoring = false
 Room = NodePath("../../Rooms/Room_Surface")
 Label = "surface"
 
+[node name="DanRoute" type="Node2D" parent="."]
+
+[node name="WP_charge" type="Marker2D" parent="DanRoute"]
+position = Vector2(1000, 470)
+
+[node name="WP_props" type="Marker2D" parent="DanRoute"]
+position = Vector2(1620, 470)
+
+[node name="WP_dark" type="Marker2D" parent="DanRoute"]
+position = Vector2(2040, 470)
+
+[node name="WP_face_exit" type="Marker2D" parent="DanRoute"]
+position = Vector2(2820, 470)
+
+[node name="WP_timber" type="Marker2D" parent="DanRoute"]
+position = Vector2(3220, 470)
+
+[node name="WP_gas_edge" type="Marker2D" parent="DanRoute"]
+position = Vector2(4340, 470)
+
+[node name="WP_past_gas" type="Marker2D" parent="DanRoute"]
+position = Vector2(4900, 470)
+
+[node name="WP_drift_exit" type="Marker2D" parent="DanRoute"]
+position = Vector2(5700, 470)
+
+[node name="WP_patrol_in" type="Marker2D" parent="DanRoute"]
+position = Vector2(5840, 470)
+
+[node name="WP_p1" type="Marker2D" parent="DanRoute"]
+position = Vector2(6250, 585)
+
+[node name="WP_c1" type="Marker2D" parent="DanRoute"]
+position = Vector2(6480, 585)
+
+[node name="WP_c1b" type="Marker2D" parent="DanRoute"]
+position = Vector2(6480, 315)
+
+[node name="WP_p2" type="Marker2D" parent="DanRoute"]
+position = Vector2(6810, 315)
+
+[node name="WP_c2" type="Marker2D" parent="DanRoute"]
+position = Vector2(7040, 315)
+
+[node name="WP_c2b" type="Marker2D" parent="DanRoute"]
+position = Vector2(7040, 585)
+
+[node name="WP_p3" type="Marker2D" parent="DanRoute"]
+position = Vector2(7370, 585)
+
+[node name="WP_p3_out" type="Marker2D" parent="DanRoute"]
+position = Vector2(7600, 585)
+
+[node name="WP_cage" type="Marker2D" parent="DanRoute"]
+position = Vector2(8180, 470)
+
+[node name="WP_board" type="Marker2D" parent="DanRoute"]
+position = Vector2(8500, 470)
+
+[node name="Charge" parent="." instance=ExtResource("27_panel")]
+position = Vector2(1140, 450)
+PromptText = "Set the charge"
+Sequence = PackedStringArray("move_up", "attack", "move_down", "jump")
+ActivatedPromptText = "Charge set"
+
 [node name="DebrisPile_BlastSeal" parent="." instance=ExtResource("23_debris")]
-position = Vector2(1420, 450)
+position = Vector2(1360, 450)
 HeavyHitsToClear = 0
 SaveId = "blast_seal"
 StartsCleared = true
 
 [node name="CaveIn_Blast" parent="." node_paths=PackedStringArray("Level", "Blockage") instance=ExtResource("24_cavein")]
-position = Vector2(1640, 450)
+position = Vector2(1380, 450)
+monitoring = false
 Level = NodePath("..")
 Blockage = NodePath("../DebrisPile_BlastSeal")
-Delay = 0.35
+Delay = 0.0
 ShakeAmplitude = 26.0
 ShakeSeconds = 1.6
 
-[node name="PH_DanFallen" type="Polygon2D" parent="."]
-position = Vector2(1900, 520)
-z_index = -20
-color = Color(0.788235, 0.458824, 0.164706, 0.35)
-polygon = PackedVector2Array(-42, -10, 42, -10, 42, 10, -42, 10)
+[node name="BlastTrigger" type="Area2D" parent="."]
+position = Vector2(1640, 450)
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BlastTrigger"]
+shape = SubResource("RectangleShape2D_trigger")
+
+[node name="DebrisPile_Jam" parent="." instance=ExtResource("23_debris")]
+modulate = Color(0.55, 0.6, 0.68, 1)
+position = Vector2(1760, 450)
+HeavyHitsToClear = 0
+SaveId = "jam"
+
+[node name="PH_JamCarts" type="Node2D" parent="."]
+position = Vector2(1760, 450)
+
+[node name="PH_Cart_1" type="Polygon2D" parent="PH_JamCarts"]
+position = Vector2(-30, -70)
+color = Color(0.352941, 0.215686, 0.133333, 1.0)
+polygon = PackedVector2Array(-58, -66, 58, -66, 50, -8, -50, -8)
+
+[node name="PH_Rim" type="Polygon2D" parent="PH_JamCarts/PH_Cart_1"]
+color = Color(0.541176, 0.309804, 0.156863, 1.0)
+polygon = PackedVector2Array(-60, -72, 60, -72, 60, -58, -60, -58)
+
+[node name="PH_Load" type="Polygon2D" parent="PH_JamCarts/PH_Cart_1"]
+color = Color(0.101961, 0.090196, 0.078431, 1.0)
+polygon = PackedVector2Array(-44, -84, -10, -96, 22, -80, 48, -90, 50, -70, -46, -70)
+
+[node name="PH_Outline" type="Line2D" parent="PH_JamCarts/PH_Cart_1"]
+points = PackedVector2Array(-58, -66, 58, -66, 50, -8, -50, -8, -58, -66)
+width = 3
+default_color = Color(0.039216, 0.05098, 0.078431, 1.0)
+
+[node name="PH_Cart_2" type="Polygon2D" parent="PH_JamCarts"]
+position = Vector2(30, 60)
+color = Color(0.352941, 0.215686, 0.133333, 1.0)
+polygon = PackedVector2Array(-58, -66, 58, -66, 50, -8, -50, -8)
+
+[node name="PH_Rim" type="Polygon2D" parent="PH_JamCarts/PH_Cart_2"]
+color = Color(0.541176, 0.309804, 0.156863, 1.0)
+polygon = PackedVector2Array(-60, -72, 60, -72, 60, -58, -60, -58)
+
+[node name="PH_Load" type="Polygon2D" parent="PH_JamCarts/PH_Cart_2"]
+color = Color(0.101961, 0.090196, 0.078431, 1.0)
+polygon = PackedVector2Array(-44, -84, -10, -96, 22, -80, 48, -90, 50, -70, -46, -70)
+
+[node name="PH_Outline" type="Line2D" parent="PH_JamCarts/PH_Cart_2"]
+points = PackedVector2Array(-58, -66, 58, -66, 50, -8, -50, -8, -58, -66)
+width = 3
+default_color = Color(0.039216, 0.05098, 0.078431, 1.0)
+
+[node name="GuardWave" parent="." node_paths=PackedStringArray("Player", "Director", "Camera") instance=ExtResource("4_spawner")]
+position = Vector2(2200, 450)
+Count = 2
+SpawnInterval = 0.6
+LockRect = Rect2(960, 0, 1920, 1080)
+Player = NodePath("../Player")
+Director = NodePath("../EnemyDirector")
+Camera = NodePath("../Camera2D")
+
+[node name="Marker1" parent="GuardWave/SpawnPoints" index="0"]
+position = Vector2(660, -70)
+
+[node name="Marker2" parent="GuardWave/SpawnPoints" index="1"]
+position = Vector2(660, 90)
+
+[node name="Marker3" parent="GuardWave/SpawnPoints" index="2"]
+position = Vector2(660, 10)
+
+[node name="LitZone_Arena" type="Area2D" parent="."]
+position = Vector2(2500, 450)
+collision_layer = 64
+collision_mask = 0
+monitoring = false
+script = ExtResource("6_litzone")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LitZone_Arena"]
+shape = SubResource("RectangleShape2D_arena")
+disabled = true
+
+[node name="Outlet_1" parent="." instance=ExtResource("7_outlet")]
+position = Vector2(2060, 560)
+Uses = 3
+Cooldown = 8.0
+
+[node name="Outlet_2" parent="." instance=ExtResource("7_outlet")]
+position = Vector2(3700, 560)
+Uses = 3
+Cooldown = 8.0
+
+[node name="Outlet_3" parent="." instance=ExtResource("7_outlet")]
+position = Vector2(5300, 560)
+Uses = 3
+Cooldown = 8.0
 
 [node name="DebrisPile_Timber" parent="." instance=ExtResource("23_debris")]
-position = Vector2(2450, 450)
+position = Vector2(3300, 450)
 HeavyHitsToClear = 2
 SaveId = "timber"
 
+[node name="GasZone_Pocket_A" parent="." node_paths=PackedStringArray("Room") instance=ExtResource("22_gas")]
+position = Vector2(4500, 450)
+WarningSeconds = 1.2
+Room = NodePath("../Rooms/Room_Drift")
+
+[node name="GasZone_Pocket_B" parent="." node_paths=PackedStringArray("Room") instance=ExtResource("22_gas")]
+position = Vector2(4680, 450)
+WarningSeconds = 1.2
+Room = NodePath("../Rooms/Room_Drift")
+
+[node name="Patrol" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Guard_1" parent="Patrol" instance=ExtResource("28_guard")]
+position = Vector2(6200, 310)
+Facing = -1
+DropScene = ExtResource("29_pickup")
+
+[node name="Guard_2" parent="Patrol" instance=ExtResource("28_guard")]
+position = Vector2(6760, 590)
+Facing = -1
+DropScene = ExtResource("29_pickup")
+
+[node name="Guard_3" parent="Patrol" instance=ExtResource("28_guard")]
+position = Vector2(7320, 310)
+Facing = -1
+DropScene = ExtResource("29_pickup")
+
+[node name="LitZone_P1" type="Area2D" parent="."]
+position = Vector2(6200, 410)
+collision_layer = 64
+collision_mask = 0
+monitoring = false
+script = ExtResource("6_litzone")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LitZone_P1"]
+shape = SubResource("RectangleShape2D_pool")
+
+[node name="LitZone_P2" type="Area2D" parent="."]
+position = Vector2(6760, 490)
+collision_layer = 64
+collision_mask = 0
+monitoring = false
+script = ExtResource("6_litzone")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LitZone_P2"]
+shape = SubResource("RectangleShape2D_pool")
+
+[node name="LitZone_P3" type="Area2D" parent="."]
+position = Vector2(7320, 410)
+collision_layer = 64
+collision_mask = 0
+monitoring = false
+script = ExtResource("6_litzone")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LitZone_P3"]
+shape = SubResource("RectangleShape2D_pool")
+
 [node name="Lights_Drift" parent="." node_paths=PackedStringArray("Circuit", "RunFx") instance=ExtResource("20_machine")]
-position = Vector2(3140, 450)
+position = Vector2(7900, 450)
 PromptText = "Switch on the work lights"
-ActivatedPromptText = "Work lights on - cut the power"
+ActivatedPromptText = "Work lights on"
 Circuit = NodePath("../Circuit")
 DisplayName = "Work lights"
 StartsPowered = true
 RunFx = NodePath("../DriftLamps")
 
-[node name="Pump" parent="." node_paths=PackedStringArray("Circuit", "ClearTargets") instance=ExtResource("20_machine")]
-position = Vector2(3900, 450)
-PromptText = "Repair the pump"
-ActivatedPromptText = "Pump running - cut the power"
-Sequence = PackedStringArray("move_up", "attack", "move_down", "jump")
-Circuit = NodePath("../Circuit")
-DisplayName = "Pump"
-ClearTargets = [NodePath("../Flood")]
-
-[node name="Flood" parent="." instance=ExtResource("23_debris")]
-modulate = Color(0.45, 0.72, 1, 1)
-position = Vector2(4260, 450)
-HeavyHitsToClear = 0
-SaveId = "flood"
-
-[node name="GasZone_Rehearsal" parent="." node_paths=PackedStringArray("Room") instance=ExtResource("22_gas")]
-position = Vector2(5100, 450)
-WarningSeconds = 1.5
-Room = NodePath("../Rooms/Room_Gas")
-
-[node name="Extractor" parent="." node_paths=PackedStringArray("Circuit", "ClearTargets") instance=ExtResource("20_machine")]
-position = Vector2(5620, 450)
-PromptText = "Switch on the extractor"
-ActivatedPromptText = "Extractor running - cut the power"
-Circuit = NodePath("../Circuit")
-DisplayName = "Extractor"
-ClearTargets = [NodePath("../GasZone_Pocket_A"), NodePath("../GasZone_Pocket_B")]
-
-[node name="GasZone_Pocket_A" parent="." node_paths=PackedStringArray("Room") instance=ExtResource("22_gas")]
-position = Vector2(6000, 450)
-WarningSeconds = 0.8
-Room = NodePath("../Rooms/Room_Gas")
-
-[node name="GasZone_Pocket_B" parent="." node_paths=PackedStringArray("Room") instance=ExtResource("22_gas")]
-position = Vector2(6180, 450)
-WarningSeconds = 0.8
-Room = NodePath("../Rooms/Room_Gas")
-
-[node name="LitZone_Crew1" type="Area2D" parent="."]
-position = Vector2(6850, 520)
-collision_layer = 64
-collision_mask = 0
-monitoring = false
-script = ExtResource("6_litzone")
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="LitZone_Crew1"]
-shape = SubResource("RectangleShape2D_pool")
-
-[node name="PH_PoolLamp" type="PointLight2D" parent="LitZone_Crew1"]
-position = Vector2(0, -270)
-color = Color(1.0, 0.901961, 0.741176, 1.0)
-energy = 1.3
-shadow_enabled = false
-texture = SubResource("GradientTexture2D_lamp")
-texture_scale = 1.9
-
-[node name="PH_PoolLampBody" type="Polygon2D" parent="LitZone_Crew1"]
-position = Vector2(0, -270)
-color = Color(0.6, 0.572549, 0.478431, 1.0)
-polygon = PackedVector2Array(-14, -10, 14, -10, 10, 0, -10, 0)
-
-[node name="LitZone_Crew2" type="Area2D" parent="."]
-position = Vector2(7200, 380)
-collision_layer = 64
-collision_mask = 0
-monitoring = false
-script = ExtResource("6_litzone")
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="LitZone_Crew2"]
-shape = SubResource("RectangleShape2D_pool")
-
-[node name="PH_PoolLamp" type="PointLight2D" parent="LitZone_Crew2"]
-position = Vector2(0, -130)
-color = Color(1.0, 0.901961, 0.741176, 1.0)
-energy = 1.3
-shadow_enabled = false
-texture = SubResource("GradientTexture2D_lamp")
-texture_scale = 1.9
-
-[node name="PH_PoolLampBody" type="Polygon2D" parent="LitZone_Crew2"]
-position = Vector2(0, -130)
-color = Color(0.6, 0.572549, 0.478431, 1.0)
-polygon = PackedVector2Array(-14, -10, 14, -10, 10, 0, -10, 0)
-
-[node name="PH_Crew1" parent="." instance=ExtResource("14_rig")]
-position = Vector2(6850, 300)
-SuitColor = Color(0.172549, 0.2, 0.25098, 1.0)
-SkinColor = Color(0.709804, 0.509804, 0.372549, 1.0)
-
-[node name="PH_Crew2" parent="." instance=ExtResource("14_rig")]
-position = Vector2(7200, 300)
-SuitColor = Color(0.172549, 0.2, 0.25098, 1.0)
-SkinColor = Color(0.709804, 0.509804, 0.372549, 1.0)
-
-[node name="WatchZone_Crew" parent="." node_paths=PackedStringArray("Room") instance=ExtResource("27_watch")]
-position = Vector2(7050, 450)
-WarningSeconds = 0.6
-Room = NodePath("../Rooms/Room_Gas")
-
-[node name="DebrisPile_UpperSeal" parent="." instance=ExtResource("23_debris")]
-position = Vector2(7540, 450)
-HeavyHitsToClear = 0
-SaveId = "upper_seal"
-StartsCleared = true
-
-[node name="CaveIn_Upper" parent="." node_paths=PackedStringArray("Level", "Blockage") instance=ExtResource("24_cavein")]
-position = Vector2(7760, 450)
-Level = NodePath("..")
-Blockage = NodePath("../DebrisPile_UpperSeal")
-Delay = 0.35
-ShakeAmplitude = 22.0
-ShakeSeconds = 1.2
-
-[node name="DebrisPile_Ramp" parent="." instance=ExtResource("23_debris")]
-position = Vector2(8300, 450)
-HeavyHitsToClear = 2
-SaveId = "ramp"
-
-[node name="Lights_Cage" parent="." node_paths=PackedStringArray("Circuit") instance=ExtResource("20_machine")]
-position = Vector2(10120, 450)
-PromptText = "Switch on the floodlight"
-ActivatedPromptText = "Floodlight on - cut the power"
-Circuit = NodePath("../Circuit")
-DisplayName = "Floodlight"
-
-[node name="DebrisPile_Final" parent="." instance=ExtResource("23_debris")]
-position = Vector2(10700, 450)
-HeavyHitsToClear = 0
-SaveId = "final_seal"
-StartsCleared = true
-
-[node name="CaveIn_Final" parent="." node_paths=PackedStringArray("Level", "Blockage") instance=ExtResource("24_cavein")]
-position = Vector2(10920, 450)
-monitoring = false
-Level = NodePath("..")
-Blockage = NodePath("../DebrisPile_Final")
-Delay = 0.35
-ShakeAmplitude = 28.0
-ShakeSeconds = 1.8
-
 [node name="Hoist" parent="." node_paths=PackedStringArray("Circuit") instance=ExtResource("21_hoist")]
-position = Vector2(11240, 450)
+position = Vector2(8500, 450)
 PromptText = "Start the cage"
 ActivatedPromptText = "Cage running"
+DisplayName = "Cage"
 Circuit = NodePath("../Circuit")
 
+[node name="PH_Screen" parent="Hoist" index="2"]
+position = Vector2(-130, -60)
+
+[node name="CollisionShape2D" parent="Hoist" index="4"]
+position = Vector2(-130, 0)
+
 [node name="CollisionShape2D" parent="Hoist/BoardingArea" index="0"]
+position = Vector2(20, 0)
 shape = SubResource("RectangleShape2D_boarding")
 
 [node name="PH_CageShaft" type="ColorRect" parent="."]
 z_index = -40
-offset_left = 11176.0
+offset_left = 8436.0
 offset_top = 36.0
-offset_right = 11304.0
+offset_right = 8564.0
 offset_bottom = 300.0
 color = Color(0.062745, 0.078431, 0.094118, 1.0)
 
 [node name="PH_CageCable" type="ColorRect" parent="."]
 z_index = -40
-offset_left = 11236.0
+offset_left = 8496.0
 offset_top = 36.0
-offset_right = 11244.0
+offset_right = 8504.0
 offset_bottom = 300.0
 color = Color(0.301961, 0.345098, 0.4, 1.0)
 
-[node name="PH_Foreman" parent="." instance=ExtResource("14_rig")]
-position = Vector2(12100, 520)
+[node name="HeldGuards" type="Node2D" parent="."]
+visible = false
+
+[node name="Overseer" parent="HeldGuards" instance=ExtResource("14_rig")]
+position = Vector2(8060, 434)
 SuitColor = Color(0.172549, 0.2, 0.25098, 1.0)
-SkinColor = Color(0.85098, 0.627451, 0.466667, 1.0)
+SkinColor = Color(0.709804, 0.509804, 0.372549, 1.0)
+Build = 2
 
-[node name="PH_LampRoomDesk" type="Polygon2D" parent="."]
-position = Vector2(12100, 560)
-color = Color(0.227451, 0.196078, 0.152941, 1.0)
-polygon = PackedVector2Array(-90, -60, 90, -60, 90, 0, -90, 0)
+[node name="PH_Gun" type="Line2D" parent="HeldGuards/Overseer"]
+points = PackedVector2Array(6, -8, 40, -14)
+width = 4.0
+default_color = Color(0.301961, 0.345098, 0.4, 1.0)
 
-[node name="GuardSpawner" parent="." node_paths=PackedStringArray("Player", "Director", "Camera") instance=ExtResource("4_spawner")]
-position = Vector2(12400, 450)
-Count = 1
-SpawnAware = false
-LockRect = Rect2(11520, 0, 1920, 1080)
-Player = NodePath("../Player")
-Director = NodePath("../EnemyDirector")
-Camera = NodePath("../Camera2D")
+[node name="PH_Guard_A" parent="HeldGuards" instance=ExtResource("14_rig")]
+position = Vector2(8130, 394)
+SuitColor = Color(0.172549, 0.2, 0.25098, 1.0)
+SkinColor = Color(0.709804, 0.509804, 0.372549, 1.0)
+Build = 2
 
-[node name="CollisionShape2D" parent="GuardSpawner" index="0"]
-disabled = true
+[node name="PH_Guard_B" parent="HeldGuards" instance=ExtResource("14_rig")]
+position = Vector2(8120, 474)
+SuitColor = Color(0.172549, 0.2, 0.25098, 1.0)
+SkinColor = Color(0.709804, 0.509804, 0.372549, 1.0)
+Build = 2
 
-[node name="Marker1" parent="GuardSpawner/SpawnPoints" index="0"]
-position = Vector2(300, 60)
+[node name="PH_HeldLamp" type="PointLight2D" parent="HeldGuards"]
+position = Vector2(8100, 420)
+color = Color(1.0, 0.901961, 0.741176, 1.0)
+energy = 0.9
+shadow_enabled = false
+texture = SubResource("GradientTexture2D_lamp")
+texture_scale = 1.6
 
-[node name="Marker2" parent="GuardSpawner/SpawnPoints" index="1"]
-position = Vector2(560, 20)
+[node name="LevelExit" type="Area2D" parent="."]
+position = Vector2(10200, 450)
+collision_layer = 0
+collision_mask = 2
+monitorable = false
 
-[node name="Outlet_1" parent="." instance=ExtResource("7_outlet")]
-position = Vector2(2120, 560)
-Uses = 3
-Cooldown = 8.0
-
-[node name="Outlet_2" parent="." instance=ExtResource("7_outlet")]
-position = Vector2(3260, 560)
-Uses = 3
-Cooldown = 8.0
-
-[node name="Outlet_3" parent="." instance=ExtResource("7_outlet")]
-position = Vector2(5340, 560)
-Uses = 3
-Cooldown = 8.0
-
-[node name="Outlet_4" parent="." instance=ExtResource("7_outlet")]
-position = Vector2(9100, 560)
-Uses = 3
-Cooldown = 8.0
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LevelExit"]
+shape = SubResource("RectangleShape2D_wall")
 
 [node name="Tutorial" type="Node2D" parent="."]
 
@@ -1221,24 +1208,39 @@ Timeout = 6.0
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Tutorial/FlashlightPrompt"]
 shape = SubResource("RectangleShape2D_prompt_flash")
 
-[node name="HeavyPrompt" type="Area2D" parent="Tutorial"]
-position = Vector2(2320, 450)
+[node name="AttackPrompt" type="Area2D" parent="Tutorial"]
+position = Vector2(2400, 450)
 collision_layer = 0
 collision_mask = 2
 monitorable = false
+monitoring = false
 script = ExtResource("9_prompt")
-Text = "K - heavy attack breaks the timber"
+Text = "J - light attack"
+CompletesOnAction = "attack"
+Timeout = 8.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Tutorial/AttackPrompt"]
+shape = SubResource("RectangleShape2D_prompt_hint")
+
+[node name="HeavyPrompt" type="Area2D" parent="Tutorial"]
+position = Vector2(2460, 450)
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+monitoring = false
+script = ExtResource("9_prompt")
+Text = "K - heavy attack"
 CompletesOnAction = "heavy_attack"
 Timeout = 8.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Tutorial/HeavyPrompt"]
-shape = SubResource("RectangleShape2D_prompt_heavy")
+shape = SubResource("RectangleShape2D_prompt_hint")
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
 position = Vector2(200, 480)
 
 [node name="Dan" parent="." node_paths=PackedStringArray("Target") instance=ExtResource("26_companion")]
-position = Vector2(120, 490)
+position = Vector2(960, 470)
 Target = NodePath("../Player")
 
 [node name="Camera2D" type="Camera2D" parent="."]
@@ -1259,9 +1261,9 @@ position_smoothing_enabled = true
 [node name="DebugLabel" type="Label" parent="UI"]
 offset_left = 16.0
 offset_top = 76.0
-offset_right = 760.0
+offset_right = 900.0
 offset_bottom = 104.0
-text = "Stage: -  State: -  z: 0  Circuit 0/1"
+text = "Stage: -  State: -  z: 0  Circuit 0/1  Dan: -"
 
 [node name="PauseMenu" parent="." instance=ExtResource("13_pause")]
 
@@ -1273,6 +1275,18 @@ scroll_scale = Vector2(0.15, 1)
 repeat_size = Vector2(2560, 0)
 repeat_times = 7
 
+[node name="PxRockMid" type="Parallax2D" parent="Parallax"]
+z_index = -80
+scroll_scale = Vector2(0.35, 1)
+repeat_size = Vector2(2240, 0)
+repeat_times = 7
+
+[node name="PxStruct" type="Parallax2D" parent="Parallax"]
+z_index = -60
+scroll_scale = Vector2(0.55, 1)
+repeat_size = Vector2(1920, 0)
+repeat_times = 8
+
 [node name="PH_FarMassif" type="Polygon2D" parent="Parallax/PxRockFar"]
 color = Color(0.070588, 0.086275, 0.113725, 1.0)
 polygon = PackedVector2Array(0, 96, 128, 92.7, 256, 96.6, 384, 80.2, 512, 118.4, 640, 99.2, 768, 94.8, 896, 98.5, 1024, 82.3, 1152, 111.1, 1280, 110.6, 1408, 80, 1536, 93.3, 1664, 103.3, 1792, 106, 1920, 119.6, 2048, 98.3, 2176, 104.5, 2304, 109.7, 2432, 103.9, 2560, 96, 2560, 1160, 0, 1160)
@@ -1280,12 +1294,6 @@ polygon = PackedVector2Array(0, 96, 128, 92.7, 256, 96.6, 384, 80.2, 512, 118.4,
 [node name="PH_FarRidge" type="Polygon2D" parent="Parallax/PxRockFar"]
 color = Color(0.090196, 0.109804, 0.14902, 0.85)
 polygon = PackedVector2Array(0, 300, 160, 318.3, 320, 322.7, 480, 266, 640, 333.5, 800, 264.2, 960, 303.3, 1120, 254.2, 1280, 310.6, 1440, 329.7, 1600, 256.9, 1760, 272.7, 1920, 301.7, 2080, 268.3, 2240, 319.5, 2400, 282.5, 2560, 300, 2560, 1160, 0, 1160)
-
-[node name="PxRockMid" type="Parallax2D" parent="Parallax"]
-z_index = -80
-scroll_scale = Vector2(0.35, 1)
-repeat_size = Vector2(2240, 0)
-repeat_times = 7
 
 [node name="PH_MidWall" type="Polygon2D" parent="Parallax/PxRockMid"]
 color = Color(0.105882, 0.129412, 0.168627, 1.0)
@@ -1320,12 +1328,6 @@ mouse_filter = 2
 texture = SubResource("NoiseTexture2D_rock")
 expand_mode = 1
 stretch_mode = 1
-
-[node name="PxStruct" type="Parallax2D" parent="Parallax"]
-z_index = -60
-scroll_scale = Vector2(0.55, 1)
-repeat_size = Vector2(1920, 0)
-repeat_times = 8
 
 [node name="PH_FarDuct" type="Polygon2D" parent="Parallax/PxStruct"]
 color = Color(0.176471, 0.207843, 0.258824, 1.0)
@@ -1372,43 +1374,27 @@ offset_right = 2880
 offset_bottom = 300.0
 mouse_filter = 2
 
-[node name="PH_WallTone_Flood" type="ColorRect" parent="Backdrop"]
+[node name="PH_WallTone_Drift" type="ColorRect" parent="Backdrop"]
 color = Color(0.223529, 0.258824, 0.309804, 0.2)
 offset_left = 2880
 offset_top = 36.0
-offset_right = 4800
+offset_right = 5760
 offset_bottom = 300.0
 mouse_filter = 2
 
-[node name="PH_WallTone_Gas" type="ColorRect" parent="Backdrop"]
-color = Color(0.415686, 0.435294, 0.203922, 0.15)
-offset_left = 4800
-offset_top = 36.0
-offset_right = 7680
-offset_bottom = 300.0
-mouse_filter = 2
-
-[node name="PH_WallTone_Upper" type="ColorRect" parent="Backdrop"]
-color = Color(0.223529, 0.258824, 0.309804, 0.14)
-offset_left = 7680
-offset_top = 36.0
-offset_right = 9600
-offset_bottom = 300.0
-mouse_filter = 2
-
-[node name="PH_WallTone_Cage" type="ColorRect" parent="Backdrop"]
+[node name="PH_WallTone_Patrol" type="ColorRect" parent="Backdrop"]
 color = Color(0.301961, 0.345098, 0.4, 0.16)
-offset_left = 9600
+offset_left = 5760
 offset_top = 36.0
-offset_right = 11520
+offset_right = 8640
 offset_bottom = 300.0
 mouse_filter = 2
 
 [node name="PH_WallTone_Surface" type="ColorRect" parent="Backdrop"]
 color = Color(0.478431, 0.509804, 0.564706, 0.22)
-offset_left = 11520
+offset_left = 8640
 offset_top = 36.0
-offset_right = 13440
+offset_right = 10560
 offset_bottom = 300.0
 mouse_filter = 2
 
@@ -1416,7 +1402,7 @@ mouse_filter = 2
 modulate = Color(0.145098, 0.176471, 0.227451, 0.22)
 z_index = 1
 offset_top = 36.0
-offset_right = 13440
+offset_right = 10560
 offset_bottom = 300.0
 mouse_filter = 2
 texture = SubResource("NoiseTexture2D_rock")
@@ -1426,7 +1412,7 @@ stretch_mode = 1
 [node name="PH_CeilingRock" type="Polygon2D" parent="Backdrop"]
 z_index = 2
 color = Color(0.070588, 0.086275, 0.113725, 1.0)
-polygon = PackedVector2Array(0, 36, 120, 70, 240, 64.7, 360, 90.5, 480, 56, 600, 47.3, 720, 91.7, 840, 79.9, 960, 83.8, 1080, 102.8, 1200, 78.5, 1320, 72.5, 1440, 77.6, 1560, 54.7, 1680, 95.2, 1800, 92.3, 1920, 87.7, 2040, 101.4, 2160, 61.3, 2280, 75.5, 2400, 75.2, 2520, 97.3, 2640, 92.9, 2760, 96.8, 2880, 65.1, 3000, 47.3, 3120, 90, 3240, 94.1, 3360, 49.3, 3480, 57.6, 3600, 85.9, 3720, 76.8, 3840, 50.3, 3960, 49.8, 4080, 53.7, 4200, 95.6, 4320, 46.4, 4440, 65.4, 4560, 64.2, 4680, 89.4, 4800, 63, 4920, 48, 5040, 56, 5160, 86.7, 5280, 52.8, 5400, 103.2, 5520, 73.1, 5640, 85.1, 5760, 61.2, 5880, 90.8, 6000, 61.8, 6120, 81.8, 6240, 96.8, 6360, 67.7, 6480, 52.2, 6600, 77, 6720, 92.8, 6840, 65.1, 6960, 74.8, 7080, 52, 7200, 99.4, 7320, 64.4, 7440, 102.8, 7560, 67, 7680, 49.4, 7800, 71.6, 7920, 83.7, 8040, 68.7, 8160, 82.5, 8280, 99.2, 8400, 48.7, 8520, 50.6, 8640, 53.3, 8760, 75.5, 8880, 63.1, 9000, 54.3, 9120, 103.7, 9240, 81.1, 9360, 46.7, 9480, 95.2, 9600, 100.2, 9720, 101.9, 9840, 85, 9960, 56.7, 10080, 78.5, 10200, 52.2, 10320, 89, 10440, 86, 10560, 100.2, 10680, 52.7, 10800, 82.4, 10920, 95.3, 11040, 63.2, 11160, 96.5, 11280, 67.9, 11400, 101.3, 11520, 96.5, 11640, 62.8, 11760, 68.5, 11880, 88, 12000, 58.9, 12120, 89.4, 12240, 57.9, 12360, 89.4, 12480, 57.5, 12600, 49.4, 12720, 95.7, 12840, 91.3, 12960, 86.2, 13080, 66.6, 13200, 76.5, 13320, 85.7, 13440, 101.1, 13440, 36)
+polygon = PackedVector2Array(0, 36, 120, 64.8, 240, 54.7, 360, 83.8, 480, 50.2, 600, 77.1, 720, 67.2, 840, 49.4, 960, 75.4, 1080, 48.2, 1200, 71.2, 1320, 50.1, 1440, 51.3, 1560, 70.6, 1680, 94.0, 1800, 53.2, 1920, 58.9, 2040, 82.4, 2160, 101.0, 2280, 79.5, 2400, 69.0, 2520, 102.6, 2640, 48.7, 2760, 95.8, 2880, 62.8, 3000, 54.4, 3120, 52.8, 3240, 63.9, 3360, 93.3, 3480, 56.5, 3600, 79.7, 3720, 83.1, 3840, 67.6, 3960, 77.8, 4080, 49.6, 4200, 49.5, 4320, 57.9, 4440, 85.5, 4560, 70.8, 4680, 64.2, 4800, 80.0, 4920, 72.3, 5040, 63.4, 5160, 92.1, 5280, 86.5, 5400, 60.2, 5520, 79.3, 5640, 76.5, 5760, 96.8, 5880, 88.3, 6000, 62.7, 6120, 102.9, 6240, 52.8, 6360, 70.3, 6480, 89.9, 6600, 54.8, 6720, 74.4, 6840, 48.3, 6960, 84.8, 7080, 90.3, 7200, 79.2, 7320, 96.8, 7440, 64.2, 7560, 86.3, 7680, 80.5, 7800, 79.6, 7920, 72.5, 8040, 94.7, 8160, 100.8, 8280, 73.5, 8400, 84.5, 8520, 49.5, 8640, 86.7, 8760, 83.5, 8880, 103.6, 9000, 93.7, 9120, 62.5, 9240, 68.4, 9360, 84.8, 9480, 47.3, 9600, 72.8, 9720, 55.7, 9840, 52.8, 9960, 49.4, 10080, 90.6, 10200, 53.5, 10320, 60.4, 10440, 68.7, 10560, 96.5, 10560, 36)
 
 [node name="PH_WallStrata_1" type="Polygon2D" parent="Backdrop"]
 z_index = 2
@@ -1441,52 +1427,32 @@ polygon = PackedVector2Array(0, 214, 2880, 204, 2880, 228, 0, 238)
 [node name="PH_WallStrata_3" type="Polygon2D" parent="Backdrop"]
 z_index = 2
 color = Color(0.223529, 0.258824, 0.309804, 0.4)
-polygon = PackedVector2Array(2880, 132, 4800, 122, 4800, 146, 2880, 156)
+polygon = PackedVector2Array(2880, 132, 5760, 122, 5760, 146, 2880, 156)
 
 [node name="PH_WallStrata_4" type="Polygon2D" parent="Backdrop"]
 z_index = 2
 color = Color(0.223529, 0.258824, 0.309804, 0.4)
-polygon = PackedVector2Array(2880, 214, 4800, 204, 4800, 228, 2880, 238)
+polygon = PackedVector2Array(2880, 214, 5760, 204, 5760, 228, 2880, 238)
 
 [node name="PH_WallStrata_5" type="Polygon2D" parent="Backdrop"]
 z_index = 2
-color = Color(0.415686, 0.435294, 0.203922, 0.4)
-polygon = PackedVector2Array(4800, 132, 7680, 122, 7680, 146, 4800, 156)
+color = Color(0.301961, 0.345098, 0.4, 0.4)
+polygon = PackedVector2Array(5760, 132, 8640, 122, 8640, 146, 5760, 156)
 
 [node name="PH_WallStrata_6" type="Polygon2D" parent="Backdrop"]
 z_index = 2
-color = Color(0.415686, 0.435294, 0.203922, 0.4)
-polygon = PackedVector2Array(4800, 214, 7680, 204, 7680, 228, 4800, 238)
+color = Color(0.301961, 0.345098, 0.4, 0.4)
+polygon = PackedVector2Array(5760, 214, 8640, 204, 8640, 228, 5760, 238)
 
 [node name="PH_WallStrata_7" type="Polygon2D" parent="Backdrop"]
 z_index = 2
-color = Color(0.223529, 0.258824, 0.309804, 0.4)
-polygon = PackedVector2Array(7680, 132, 9600, 122, 9600, 146, 7680, 156)
+color = Color(0.478431, 0.509804, 0.564706, 0.4)
+polygon = PackedVector2Array(8640, 132, 10560, 122, 10560, 146, 8640, 156)
 
 [node name="PH_WallStrata_8" type="Polygon2D" parent="Backdrop"]
 z_index = 2
-color = Color(0.223529, 0.258824, 0.309804, 0.4)
-polygon = PackedVector2Array(7680, 214, 9600, 204, 9600, 228, 7680, 238)
-
-[node name="PH_WallStrata_9" type="Polygon2D" parent="Backdrop"]
-z_index = 2
-color = Color(0.301961, 0.345098, 0.4, 0.4)
-polygon = PackedVector2Array(9600, 132, 11520, 122, 11520, 146, 9600, 156)
-
-[node name="PH_WallStrata_10" type="Polygon2D" parent="Backdrop"]
-z_index = 2
-color = Color(0.301961, 0.345098, 0.4, 0.4)
-polygon = PackedVector2Array(9600, 214, 11520, 204, 11520, 228, 9600, 238)
-
-[node name="PH_WallStrata_11" type="Polygon2D" parent="Backdrop"]
-z_index = 2
 color = Color(0.478431, 0.509804, 0.564706, 0.4)
-polygon = PackedVector2Array(11520, 132, 13440, 122, 13440, 146, 11520, 156)
-
-[node name="PH_WallStrata_12" type="Polygon2D" parent="Backdrop"]
-z_index = 2
-color = Color(0.478431, 0.509804, 0.564706, 0.4)
-polygon = PackedVector2Array(11520, 214, 13440, 204, 13440, 228, 11520, 238)
+polygon = PackedVector2Array(8640, 214, 10560, 204, 10560, 228, 8640, 238)
 
 [node name="PH_WallDirt_1" type="Polygon2D" parent="Backdrop"]
 z_index = 3
@@ -1557,26 +1523,6 @@ polygon = PackedVector2Array(9286.5, 180.9, 9261.4, 204.1, 9212.9, 213.8, 9154.8
 z_index = 3
 color = Color(0.070588, 0.086275, 0.113725, 0.4)
 polygon = PackedVector2Array(10005.2, 150.5, 9983.1, 166.8, 9950.3, 176.8, 9894.4, 186, 9882.1, 160, 9874.5, 139.8, 9897.7, 117.6, 9952.7, 118.1, 10008.2, 124.8)
-
-[node name="PH_WallDirt_15" type="Polygon2D" parent="Backdrop"]
-z_index = 3
-color = Color(0.070588, 0.086275, 0.113725, 0.4)
-polygon = PackedVector2Array(10747, 126.9, 10742.2, 150.4, 10695, 165.2, 10643.6, 155.2, 10597.4, 140.5, 10623.3, 117.6, 10640.6, 96.2, 10690.5, 100.2, 10723.1, 110.6)
-
-[node name="PH_WallDirt_16" type="Polygon2D" parent="Backdrop"]
-z_index = 3
-color = Color(0.070588, 0.086275, 0.113725, 0.4)
-polygon = PackedVector2Array(11480, 125.6, 11463.1, 141.9, 11433.5, 160.2, 11382.9, 154.5, 11364.6, 134.7, 11369.1, 117.3, 11379.3, 93.9, 11435.8, 85.4, 11486.6, 100.5)
-
-[node name="PH_WallDirt_17" type="Polygon2D" parent="Backdrop"]
-z_index = 3
-color = Color(0.070588, 0.086275, 0.113725, 0.4)
-polygon = PackedVector2Array(12246.7, 214, 12206.7, 231.6, 12175, 252.2, 12123.2, 242.7, 12089.6, 225.5, 12105.3, 205, 12121.5, 184, 12173.5, 179.5, 12212.3, 194.2)
-
-[node name="PH_WallDirt_18" type="Polygon2D" parent="Backdrop"]
-z_index = 3
-color = Color(0.070588, 0.086275, 0.113725, 0.4)
-polygon = PackedVector2Array(12973, 151.2, 12965.6, 175.9, 12910.9, 179.1, 12869, 175.4, 12833.7, 162, 12834.5, 140.5, 12855.6, 116.6, 12913.1, 117.8, 12957, 129.7)
 
 [node name="PH_PipeLow" type="ColorRect" parent="Backdrop"]
 z_index = 3
@@ -1656,14 +1602,57 @@ polygon = PackedVector2Array(10400, 140, 10432, 196, 10368, 196)
 color = Color(0.039216, 0.05098, 0.078431, 1.0)
 polygon = PackedVector2Array(10396, 162, 10404, 162, 10403, 182, 10397, 182)
 
-[node name="PH_WarningSign_6" type="Polygon2D" parent="Backdrop"]
-z_index = 4
-color = Color(0.941176, 0.639216, 0.14902, 0.75)
-polygon = PackedVector2Array(12400, 140, 12432, 196, 12368, 196)
+[node name="PH_Horizon" type="Node2D" parent="Backdrop"]
+z_index = 3
+position = Vector2(8640, 300)
 
-[node name="PH_SignMark" type="Polygon2D" parent="Backdrop/PH_WarningSign_6"]
-color = Color(0.039216, 0.05098, 0.078431, 1.0)
-polygon = PackedVector2Array(12396, 162, 12404, 162, 12403, 182, 12397, 182)
+[node name="PH_Block_1" type="Polygon2D" parent="Backdrop/PH_Horizon"]
+color = Color(0.223529, 0.258824, 0.309804, 1.0)
+polygon = PackedVector2Array(120, 0, 180, 0, 180, -80, 120, -80)
+
+[node name="PH_Block_2" type="Polygon2D" parent="Backdrop/PH_Horizon"]
+color = Color(0.223529, 0.258824, 0.309804, 1.0)
+polygon = PackedVector2Array(300, 0, 340, 0, 340, -60, 300, -60)
+
+[node name="PH_Block_3" type="Polygon2D" parent="Backdrop/PH_Horizon"]
+color = Color(0.223529, 0.258824, 0.309804, 1.0)
+polygon = PackedVector2Array(520, 0, 590, 0, 590, -70, 520, -70)
+
+[node name="PH_Block_4" type="Polygon2D" parent="Backdrop/PH_Horizon"]
+color = Color(0.223529, 0.258824, 0.309804, 1.0)
+polygon = PackedVector2Array(700, 0, 750, 0, 750, -50, 700, -50)
+
+[node name="PH_Block_5" type="Polygon2D" parent="Backdrop/PH_Horizon"]
+color = Color(0.223529, 0.258824, 0.309804, 1.0)
+polygon = PackedVector2Array(900, 0, 944, 0, 944, -40, 900, -40)
+
+[node name="PH_Block_6" type="Polygon2D" parent="Backdrop/PH_Horizon"]
+color = Color(0.223529, 0.258824, 0.309804, 1.0)
+polygon = PackedVector2Array(1080, 0, 1140, 0, 1140, -55, 1080, -55)
+
+[node name="PH_Block_7" type="Polygon2D" parent="Backdrop/PH_Horizon"]
+color = Color(0.4, 0.352941, 0.219608, 1.0)
+polygon = PackedVector2Array(1260, 0, 1350, 0, 1350, -180, 1260, -180)
+
+[node name="PH_Block_8" type="Polygon2D" parent="Backdrop/PH_Horizon"]
+color = Color(0.4, 0.352941, 0.219608, 1.0)
+polygon = PackedVector2Array(1420, 0, 1540, 0, 1540, -230, 1420, -230)
+
+[node name="PH_Block_9" type="Polygon2D" parent="Backdrop/PH_Horizon"]
+color = Color(0.4, 0.352941, 0.219608, 1.0)
+polygon = PackedVector2Array(1560, 0, 1700, 0, 1700, -250, 1560, -250)
+
+[node name="PH_Block_10" type="Polygon2D" parent="Backdrop/PH_Horizon"]
+color = Color(0.4, 0.352941, 0.219608, 1.0)
+polygon = PackedVector2Array(1700, 0, 1800, 0, 1800, -210, 1700, -210)
+
+[node name="PH_CentreGlow" type="PointLight2D" parent="Backdrop/PH_Horizon"]
+position = Vector2(1560, -130)
+color = Color(0.941176, 0.639216, 0.14902, 1)
+energy = 0.6
+shadow_enabled = false
+texture = SubResource("GradientTexture2D_lamp")
+texture_scale = 1.6
 
 [node name="Ground" type="Node2D" parent="."]
 z_index = -20
@@ -1673,36 +1662,26 @@ z_index = 1
 polygon = PackedVector2Array(0, 300, 2880, 300, 2880, 640, 0, 640)
 vertex_colors = PackedColorArray(0.30098, 0.205882, 0.156863, 0.1, 0.30098, 0.205882, 0.156863, 0.1, 0.145098, 0.176471, 0.227451, 0.24, 0.145098, 0.176471, 0.227451, 0.24)
 
-[node name="PH_FloorTone_Flood" type="Polygon2D" parent="Ground"]
+[node name="PH_FloorTone_Drift" type="Polygon2D" parent="Ground"]
 z_index = 1
-polygon = PackedVector2Array(2880, 300, 4800, 300, 4800, 640, 2880, 640)
+polygon = PackedVector2Array(2880, 300, 5760, 300, 5760, 640, 2880, 640)
 vertex_colors = PackedColorArray(0.30098, 0.205882, 0.156863, 0.1, 0.30098, 0.205882, 0.156863, 0.1, 0.145098, 0.176471, 0.227451, 0.24, 0.145098, 0.176471, 0.227451, 0.24)
 
-[node name="PH_FloorTone_Gas" type="Polygon2D" parent="Ground"]
+[node name="PH_FloorTone_Patrol" type="Polygon2D" parent="Ground"]
 z_index = 1
-polygon = PackedVector2Array(4800, 300, 7680, 300, 7680, 640, 4800, 640)
-vertex_colors = PackedColorArray(0.30098, 0.205882, 0.156863, 0.1, 0.30098, 0.205882, 0.156863, 0.1, 0.145098, 0.176471, 0.227451, 0.24, 0.145098, 0.176471, 0.227451, 0.24)
-
-[node name="PH_FloorTone_Upper" type="Polygon2D" parent="Ground"]
-z_index = 1
-polygon = PackedVector2Array(7680, 300, 9600, 300, 9600, 640, 7680, 640)
-vertex_colors = PackedColorArray(0.30098, 0.205882, 0.156863, 0.1, 0.30098, 0.205882, 0.156863, 0.1, 0.145098, 0.176471, 0.227451, 0.24, 0.145098, 0.176471, 0.227451, 0.24)
-
-[node name="PH_FloorTone_Cage" type="Polygon2D" parent="Ground"]
-z_index = 1
-polygon = PackedVector2Array(9600, 300, 11520, 300, 11520, 640, 9600, 640)
+polygon = PackedVector2Array(5760, 300, 8640, 300, 8640, 640, 5760, 640)
 vertex_colors = PackedColorArray(0.30098, 0.205882, 0.156863, 0.1, 0.30098, 0.205882, 0.156863, 0.1, 0.145098, 0.176471, 0.227451, 0.24, 0.145098, 0.176471, 0.227451, 0.24)
 
 [node name="PH_FloorTone_Surface" type="Polygon2D" parent="Ground"]
 z_index = 1
-polygon = PackedVector2Array(11520, 300, 13440, 300, 13440, 640, 11520, 640)
+polygon = PackedVector2Array(8640, 300, 10560, 300, 10560, 640, 8640, 640)
 vertex_colors = PackedColorArray(0.30098, 0.205882, 0.156863, 0.1, 0.30098, 0.205882, 0.156863, 0.1, 0.145098, 0.176471, 0.227451, 0.24, 0.145098, 0.176471, 0.227451, 0.24)
 
 [node name="PH_FloorGrain" type="TextureRect" parent="Ground"]
 modulate = Color(0.145098, 0.176471, 0.227451, 0.2)
 z_index = 2
 offset_top = 300.0
-offset_right = 13440
+offset_right = 10560
 offset_bottom = 604.0
 mouse_filter = 2
 texture = SubResource("NoiseTexture2D_rock")
@@ -1804,46 +1783,6 @@ z_index = 2
 color = Color(0.070588, 0.086275, 0.113725, 0.3)
 polygon = PackedVector2Array(10220.5, 370.7, 10234.9, 391.7, 10160, 395.8, 10098.3, 388, 10070, 370.7, 10086.8, 350.2, 10160, 350.3, 10219.1, 354.2)
 
-[node name="PH_FloorStain_20" type="Polygon2D" parent="Ground"]
-z_index = 2
-color = Color(0.070588, 0.086275, 0.113725, 0.3)
-polygon = PackedVector2Array(10799, 547.3, 10773.9, 565.2, 10710, 564.3, 10644.9, 565.5, 10620.1, 547.3, 10632.3, 525.5, 10710, 523.5, 10761.6, 532.8)
-
-[node name="PH_FloorStain_21" type="Polygon2D" parent="Ground"]
-z_index = 2
-color = Color(0.070588, 0.086275, 0.113725, 0.3)
-polygon = PackedVector2Array(11332.4, 533.1, 11329.5, 552.6, 11260, 552, 11207.5, 547.9, 11187.6, 533.1, 11192.2, 514.2, 11260, 507, 11333.2, 512.7)
-
-[node name="PH_FloorStain_22" type="Polygon2D" parent="Ground"]
-z_index = 2
-color = Color(0.070588, 0.086275, 0.113725, 0.3)
-polygon = PackedVector2Array(11890.3, 540.5, 11885.7, 561.7, 11810, 561.5, 11753.7, 556.3, 11741.5, 540.5, 11746.1, 522.7, 11810, 515.2, 11884.4, 519.7)
-
-[node name="PH_FloorStain_23" type="Polygon2D" parent="Ground"]
-z_index = 2
-color = Color(0.070588, 0.086275, 0.113725, 0.3)
-polygon = PackedVector2Array(12445.7, 387.8, 12427.9, 406.8, 12360, 407, 12285.9, 408.6, 12270.9, 387.8, 12294.2, 369.4, 12360, 368.8, 12403.1, 375.7)
-
-[node name="PH_FloorStain_24" type="Polygon2D" parent="Ground"]
-z_index = 2
-color = Color(0.070588, 0.086275, 0.113725, 0.3)
-polygon = PackedVector2Array(13015.8, 525.5, 12984, 546.2, 12910, 543.6, 12862.8, 538.7, 12814.3, 525.5, 12859.6, 511.4, 12910, 499.5, 12967, 509.5)
-
-[node name="PH_ShadowLane" type="Polygon2D" parent="Ground"]
-z_index = 2
-polygon = PackedVector2Array(6700, 300, 7400, 300, 7400, 436, 6700, 436)
-vertex_colors = PackedColorArray(0.039216, 0.05098, 0.078431, 0.55, 0.039216, 0.05098, 0.078431, 0.55, 0.039216, 0.05098, 0.078431, 0.12, 0.039216, 0.05098, 0.078431, 0.12)
-
-[node name="PH_ShadowLane2" type="Polygon2D" parent="Ground"]
-z_index = 2
-polygon = PackedVector2Array(7050, 466, 7400, 466, 7400, 600, 7050, 600)
-vertex_colors = PackedColorArray(0.039216, 0.05098, 0.078431, 0.12, 0.039216, 0.05098, 0.078431, 0.12, 0.039216, 0.05098, 0.078431, 0.55, 0.039216, 0.05098, 0.078431, 0.55)
-
-[node name="PH_FloodPool" type="Polygon2D" parent="Ground"]
-z_index = 2
-color = Color(0.086275, 0.203922, 0.290196, 0.75)
-polygon = PackedVector2Array(4120, 320, 4400, 320, 4400, 596, 4120, 596)
-
 [node name="PH_Shaft_1" type="Polygon2D" parent="Ground"]
 z_index = 3
 polygon = PackedVector2Array(436, 268, 524, 268, 710, 624, 250, 624)
@@ -1869,20 +1808,15 @@ z_index = 3
 polygon = PackedVector2Array(4856, 268, 4944, 268, 5130, 624, 4670, 624)
 vertex_colors = PackedColorArray(1, 0.85098, 0.541176, 0.13, 1, 0.85098, 0.541176, 0.13, 1, 0.85098, 0.541176, 0, 1, 0.85098, 0.541176, 0)
 
-[node name="PH_Shaft_6" type="Polygon2D" parent="Ground"]
-z_index = 3
-polygon = PackedVector2Array(9656, 268, 9744, 268, 9930, 624, 9470, 624)
-vertex_colors = PackedColorArray(1, 0.85098, 0.541176, 0.13, 1, 0.85098, 0.541176, 0.13, 1, 0.85098, 0.541176, 0, 1, 0.85098, 0.541176, 0)
-
 [node name="PH_NearBand" type="Polygon2D" parent="Ground"]
 z_index = 4
-polygon = PackedVector2Array(-400, 604, 13840, 604, 13840, 1140, -400, 1140)
+polygon = PackedVector2Array(-400, 604, 10960, 604, 10960, 1140, -400, 1140)
 vertex_colors = PackedColorArray(0.145098, 0.176471, 0.227451, 1, 0.145098, 0.176471, 0.227451, 1, 0.070588, 0.086275, 0.113725, 1, 0.070588, 0.086275, 0.113725, 1)
 
 [node name="PH_NearBandEdge" type="Polygon2D" parent="Ground"]
 z_index = 5
 color = Color(0.301961, 0.345098, 0.4, 0.4)
-polygon = PackedVector2Array(-400, 604, 13840, 604, 13840, 612, -400, 612)
+polygon = PackedVector2Array(-400, 604, 10960, 604, 10960, 612, -400, 612)
 
 [node name="PH_Sleeper_1" type="Polygon2D" parent="Ground"]
 z_index = 5
@@ -2019,50 +1953,15 @@ z_index = 5
 color = Color(0.352941, 0.215686, 0.133333, 0.7)
 polygon = PackedVector2Array(10534, 676, 10666, 676, 10674, 748, 10526, 748)
 
-[node name="PH_Sleeper_28" type="Polygon2D" parent="Ground"]
-z_index = 5
-color = Color(0.352941, 0.215686, 0.133333, 0.7)
-polygon = PackedVector2Array(10954, 676, 11086, 676, 11094, 748, 10946, 748)
-
-[node name="PH_Sleeper_29" type="Polygon2D" parent="Ground"]
-z_index = 5
-color = Color(0.352941, 0.215686, 0.133333, 0.7)
-polygon = PackedVector2Array(11374, 676, 11506, 676, 11514, 748, 11366, 748)
-
-[node name="PH_Sleeper_30" type="Polygon2D" parent="Ground"]
-z_index = 5
-color = Color(0.352941, 0.215686, 0.133333, 0.7)
-polygon = PackedVector2Array(11794, 676, 11926, 676, 11934, 748, 11786, 748)
-
-[node name="PH_Sleeper_31" type="Polygon2D" parent="Ground"]
-z_index = 5
-color = Color(0.352941, 0.215686, 0.133333, 0.7)
-polygon = PackedVector2Array(12214, 676, 12346, 676, 12354, 748, 12206, 748)
-
-[node name="PH_Sleeper_32" type="Polygon2D" parent="Ground"]
-z_index = 5
-color = Color(0.352941, 0.215686, 0.133333, 0.7)
-polygon = PackedVector2Array(12634, 676, 12766, 676, 12774, 748, 12626, 748)
-
-[node name="PH_Sleeper_33" type="Polygon2D" parent="Ground"]
-z_index = 5
-color = Color(0.352941, 0.215686, 0.133333, 0.7)
-polygon = PackedVector2Array(13054, 676, 13186, 676, 13194, 748, 13046, 748)
-
-[node name="PH_Sleeper_34" type="Polygon2D" parent="Ground"]
-z_index = 5
-color = Color(0.352941, 0.215686, 0.133333, 0.7)
-polygon = PackedVector2Array(13474, 676, 13606, 676, 13614, 748, 13466, 748)
-
 [node name="PH_Rail_1" type="Polygon2D" parent="Ground"]
 z_index = 6
 color = Color(0.301961, 0.345098, 0.4, 0.55)
-polygon = PackedVector2Array(-400, 690, 13840, 690, 13840, 699, -400, 699)
+polygon = PackedVector2Array(-400, 690, 10960, 690, 10960, 699, -400, 699)
 
 [node name="PH_Rail_2" type="Polygon2D" parent="Ground"]
 z_index = 6
 color = Color(0.301961, 0.345098, 0.4, 0.55)
-polygon = PackedVector2Array(-400, 736, 13840, 736, 13840, 745, -400, 745)
+polygon = PackedVector2Array(-400, 736, 10960, 736, 10960, 745, -400, 745)
 
 [node name="Props" type="Node2D" parent="."]
 y_sort_enabled = true
@@ -2291,7 +2190,7 @@ width = 3
 default_color = Color(0.039216, 0.05098, 0.078431, 1.0)
 
 [node name="Cart_2" type="Node2D" parent="Props"]
-position = Vector2(4650, 552)
+position = Vector2(3900, 552)
 
 [node name="PH_Body" type="Polygon2D" parent="Props/Cart_2"]
 color = Color(0.352941, 0.215686, 0.133333, 1.0)
@@ -2371,7 +2270,7 @@ color = Color(1.0, 0.85098, 0.541176, 0.8)
 polygon = PackedVector2Array(-2, -14, 12, -12, 10, 2, -4, 0)
 
 [node name="BatteryStack_3" type="Node2D" parent="Props"]
-position = Vector2(8700, 288)
+position = Vector2(6480, 288)
 
 [node name="PH_Lower" type="Polygon2D" parent="Props/BatteryStack_3"]
 color = Color(0.266667, 0.243137, 0.247059, 1.0)
@@ -2395,7 +2294,7 @@ width = 2
 default_color = Color(0.039216, 0.05098, 0.078431, 1.0)
 
 [node name="PipeStack_2" type="Node2D" parent="Props"]
-position = Vector2(9400, 294)
+position = Vector2(5300, 294)
 
 [node name="PH_Pipe_1" type="Polygon2D" parent="Props/PipeStack_2"]
 color = Color(0.223529, 0.258824, 0.309804, 1.0)
@@ -2463,7 +2362,7 @@ width = 3
 default_color = Color(0.741176, 0.47451, 0.152941, 1.0)
 
 [node name="Cart_3" type="Node2D" parent="Props"]
-position = Vector2(10350, 558)
+position = Vector2(9000, 558)
 
 [node name="PH_Body" type="Polygon2D" parent="Props/Cart_3"]
 color = Color(0.352941, 0.215686, 0.133333, 1.0)
@@ -2491,7 +2390,7 @@ collision_mask = 0
 shape = SubResource("RectangleShape2D_cart")
 
 [node name="ExitSign_1" type="Node2D" parent="Props"]
-position = Vector2(11450, 236)
+position = Vector2(8560, 236)
 
 [node name="PH_Plate" type="Polygon2D" parent="Props/ExitSign_1"]
 color = Color(0.094118, 0.129412, 0.188235, 1.0)
@@ -2507,7 +2406,7 @@ width = 3
 default_color = Color(0.039216, 0.05098, 0.078431, 1.0)
 
 [node name="CrateStack_2" type="Node2D" parent="Props"]
-position = Vector2(11800, 288)
+position = Vector2(9600, 288)
 
 [node name="PH_Lower" type="Polygon2D" parent="Props/CrateStack_2"]
 color = Color(0.313725, 0.223529, 0.184314, 1.0)
@@ -2527,7 +2426,7 @@ width = 2
 default_color = Color(0.039216, 0.05098, 0.078431, 1.0)
 
 [node name="ScrapPile_5" type="Node2D" parent="Props"]
-position = Vector2(12600, 290)
+position = Vector2(10000, 290)
 
 [node name="PH_Heap" type="Polygon2D" parent="Props/ScrapPile_5"]
 color = Color(0.192157, 0.227451, 0.282353, 1.0)
@@ -2583,7 +2482,7 @@ lifetime = 4
 visibility_rect = Rect2(-160, -220, 320, 440)
 
 [node name="BlastSparks" type="GPUParticles2D" parent="Fx_Face" groups=["fx_manual"]]
-position = Vector2(1540, 380)
+position = Vector2(1380, 380)
 emitting = false
 amount = 14
 process_material = SubResource("ParticleProcessMaterial_spark")
@@ -2593,9 +2492,9 @@ randomness = 0.6
 visibility_rect = Rect2(-200, -120, 400, 340)
 
 [node name="BlastSparkLight" type="PointLight2D" parent="Fx_Face"]
-position = Vector2(1540, 380)
+position = Vector2(1380, 380)
 enabled = false
-color = Color(1.0, 0.85098, 0.541176, 1.0)
+color = Color(1, 0.85098, 0.541176, 1)
 energy = 0.9
 shadow_enabled = false
 texture = SubResource("GradientTexture2D_lamp")
@@ -2617,12 +2516,12 @@ libraries = {
 }
 autoplay = "run"
 
-[node name="Fx_Flood" type="Node2D" parent="."]
+[node name="Fx_Drift" type="Node2D" parent="."]
 process_mode = 4
 z_index = 20
 
-[node name="DustBeam_Flood" type="GPUParticles2D" parent="Fx_Flood"]
-position = Vector2(3500, 420)
+[node name="DustBeam_Drift" type="GPUParticles2D" parent="Fx_Drift"]
+position = Vector2(3500, 430)
 emitting = false
 amount = 12
 process_material = SubResource("ParticleProcessMaterial_dust")
@@ -2630,82 +2529,12 @@ texture = SubResource("GradientTexture2D_dot")
 lifetime = 4
 visibility_rect = Rect2(-160, -220, 320, 440)
 
-[node name="Drip_Flood" type="GPUParticles2D" parent="Fx_Flood"]
-position = Vector2(4180, 156)
-emitting = false
-amount = 8
-process_material = SubResource("ParticleProcessMaterial_drip")
-texture = SubResource("GradientTexture2D_dot")
-lifetime = 1.4
-visibility_rect = Rect2(-40, -20, 80, 460)
-
-[node name="Fx_Gas" type="Node2D" parent="."]
+[node name="Fx_Patrol" type="Node2D" parent="."]
 process_mode = 4
 z_index = 20
 
-[node name="DustBeam_Gas" type="GPUParticles2D" parent="Fx_Gas"]
-position = Vector2(5400, 430)
-emitting = false
-amount = 12
-process_material = SubResource("ParticleProcessMaterial_dust")
-texture = SubResource("GradientTexture2D_dot")
-lifetime = 4
-visibility_rect = Rect2(-160, -220, 320, 440)
-
-[node name="Extractor" type="Node2D" parent="Fx_Gas"]
-position = Vector2(5620, 150)
-
-[node name="PH_ExtractorCase" type="Polygon2D" parent="Fx_Gas/Extractor"]
-color = Color(0.192157, 0.227451, 0.282353, 1.0)
-polygon = PackedVector2Array(-92, -96, 92, -96, 92, 96, -92, 96)
-
-[node name="PH_ExtractorWell" type="Polygon2D" parent="Fx_Gas/Extractor"]
-color = Color(0.039216, 0.05098, 0.078431, 1.0)
-polygon = PackedVector2Array(-78, -82, 78, -82, 78, 82, -78, 82)
-
-[node name="PH_ExtractorFan" type="Node2D" parent="Fx_Gas/Extractor"]
-
-[node name="PH_Blade_1" type="Polygon2D" parent="Fx_Gas/Extractor/PH_ExtractorFan"]
-color = Color(0.27451, 0.313725, 0.368627, 1.0)
-polygon = PackedVector2Array(-8, 0, 8, 0, 16, -74, -16, -74)
-
-[node name="PH_Blade_2" type="Polygon2D" parent="Fx_Gas/Extractor/PH_ExtractorFan"]
-color = Color(0.27451, 0.313725, 0.368627, 1.0)
-polygon = PackedVector2Array(4, -6.9, -4, 6.9, 56.1, 50.9, 72.1, 23.1)
-
-[node name="PH_Blade_3" type="Polygon2D" parent="Fx_Gas/Extractor/PH_ExtractorFan"]
-color = Color(0.27451, 0.313725, 0.368627, 1.0)
-polygon = PackedVector2Array(4, 6.9, -4, -6.9, -72.1, 23.1, -56.1, 50.9)
-
-[node name="PH_Hub" type="Polygon2D" parent="Fx_Gas/Extractor/PH_ExtractorFan"]
-color = Color(0.301961, 0.345098, 0.4, 1.0)
-polygon = PackedVector2Array(14, 0, 11.3, 8.2, 4.3, 13.3, -4.3, 13.3, -11.3, 8.2, -14, 0, -11.3, -8.2, -4.3, -13.3, 4.3, -13.3, 11.3, -8.2)
-
-[node name="FanAnim" type="AnimationPlayer" parent="Fx_Gas/Extractor"]
-libraries = {
-&"": SubResource("AnimationLibrary_fan")
-}
-autoplay = "spin"
-
-[node name="Fx_Upper" type="Node2D" parent="."]
-process_mode = 4
-z_index = 20
-
-[node name="DustBeam_Upper" type="GPUParticles2D" parent="Fx_Upper"]
-position = Vector2(8600, 430)
-emitting = false
-amount = 12
-process_material = SubResource("ParticleProcessMaterial_dust")
-texture = SubResource("GradientTexture2D_dot")
-lifetime = 4
-visibility_rect = Rect2(-160, -220, 320, 440)
-
-[node name="Fx_Cage" type="Node2D" parent="."]
-process_mode = 4
-z_index = 20
-
-[node name="DustBeam_Cage" type="GPUParticles2D" parent="Fx_Cage"]
-position = Vector2(10400, 430)
+[node name="DustBeam_Patrol" type="GPUParticles2D" parent="Fx_Patrol"]
+position = Vector2(6500, 430)
 emitting = false
 amount = 12
 process_material = SubResource("ParticleProcessMaterial_dust")
@@ -2718,7 +2547,7 @@ process_mode = 4
 z_index = 20
 
 [node name="DustBeam_Surface" type="GPUParticles2D" parent="Fx_Surface"]
-position = Vector2(12300, 430)
+position = Vector2(9500, 430)
 emitting = false
 amount = 10
 process_material = SubResource("ParticleProcessMaterial_dust")
@@ -2734,5 +2563,5 @@ ImpactFxScene = ExtResource("18_impactfx")
 
 [node name="Vignette" parent="." instance=ExtResource("15_vignette")]
 
-[editable path="GuardSpawner"]
+[editable path="GuardWave"]
 [editable path="Hoist"]

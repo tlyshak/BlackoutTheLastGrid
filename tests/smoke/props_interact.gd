@@ -8,10 +8,11 @@ extends SceneTree
 # a wrong key (SequenceFailed -> Finished(false) after FailResetDelay, retry succeeds), a hit
 # during the sequence (Hurt cancels the panel, no Finished) and the per-step timeout. Review
 # regressions: a panel freed or Cancel()ed by the level mid-sequence releases the hero (S1), a
-# free outlet (Uses=-1, Cooldown=0) keeps the "E: " prefix after a use (S2), a Sequence action the
-# panel never polls warns and cannot advance (S3), the nearest of two props in reach is re-picked
-# every physics step while the hero walks or is teleported inside the overlap band (S4), and the
-# panel2 retry (panel after the hero in tree order) leaks no Jump. Needs physics frames.
+# free outlet (Uses=-1, Cooldown=0) keeps the "E: " prefix after a use (S2), the nearest of two props
+# in reach is re-picked every physics step while the hero walks or is teleported inside the overlap
+# band (S4), and the panel2 retry (panel after the hero in tree order) leaks no Jump. The unpolled
+# Sequence action (S3, formerly step 12) lives in props_interact_untracked.gd: it provokes a C#
+# warning on purpose, which the T-B21 rule keeps out of a script this heavy. Needs physics frames.
 # Run: godot --headless --path . -s tests/smoke/props_interact.gd
 #
 # No attack lands here, so Engine.time_scale stays 1 and everything is counted in physics frames;
@@ -50,8 +51,6 @@ const BAND_SWITCH_X := 1530.0                 # feet midpoint: the panel is near
 const BAND_SWITCH_MAX_X := 1540.0             # the switch must show within ~3 frames of the midpoint, well inside the band
 const BAND_REPICK_POS := Vector2(1495, 450)   # teleport inside the band (no enter/exit event): outlet nearer again
 const BAND_WALK_CAP := 40      # frames of move_right allowed to cross 1480 -> 1530 (220 px/s = 3.7 px/frame -> ~14)
-const UNTRACKED_SEQUENCE := ["move_up", "interact"]   # S3: `interact` exists in the InputMap but is never polled
-const UNTRACKED_STEP_TIMEOUT := 0.5                   # shorter StepTimeout so the S3 timeout does not cost 120 frames
 const EXPECTED_SEQUENCE := ["move_up", "attack", "move_down", "jump"]
 const EXPECTED_MARKERS := ["[↑]", "[J]", "[↓]", "[␣]"]   # PowerPanel.ActionGlyphs, current step bracketed
 
@@ -786,63 +785,7 @@ func _run() -> void:
 	panel6.queue_free()
 	await _step(1)
 
-	# 12. S3 — a Sequence action the panel never polls (`interact`): _Ready pushes a WARNING (not
-	#     fatal for the runner) and the step can never be answered: tapping `interact` does not
-	#     advance (CurrentStep stays 1, no SequenceFailed either) and the attempt ends by StepTimeout.
-	var panel7: Node = panel_scene.instantiate()
-	panel7.Sequence = PackedStringArray(UNTRACKED_SEQUENCE)
-	panel7.StepTimeout = UNTRACKED_STEP_TIMEOUT
-	panel7.position = PANEL2_POS
-	root.add_child(panel7)   # _Ready warns here: "Sequence action 'interact' is not polled by the panel" — expected
-	_check(Array(panel7.Sequence) == UNTRACKED_SEQUENCE, "untracked: Sequence read back as %s, expected %s" % [Array(panel7.Sequence), UNTRACKED_SEQUENCE])
-	var steps7: Array = []
-	var failed7: Array = []
-	var finished7: Array = []
-	var activated7: Array = []
-	panel7.SequenceStep.connect(func(i: int, t: int): steps7.append([i, t]))
-	panel7.SequenceFailed.connect(func(): failed7.append(true))
-	panel7.Finished.connect(func(ok: bool): finished7.append(ok))
-	panel7.Activated.connect(func(): activated7.append(true))
-	var untracked_timeout_frames: int = int(ceil(panel7.StepTimeout * ticks))
-	player.position = PANEL2_POS + REACH
-	await _step(OVERLAP_FRAMES)
-	_check(player.CurrentInteractable == panel7, "untracked: CurrentInteractable=%s, expected the fresh panel" % player.CurrentInteractable)
-	_transitions.clear()
-	await _tap("interact")
-	await _step(1)
-	_check(player.CurrentStateName == "Interact", "untracked: state '%s' after interact, expected 'Interact'" % player.CurrentStateName)
-	await _step(2)
-	await _tap("move_up")
-	await _step(1)
-	_check(steps7 == [[1, 2]] and panel7.CurrentStep == 1, "untracked: SequenceStep %s / CurrentStep %d after move_up, expected [[1,2]] / 1" % [steps7, panel7.CurrentStep])
-	_check(hud.PromptText == "↑ [interact]", "untracked: prompt '%s' after move_up, expected '↑ [interact]' (no glyph -> action name)" % hud.PromptText)
-	await _step(1)
-	await _tap("interact")
-	await _step(1)
-	_check(panel7.CurrentStep == 1, "untracked: CurrentStep=%d after tapping `interact`, expected still 1 (S3: the panel does not poll `interact`)" % panel7.CurrentStep)
-	_check(steps7 == [[1, 2]], "untracked: SequenceStep events %s after tapping `interact`, expected still [[1,2]]" % [steps7])
-	_check(failed7.is_empty(), "untracked: SequenceFailed %s right after tapping `interact`, expected none yet (unanswered, not wrong)" % [failed7])
-	_check(activated7.is_empty(), "untracked: Activated fired on an unpolled action")
-	_check(player.CurrentStateName == "Interact", "untracked: state '%s' after tapping `interact`, expected still 'Interact'" % player.CurrentStateName)
-	var untracked_failed_at: int = -1
-	for i in untracked_timeout_frames + TIMEOUT_MARGIN:
-		if failed7.size() > 0:
-			untracked_failed_at = i
-			break
-		await physics_frame
-	_check(untracked_failed_at >= 0, "untracked: SequenceFailed not fired within %d frames (StepTimeout %s s) — the unpolled step must time out" % [untracked_timeout_frames + TIMEOUT_MARGIN, panel7.StepTimeout])
-	var untracked_idle: int = await _wait_until(func(): return player.CurrentStateName == "Idle", fail_frames)
-	_check(untracked_idle >= 0, "untracked: state '%s' %d frames after the timeout, expected 'Idle'" % [player.CurrentStateName, fail_frames])
-	_check(finished7 == [false], "untracked: Finished events %s, expected [false]" % [finished7])
-	_check(panel7.IsActivated == false and panel7.CurrentStep == 0 and panel7.CanInteract == true, "untracked: IsActivated=%s CurrentStep=%d CanInteract=%s after the timeout, expected false / 0 / true" % [panel7.IsActivated, panel7.CurrentStep, panel7.CanInteract])
-	_check(_transitions == ["Interact", "Idle"], "untracked: transitions %s, expected [Interact, Idle]" % [_transitions])
-	print("props_interact: untracked sequence %s timed out %d frames after the last press (StepTimeout %s s = %d frames)" % [UNTRACKED_SEQUENCE, untracked_failed_at, panel7.StepTimeout, untracked_timeout_frames])
-	player.position = AWAY_POS
-	await _step(OVERLAP_FRAMES)
-	panel7.queue_free()
-	await _step(1)
-
-	# 13. Teardown: hero away from the standalone panel, free it, reset the run, free the room.
+	# 12. Teardown: hero away from the standalone panel, free it, reset the run, free the room.
 	player.position = AWAY_POS
 	await _step(OVERLAP_FRAMES)
 	_check(player.CurrentInteractable == null, "teardown: CurrentInteractable=%s, expected null" % player.CurrentInteractable)

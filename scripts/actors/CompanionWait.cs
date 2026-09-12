@@ -10,7 +10,9 @@ namespace BlackoutLastGrid.Actors;
 /// failsafes are live here too, each aimed at the held spot instead of the follow point: a hold
 /// farther away than <see cref="Companion.WarpDistance"/> is taken at once instead of walked to
 /// (the walk would cross whatever a <see cref="Levels.CaveIn"/> has sealed), the stuck watchdog
-/// warps him onto the spot, and <see cref="Companion.WarpBehind"/> moves the hold along with him.
+/// warps him onto the spot, and <see cref="Companion.OnHeroRelocated"/> puts him on the spot when
+/// the hero is teleported half a screen away. A hold is a world position: nothing moves it with
+/// him, and a level that wants him elsewhere after a respawn re-issues <see cref="Companion.HoldAt"/>.
 /// A scripted beat must never stall because he caught a corner on the way.
 /// </summary>
 public partial class CompanionWait : CompanionState
