@@ -1,8 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 440" width="680" height="440"><title>Рівень 0 — секція 2: вентиляційна — шар floor</title>
-<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><line x1="0" y1="0" x2="0" y2="6" stroke="#000000" stroke-width="1" opacity="0.35" /></pattern><pattern id="dots" width="8" height="8" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="#000000" opacity="0.3" /></pattern><pattern id="stripes" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="12" fill="#e8b23a" /><rect x="6" width="6" height="12" fill="#1a1a1a" /></pattern><pattern id="grate" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="none" stroke="#2c3550" stroke-width="1.5" /></pattern></defs>
 <rect x="0" y="280" width="680" height="160" fill="#1d1a1a" />
 <rect x="0" y="280" width="680" height="34" fill="#231f1f" />
-<rect x="0" y="280" width="680" height="160" fill="url(#dots)" />
+<rect x="0" y="280" width="680" height="160" fill="#000000" fill-opacity="0.02" />
 <g fill="#2a2525"><ellipse cx="100" cy="350" rx="60" ry="9" /><ellipse cx="560" cy="398" rx="80" ry="10" /><ellipse cx="320" cy="424" rx="50" ry="7" /><ellipse cx="640" cy="330" rx="40" ry="6" /></g>
 <g fill="none" stroke="#151212" stroke-width="2"><path d="M0 396 L680 396" /><path d="M0 410 L680 410" /></g>
 <g fill="#2c2727" stroke="#151212" stroke-width="1.5"><rect x="40" y="392" width="10" height="20" /><rect x="140" y="392" width="10" height="20" /><rect x="240" y="392" width="10" height="20" /><rect x="340" y="392" width="10" height="20" /><rect x="440" y="392" width="10" height="20" /><rect x="540" y="392" width="10" height="20" /><rect x="640" y="392" width="10" height="20" /></g>
