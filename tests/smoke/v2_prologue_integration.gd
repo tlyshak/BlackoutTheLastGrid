@@ -18,6 +18,10 @@ extends SceneTree
 #     starting where the drawn floor ends;
 #   * have no crate row in the first room (author's playtest 2026-09-12): Crate and PH_Crate_Stack
 #     are gone, the jump hint stays;
+#   * keep the timber gate readable on the painted floor (author's playtest 2026-09-12 #2, «room 2,
+#     nothing happens»): every PH_ polygon of DebrisPile_Timber and the blended PH_HitStrip_Timber
+#     sit clearly above the luminance of the drawn floor texel under the pile — the prop's default
+#     rocks are that floor's own darkness and vanished on it, leaving an invisible wall;
 #   * put the drawn floor on the walk band: Backdrop_Face.FloorFarEdgeY is the band's top (300,
 #     RoomBounds.FloorTop) and the drawn floor ends at the band's bottom (600) with at most a texel
 #     below it — the hero never stands on the wall and never sees floor he cannot reach;
@@ -63,6 +67,11 @@ const LIP_SEAM_MAX := 1.0                # PH_NearLip may not leave more than a 
 const PLAYTEST_GONE := ["Crate", "PH_Crate_Stack"]   # author's playtest 2026-09-12: no crate row in the v2 first room
 const DECALS_Z := -20
 const DECAL_COUNT := 7                   # three pools, three dark stripes, the timber hit strip
+const TIMBER_PILE := "DebrisPile_Timber"
+const TIMBER_RUBBLE := ["PH_RockFar", "PH_RockNear", "PH_Rock", "PH_TimberA", "PH_TimberB"]
+const HIT_STRIP := "PH_Decals/PH_HitStrip_Timber"
+const RUBBLE_CONTRAST_MIN := 0.15        # luminance every pile polygon must sit above the drawn floor under it
+const HIT_STRIP_CONTRAST_MIN := 0.15     # luminance the strip, blended at its alpha, must add over that floor
 const GONE_ROOT := ["PH_Ceiling", "PH_Floor_Face", "PH_Floor_Drift", "PH_Floor_Patrol", "PH_FloorEdge",
 	"PH_Conveyor", "PH_ConveyorEdge", "PH_Coal_1", "PH_Coal_2", "PH_Coal_3", "PH_CageShaft", "PH_CageCable",
 	"PH_Wall_Face", "PH_Wall_Drift", "PH_Wall_Patrol", "PH_Sky_Surface",
@@ -128,6 +137,26 @@ func _draw_min_x(node: Node) -> float:
 	if node is Sprite2D or node is PointLight2D:
 		return node.global_position.x
 	return INF
+
+func _lum(c: Color) -> float:
+	return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b
+
+# The drawn floor's colour at world (x, y): the texel of the floor-layer sprite of `backdrop` that
+# covers the point; a negative red channel when no sprite does.
+func _floor_color(backdrop: Node2D, x: float, y: float) -> Color:
+	var floor_layer: Node = backdrop.get_node_or_null("Floor")
+	if floor_layer == null:
+		return Color(-1.0, 0.0, 0.0)
+	for s in floor_layer.get_children():
+		if not (s is Sprite2D) or s.texture == null:
+			continue
+		var origin: Vector2 = s.global_position
+		var size: Vector2 = s.region_rect.size * s.scale
+		if x < origin.x or x >= origin.x + size.x or y < origin.y or y >= origin.y + size.y:
+			continue
+		var texel: Vector2 = s.region_rect.position + (Vector2(x, y) - origin) / s.scale
+		return s.texture.get_image().get_pixel(int(texel.x), int(texel.y))
+	return Color(-1.0, 0.0, 0.0)
 
 func _check_actor(node: Node, label: String, scene: String) -> void:
 	if node == null:
@@ -214,6 +243,29 @@ func _run() -> void:
 		_check(decals.z_index == DECALS_Z, "PH_Decals z_index=%d, expected %d" % [decals.z_index, DECALS_Z])
 		_check(decals.get_index() > backgrounds.get_index(), "PH_Decals precedes Backgrounds in the tree; the light pools would draw under the floor")
 		_check(decals.get_child_count() == DECAL_COUNT, "PH_Decals has %d children, expected %d" % [decals.get_child_count(), DECAL_COUNT])
+	# The timber gate reads on the painted floor (author's playtest 2026-09-12 #2).
+	var pile: Node2D = level.get_node_or_null(TIMBER_PILE)
+	var drift_bd: Node2D = level.get_node_or_null("Backgrounds/Backdrop_Drift")
+	if pile != null and drift_bd != null:
+		var floor_c: Color = _floor_color(drift_bd, pile.global_position.x, pile.global_position.y)
+		_check(floor_c.r >= 0.0, "no drawn floor texel under %s at %s" % [TIMBER_PILE, pile.global_position])
+		var floor_lum: float = _lum(floor_c)
+		for name in TIMBER_RUBBLE:
+			var poly: Polygon2D = pile.get_node_or_null("PH_Rubble/" + name)
+			if poly == null:
+				_check(false, "%s/PH_Rubble/%s is missing" % [TIMBER_PILE, name])
+				continue
+			_check(_lum(poly.color) - floor_lum >= RUBBLE_CONTRAST_MIN,
+				"%s/PH_Rubble/%s (luminance %.2f) sits %.2f above the drawn floor under the pile (%.2f), expected >= %.2f — the pile vanishes on the painted floor" % [TIMBER_PILE, name, _lum(poly.color), _lum(poly.color) - floor_lum, floor_lum, RUBBLE_CONTRAST_MIN])
+		var strip: Polygon2D = level.get_node_or_null(HIT_STRIP)
+		if strip != null:
+			var blended: Color = floor_c.lerp(Color(strip.color, 1.0), strip.color.a)
+			_check(_lum(blended) - floor_lum >= HIT_STRIP_CONTRAST_MIN,
+				"%s blended at alpha %.2f adds %.2f luminance over the drawn floor (%.2f), expected >= %.2f — the strip the heavy hit is thrown from is invisible" % [HIT_STRIP, strip.color.a, _lum(blended) - floor_lum, floor_lum, HIT_STRIP_CONTRAST_MIN])
+		else:
+			_check(false, "%s is missing" % HIT_STRIP)
+	else:
+		_check(false, "%s or Backgrounds/Backdrop_Drift is missing" % TIMBER_PILE)
 	# The v1 rock parallax is back for the surface, strictly under every painted far layer.
 	var rock: Node2D = level.get_node_or_null("Parallax")
 	var patrol_back: Node = level.get_node_or_null("Backgrounds/Backdrop_Patrol/Back")

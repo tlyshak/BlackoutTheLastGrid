@@ -1,7 +1,7 @@
 [gd_scene load_steps=59 format=3 uid="uid://dkswkamsuv26r"]
 
 [ext_resource type="Script" path="res://scripts/levels/Level00_Prologue.cs" id="1_level"]
-; v2 (T-V2-01): the level runs on the shared scripts/levels/Level00_Prologue.cs; only the scene differs from scenes/levels/Level00_Prologue.tscn: v2 actors (scenes/v2/actors), painted room backdrops under Backgrounds (scenes/v2/levels/Backdrop_*.tscn), camera zoom 1.5. The v1 PH_ dressing of the three mine rooms is gone; Room_Surface keeps its procedural v1 dressing, including the rock Parallax, which sits under the painted far layers (z -80) and is seen only on the surface. Author's playtest 2026-09-12: the first room has no crate obstacle (v1's Crate + PH_Crate_Stack) — the jump hint stays, nothing has to be jumped; the drawn floor's far edge sits on the walk band's top (SectionBackdrop.FloorFarEdgeY 300) and PH_NearLip starts where the drawn floor ends (600.8).
+; v2 (T-V2-01): the level runs on the shared scripts/levels/Level00_Prologue.cs; only the scene differs from scenes/levels/Level00_Prologue.tscn: v2 actors (scenes/v2/actors), painted room backdrops under Backgrounds (scenes/v2/levels/Backdrop_*.tscn), camera zoom 1.5. The v1 PH_ dressing of the three mine rooms is gone; Room_Surface keeps its procedural v1 dressing, including the rock Parallax, which sits under the painted far layers (z -80) and is seen only on the surface. Author's playtest 2026-09-12: the first room has no crate obstacle (v1's Crate + PH_Crate_Stack) — the jump hint stays, nothing has to be jumped; the drawn floor's far edge sits on the walk band's top (SectionBackdrop.FloorFarEdgeY 300) and PH_NearLip starts where the drawn floor ends (600.8); playtest #2 («room 2, nothing happens»): DebrisPile_Timber's PH_ rubble is recoloured light (the prop's default rocks are the drawn floor's own darkness and vanished on it) and PH_HitStrip_Timber is stronger (alpha 0.4), so the gate and the strip the heavy hit must be thrown from read on the painted floor.
 [ext_resource type="PackedScene" uid="uid://b7wdrbbe2dkvc" path="res://scenes/v2/actors/Player.tscn" id="2_player"]
 [ext_resource type="PackedScene" uid="uid://2adcecasbtv6" path="res://scenes/ui/HUD.tscn" id="3_hud"]
 [ext_resource type="PackedScene" uid="uid://bl4rdh3hy5v37" path="res://scenes/core/WaveSpawner.tscn" id="4_spawner"]
@@ -322,7 +322,7 @@ color = Color(0.039216, 0.05098, 0.078431, 0.45)
 
 [node name="PH_HitStrip_Timber" type="Polygon2D" parent="PH_Decals"]
 position = Vector2(3300, 450)
-color = Color(0.941176, 0.639216, 0.14902, 0.18)
+color = Color(0.941176, 0.639216, 0.14902, 0.4)
 polygon = PackedVector2Array(-48, -12, 48, -12, 48, 12, -48, 12)
 
 [node name="PH_WallLeft" type="StaticBody2D" parent="."]
@@ -775,6 +775,21 @@ Cooldown = 8.0
 position = Vector2(3300, 450)
 HeavyHitsToClear = 2
 SaveId = "timber"
+
+[node name="PH_RockFar" parent="DebrisPile_Timber/PH_Rubble" index="0"]
+color = Color(0.301961, 0.345098, 0.4, 1)
+
+[node name="PH_RockNear" parent="DebrisPile_Timber/PH_Rubble" index="1"]
+color = Color(0.301961, 0.345098, 0.4, 1)
+
+[node name="PH_Rock" parent="DebrisPile_Timber/PH_Rubble" index="2"]
+color = Color(0.4, 0.42, 0.46, 1)
+
+[node name="PH_TimberA" parent="DebrisPile_Timber/PH_Rubble" index="3"]
+color = Color(0.541176, 0.309804, 0.156863, 1)
+
+[node name="PH_TimberB" parent="DebrisPile_Timber/PH_Rubble" index="4"]
+color = Color(0.541176, 0.309804, 0.156863, 1)
 
 [node name="GasZone_Pocket_A" parent="." node_paths=PackedStringArray("Room") instance=ExtResource("22_gas")]
 position = Vector2(4500, 450)
