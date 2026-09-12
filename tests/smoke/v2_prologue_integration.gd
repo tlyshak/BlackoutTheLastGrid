@@ -13,13 +13,18 @@ extends SceneTree
 #     PH_Sky_Surface patch (the painted far layer is switched off outside its room instead);
 #   * keep what is light, decal, collision or Room_Surface: Darkness, Vignette, the hero's lamp,
 #     LitZone_*, PH_Decals (after Backgrounds in the tree, z -20), the lamps, landmarks, jam carts,
-#     crate stack, Fx_*, the physical walls, the surface room's dressing including the v1 rock
-#     Parallax (drawn under the painted far layers, so it shows only on the surface), and
-#     Foreground/PH_NearLip starting at the drawn floor's bottom edge;
+#     Fx_*, the physical walls, the surface room's dressing including the v1 rock Parallax (drawn
+#     under the painted far layers, so it shows only on the surface), and Foreground/PH_NearLip
+#     starting where the drawn floor ends;
+#   * have no crate row in the first room (author's playtest 2026-09-12): Crate and PH_Crate_Stack
+#     are gone, the jump hint stays;
+#   * put the drawn floor on the walk band: Backdrop_Face.FloorFarEdgeY is the band's top (300,
+#     RoomBounds.FloorTop) and the drawn floor ends at the band's bottom (600) with at most a texel
+#     below it — the hero never stands on the wall and never sees floor he cannot reach;
 #   * switch every painted far layer off while the camera is limited to Room_Surface and keep the
 #     patrol room's on while it is limited to Room_Patrol (LevelBase.ApplyRoomBounds drives it);
 #   * run the camera at zoom 1.5 from y 450: a 1280x720 world window (90…810) inside the limits,
-#     the walk band 300…600 and the drawn floor edge 380 inside it;
+#     the walk band 300…600 inside it with wall showing above the band's top;
 #   * stage the capture with Sprite2Ds: HeldGuards/Overseer|PH_Guard_A|PH_Guard_B show the guard
 #     sheet's `stance` region (assets/art/v2/keyframes/guard_keyframes.frames.json x svg/scale 2) at
 #     scale 0.5 with the feet on the node origin and the region's four corner texels transparent
@@ -52,9 +57,10 @@ const CAMERA_ZOOM := Vector2(1.5, 1.5)
 const CAMERA_Y := 450.0
 const BAND_TOP := 300.0
 const BAND_BOTTOM := 600.0
-const DRAWN_FLOOR_TOP := 380.0
-const LIP_TOP_MIN := 681.0               # PH_NearLip may not cover the drawn floor (ends at 680.8)
-const LIP_SEAM_MAX := 1.0                # ...and may not leave more than a texel above itself
+const WALL_ABOVE_BAND_MIN := 80.0        # world px of wall the window must show above the band's top
+const UNREACHABLE_FLOOR_MAX := 2.0       # px of drawn floor allowed below the band's bottom (600.8 - 600)
+const LIP_SEAM_MAX := 1.0                # PH_NearLip may not leave more than a texel of clear colour above itself
+const PLAYTEST_GONE := ["Crate", "PH_Crate_Stack"]   # author's playtest 2026-09-12: no crate row in the v2 first room
 const DECALS_Z := -20
 const DECAL_COUNT := 7                   # three pools, three dark stripes, the timber hit strip
 const GONE_ROOT := ["PH_Ceiling", "PH_Floor_Face", "PH_Floor_Drift", "PH_Floor_Patrol", "PH_FloorEdge",
@@ -67,7 +73,7 @@ const GONE_ROOT := ["PH_Ceiling", "PH_Floor_Face", "PH_Floor_Drift", "PH_Floor_P
 const SUPPORT_COUNT := 22
 const KEPT := ["Darkness", "Vignette", "Player/Flashlight", "LitZone_Arena", "LitZone_P1", "LitZone_P2", "LitZone_P3",
 	"PH_Decals", "WorkLamps", "DriftLamps", "PH_ArenaLamp", "PH_Landmark_Face", "PH_Landmark_Drift", "PH_Landmark_PastGas",
-	"PH_Landmark_Surface", "PH_JamCarts", "PH_Crate_Stack", "Fx_Face", "Fx_Drift", "Fx_Patrol", "Fx_Surface",
+	"PH_Landmark_Surface", "PH_JamCarts", "Tutorial/JumpPrompt", "Fx_Face", "Fx_Drift", "Fx_Patrol", "Fx_Surface",
 	"PH_WallLeft", "PH_WallRight", "PH_WallShaft", "PH_Wall_Surface", "PH_Floor_Surface",
 	"Parallax/PxRockFar/PH_FarMassif", "Parallax/PxRockMid/PH_MidWall", "Parallax/PxStruct/PH_Trestle_1",
 	"Backdrop/PH_Horizon", "Ground/PH_FloorTone_Surface", "Foreground/PH_NearLip", "Fx_Face/Conveyor/ConveyorAnim"]
@@ -182,6 +188,8 @@ func _run() -> void:
 		_check(level.get_node_or_null(path) == null, "v1 dressing '%s' is still in the v2 prologue" % path)
 	for i in range(1, SUPPORT_COUNT + 1):
 		_check(level.get_node_or_null("PH_Support_%d" % i) == null, "PH_Support_%d is still in the v2 prologue" % i)
+	for path in PLAYTEST_GONE:
+		_check(level.get_node_or_null(path) == null, "'%s' is still in the v2 prologue — the author asked for the first room without the crate stack" % path)
 	for group in ["Backdrop", "Ground"]:
 		var g: Node = level.get_node_or_null(group)
 		if g == null:
@@ -237,18 +245,26 @@ func _run() -> void:
 		var face: CanvasItem = backgrounds.get_node_or_null("Backdrop_Face/Back")
 		_check(patrol != null and patrol.visible, "Backdrop_Patrol/Back is hidden while the camera is limited to Room_Patrol")
 		_check(face != null and not face.visible, "Backdrop_Face/Back is shown while the camera is limited to Room_Patrol")
+	# The drawn floor is the walk band: far edge on its top, near edge at its bottom, the lip right after.
 	var lip: Polygon2D = level.get_node_or_null("Foreground/PH_NearLip")
+	var face_bd: Node2D = level.get_node_or_null("Backgrounds/Backdrop_Face")
 	var floor_section: Sprite2D = level.get_node_or_null("Backgrounds/Backdrop_Face/Floor/Section")
-	if lip != null and floor_section != null and floor_section.texture != null:
+	if lip != null and face_bd != null and floor_section != null and floor_section.texture != null:
+		var far_edge: float = face_bd.FloorFarEdgeY
+		_check(far_edge == BAND_TOP, "Backdrop_Face.FloorFarEdgeY=%.1f, expected the band's top %.0f — a hero on the far edge of the band would stand on the wall" % [far_edge, BAND_TOP])
+		var floor_bottom: float = floor_section.position.y + floor_section.texture.get_height() * floor_section.scale.y
+		_check(floor_bottom >= BAND_BOTTOM, "the drawn floor ends at y=%.1f, short of the band's bottom %.0f" % [floor_bottom, BAND_BOTTOM])
+		_check(floor_bottom - BAND_BOTTOM <= UNREACHABLE_FLOOR_MAX, "the drawn floor reaches y=%.1f, %.1f px below the band's bottom %.0f the hero can never step on" % [floor_bottom, floor_bottom - BAND_BOTTOM, BAND_BOTTOM])
 		var top := INF
 		var bottom := -INF
 		for p in lip.polygon:
 			top = minf(top, p.y)
 			bottom = maxf(bottom, p.y)
-		var floor_bottom: float = floor_section.position.y + floor_section.texture.get_height() * floor_section.scale.y
-		_check(top >= LIP_TOP_MIN, "PH_NearLip starts at y=%.1f, expected >= %.0f (it would cover the drawn floor)" % [top, LIP_TOP_MIN])
+		_check(top >= floor_bottom, "PH_NearLip starts at y=%.1f, above the drawn floor's end %.1f (it would cover the floor)" % [top, floor_bottom])
 		_check(top - floor_bottom <= LIP_SEAM_MAX, "PH_NearLip starts at y=%.1f but the drawn floor ends at %.1f — a strip of clear colour shows between them" % [top, floor_bottom])
 		_check(bottom >= CAMERA_Y + 360.0, "PH_NearLip ends at y=%.1f, expected to reach the window bottom %.0f" % [bottom, CAMERA_Y + 360.0])
+	else:
+		_check(false, "Foreground/PH_NearLip, Backgrounds/Backdrop_Face or its Floor/Section is missing")
 
 	# 5. Camera.
 	var camera: Camera2D = level.get_node_or_null("Camera2D")
@@ -261,8 +277,8 @@ func _run() -> void:
 		var bottom: float = camera.position.y + view.y / 2.0
 		_check(top >= camera.limit_top and bottom <= camera.limit_bottom,
 			"the %sx%s world window %.0f…%.0f leaves the camera limits %d…%d" % [view.x, view.y, top, bottom, camera.limit_top, camera.limit_bottom])
-		_check(top <= DRAWN_FLOOR_TOP - 80.0 and top <= BAND_TOP and bottom >= BAND_BOTTOM,
-			"the world window %.0f…%.0f does not hold the walk band %.0f…%.0f with the wall base above it" % [top, bottom, BAND_TOP, BAND_BOTTOM])
+		_check(top <= BAND_TOP - WALL_ABOVE_BAND_MIN and bottom >= BAND_BOTTOM,
+			"the world window %.0f…%.0f does not hold the walk band %.0f…%.0f with %.0f px of wall above it" % [top, bottom, BAND_TOP, BAND_BOTTOM, WALL_ABOVE_BAND_MIN])
 
 	# 6. The capture staging.
 	var held: Node2D = level.get_node_or_null("HeldGuards")

@@ -77,14 +77,19 @@ public partial class SectionBackdrop : Node2D
     /// <summary>Texture px per mockup px — the <c>svg/scale</c> of the derivatives' import sidecars.</summary>
     [Export] public float ImportScale { get; set; } = 3f;
 
-    /// <summary>World px per mockup px (1.88: the 160 px drawn floor covers the 300 px walk band and the wall base).</summary>
+    /// <summary>World px per mockup px (1.88: the 160 px drawn floor covers the 300 px walk band, 300…600.8).</summary>
     [Export] public float WorldScale { get; set; } = 1.88f;
 
     /// <summary>Mockup y where the drawn floor starts (the wall base), in mockup px.</summary>
     [Export] public float DrawnFloorTop { get; set; } = 280f;
 
-    /// <summary>World y the drawn floor's far edge is placed on; the walk band's far 80 px stand against the wall base above it.</summary>
-    [Export] public float FloorFarEdgeY { get; set; } = 380f;
+    /// <summary>
+    /// World y the drawn floor's far edge (the wall base) is placed on — the mine rooms' walk band
+    /// top (<see cref="RoomBounds.FloorTop"/>, 300), so a hero on the far edge of the band stands
+    /// on the drawn floor and not on the wall, and the near edge of the drawn floor covers the
+    /// band's bottom (author's playtest of 2026-09-12).
+    /// </summary>
+    [Export] public float FloorFarEdgeY { get; set; } = 300f;
 
     /// <summary>
     /// World x of the section's left edge, relative to this node (the room's left edge). Chosen

@@ -1,7 +1,7 @@
-[gd_scene load_steps=61 format=3 uid="uid://dkswkamsuv26r"]
+[gd_scene load_steps=59 format=3 uid="uid://dkswkamsuv26r"]
 
 [ext_resource type="Script" path="res://scripts/levels/Level00_Prologue.cs" id="1_level"]
-; v2 (T-V2-01): the level runs on the shared scripts/levels/Level00_Prologue.cs; only the scene differs from scenes/levels/Level00_Prologue.tscn: v2 actors (scenes/v2/actors), painted room backdrops under Backgrounds (scenes/v2/levels/Backdrop_*.tscn), camera zoom 1.5. The v1 PH_ dressing of the three mine rooms is gone; Room_Surface keeps its procedural v1 dressing, including the rock Parallax, which sits under the painted far layers (z -80) and is seen only on the surface.
+; v2 (T-V2-01): the level runs on the shared scripts/levels/Level00_Prologue.cs; only the scene differs from scenes/levels/Level00_Prologue.tscn: v2 actors (scenes/v2/actors), painted room backdrops under Backgrounds (scenes/v2/levels/Backdrop_*.tscn), camera zoom 1.5. The v1 PH_ dressing of the three mine rooms is gone; Room_Surface keeps its procedural v1 dressing, including the rock Parallax, which sits under the painted far layers (z -80) and is seen only on the surface. Author's playtest 2026-09-12: the first room has no crate obstacle (v1's Crate + PH_Crate_Stack) — the jump hint stays, nothing has to be jumped; the drawn floor's far edge sits on the walk band's top (SectionBackdrop.FloorFarEdgeY 300) and PH_NearLip starts where the drawn floor ends (600.8).
 [ext_resource type="PackedScene" uid="uid://b7wdrbbe2dkvc" path="res://scenes/v2/actors/Player.tscn" id="2_player"]
 [ext_resource type="PackedScene" uid="uid://2adcecasbtv6" path="res://scenes/ui/HUD.tscn" id="3_hud"]
 [ext_resource type="PackedScene" uid="uid://bl4rdh3hy5v37" path="res://scenes/core/WaveSpawner.tscn" id="4_spawner"]
@@ -10,7 +10,6 @@
 [ext_resource type="PackedScene" uid="uid://bhku23d0vfuqb" path="res://scenes/props/Outlet.tscn" id="7_outlet"]
 [ext_resource type="Script" path="res://scripts/levels/RoomBounds.cs" id="8_room"]
 [ext_resource type="Script" path="res://scripts/props/TutorialPrompt.cs" id="9_prompt"]
-[ext_resource type="Script" path="res://scripts/props/JumpableObstacle.cs" id="10_obstacle"]
 [ext_resource type="PackedScene" uid="uid://4hbuflsw3m5e" path="res://scenes/ui/Cutscene.tscn" id="11_cutscene"]
 [ext_resource type="PackedScene" uid="uid://g0gjms1b3i3p" path="res://scenes/levels/Level01_District.tscn" id="12_next"]
 [ext_resource type="PackedScene" uid="uid://b01co21wm8ogb" path="res://scenes/ui/PauseMenu.tscn" id="13_pause"]
@@ -36,9 +35,6 @@
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
 size = Vector2(40, 400)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_crate"]
-size = Vector2(44, 300)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_prompt_move"]
 size = Vector2(300, 320)
@@ -352,47 +348,6 @@ collision_mask = 0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PH_WallShaft"]
 shape = SubResource("RectangleShape2D_wall")
-
-[node name="PH_Crate_Stack" type="Node2D" parent="."]
-position = Vector2(820, 0)
-
-[node name="PH_Crate_1" type="Polygon2D" parent="PH_Crate_Stack"]
-position = Vector2(0, 400)
-color = Color(0.45098, 0.321569, 0.109804, 1.0)
-polygon = PackedVector2Array(-22, -96, 22, -96, 22, 0, -22, 0)
-
-[node name="PH_Lid" type="Polygon2D" parent="PH_Crate_Stack/PH_Crate_1"]
-color = Color(0.54902, 0.4, 0.239216, 1.0)
-polygon = PackedVector2Array(-22, -96, 22, -96, 22, -84, -22, -84)
-
-[node name="PH_Crate_2" type="Polygon2D" parent="PH_Crate_Stack"]
-position = Vector2(0, 500)
-color = Color(0.45098, 0.321569, 0.109804, 1.0)
-polygon = PackedVector2Array(-22, -96, 22, -96, 22, 0, -22, 0)
-
-[node name="PH_Lid" type="Polygon2D" parent="PH_Crate_Stack/PH_Crate_2"]
-color = Color(0.54902, 0.4, 0.239216, 1.0)
-polygon = PackedVector2Array(-22, -96, 22, -96, 22, -84, -22, -84)
-
-[node name="PH_Crate_3" type="Polygon2D" parent="PH_Crate_Stack"]
-position = Vector2(0, 600)
-color = Color(0.45098, 0.321569, 0.109804, 1.0)
-polygon = PackedVector2Array(-22, -96, 22, -96, 22, 0, -22, 0)
-
-[node name="PH_Lid" type="Polygon2D" parent="PH_Crate_Stack/PH_Crate_3"]
-color = Color(0.54902, 0.4, 0.239216, 1.0)
-polygon = PackedVector2Array(-22, -96, 22, -96, 22, -84, -22, -84)
-
-[node name="Crate" type="StaticBody2D" parent="." node_paths=PackedStringArray("Player", "Shape")]
-position = Vector2(820, 450)
-collision_layer = 1
-collision_mask = 0
-script = ExtResource("10_obstacle")
-Player = NodePath("../Player")
-Shape = NodePath("CollisionShape2D")
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Crate"]
-shape = SubResource("RectangleShape2D_crate")
 
 [node name="WorkLamps" type="Node2D" parent="."]
 
@@ -976,7 +931,7 @@ collision_layer = 0
 collision_mask = 2
 monitorable = false
 script = ExtResource("9_prompt")
-Text = "Space - jump over the crates"
+Text = "Space - jump"
 CompletesOnAction = "jump"
 Timeout = 0.0
 
@@ -1527,7 +1482,7 @@ repeat_times = 14
 
 [node name="PH_NearLip" type="Polygon2D" parent="Foreground"]
 color = Color(0.039216, 0.05098, 0.078431, 1.0)
-polygon = PackedVector2Array(0, 681, 1600, 681, 1600, 1030, 0, 1030)
+polygon = PackedVector2Array(0, 601, 1600, 601, 1600, 1030, 0, 1030)
 
 [node name="Fx_Face" type="Node2D" parent="."]
 z_index = 20

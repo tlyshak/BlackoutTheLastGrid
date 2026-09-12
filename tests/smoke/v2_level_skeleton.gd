@@ -15,7 +15,10 @@ extends SceneTree
 #     Flashlight by its class and balance exports (DrainPerSecond, EnabledAtStart) — its
 #     HeadOffset and BeamAngleDeg follow the drawn head, not the rig's.
 # The skip list is the contract for steps 01b/01c: they may swap actors and dressing and this
-# script must stay green; anything else that drifts fails here.
+# script must stay green; anything else that drifts fails here. One gameplay difference is
+# deliberate and listed by path (V2_OMITTED): the author's playtest of 2026-09-12 took the crate
+# row out of the v2 first room. The list is exact — each path must exist in v1 and be absent in
+# v2 — so it is an exception, not a loosening of the comparison.
 # Run: godot --headless --path . -s tests/smoke/v2_level_skeleton.gd
 
 const NAME := "v2_level_skeleton"   # must equal the file basename
@@ -32,6 +35,7 @@ const PHYSICAL_PH_PREFIXES := ["PH_Landmark_"]
 const ART_NODES := ["Rig", "Sprite"]    # under an actor's Visual
 const ACTOR_LAMP := "Flashlight"        # under an actor's root: compared by class and balance, its offset is art
 const LAMP_BALANCE := ["DrainPerSecond", "EnabledAtStart"]   # Flashlight exports that are balance, not art
+const V2_OMITTED := ["Crate", "Crate/CollisionShape2D"]   # v2 deliberately without: the crate row (author's playtest 2026-09-12)
 const MAX_REPORTED := 8                 # differences listed before the message is cut
 const POS_DECIMALS := 2
 
@@ -157,9 +161,11 @@ func _snapshot(scene: PackedScene) -> Dictionary:
 	await _step(2)
 	return snap
 
-func _diff(label: String, a: Dictionary, b: Dictionary) -> void:
+func _diff(label: String, a: Dictionary, b: Dictionary, omitted: Array = []) -> void:
 	var diffs: PackedStringArray = []
 	for key in a:
+		if key in omitted:
+			continue
 		if not b.has(key):
 			diffs.append("%s missing in v2" % key)
 		elif a[key] != b[key]:
@@ -209,6 +215,9 @@ func _run() -> void:
 
 	# 2. The gameplay tree.
 	_check(s1.tree.size() > 0 and s2.tree.size() > 0, "the tree walk recorded nothing (v1 %d, v2 %d nodes)" % [s1.tree.size(), s2.tree.size()])
-	_diff("gameplay tree", s1.tree, s2.tree)
+	for path in V2_OMITTED:
+		_check(s1.tree.has(path), "v1 has no gameplay node '%s' — the V2_OMITTED exception is stale" % path)
+		_check(not s2.tree.has(path), "v2 still carries '%s', listed in V2_OMITTED as deliberately absent" % path)
+	_diff("gameplay tree", s1.tree, s2.tree, V2_OMITTED)
 	print("v2_level_skeleton: %d exports and %d gameplay nodes compared" % [s2.exports.size(), s2.tree.size()])
 	_finish()

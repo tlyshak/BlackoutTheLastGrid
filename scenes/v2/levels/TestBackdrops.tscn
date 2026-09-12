@@ -60,7 +60,7 @@ polygon = PackedVector2Array(-22, -108, 22, -108, 22, 0, -22, 0)
 
 [node name="PH_NearLip" type="ColorRect" parent="."]
 z_index = 40
-offset_top = 681.0
+offset_top = 601.0
 offset_right = 8640.0
 offset_bottom = 1080.0
 mouse_filter = 2

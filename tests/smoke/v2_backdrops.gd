@@ -7,9 +7,12 @@ extends SceneTree
 #   * layer content — probed pixels: the mid layer is transparent above the wall and opaque down to
 #     the wall base, the floor layer starts exactly at the mockup's floor row;
 #   * placement — on each Backdrop_* scene the Mid/Floor sprites have the plan's scale (1.88/3) and
-#     offset (-146.4), the drawn floor's far edge lands on world 380 with the walk band's far 80 px
-#     against the wall base and the floor reaching past 600, sprites abut without a gap from FillFrom
-#     to FillTo, every region_rect lies inside its texture, the Section sprite sits at SectionX;
+#     offset (-226.4): the drawn floor's far edge (the wall base) lands exactly on the walk band's
+#     top (300, RoomBounds.FloorTop) and the floor reaches the band's bottom (600) with no more than
+#     a texel of floor below it — a hero on the band's far edge stands on floor ink, not on wall ink
+#     (author's playtest 2026-09-12; at the old 380 the far 80 px of the band stood on the wall);
+#     sprites abut without a gap from FillFrom to FillTo, every region_rect lies inside its
+#     texture, the Section sprite sits at SectionX;
 #   * rooms — placed at the level's room x, Face/Drift/Patrol meet edge to edge (one's FillTo is
 #     the next one's FillFrom) as texture continuity: both rooms fill with the same column of the
 #     same texture and the earlier room's last mid slice ends at the very texture x the later
@@ -24,7 +27,8 @@ extends SceneTree
 #     (centre − viewport px / 2) · (1 − scroll)); the layer is shown only while the camera's limits
 #     overlap the room, so the last mine room's sky never follows the camera onto the surface;
 #   * depth — z of Back/Mid/Floor per docs/plans/t07i-visual-kit/visual-brief.md;
-#   * TestBackdrops.tscn instantiates with the three backdrops, the PH_ walk band and the v2 camera zoom.
+#   * TestBackdrops.tscn instantiates with the three backdrops, the PH_ walk band, the near lip
+#     starting where the drawn floor ends and the v2 camera zoom.
 # Run: godot --headless --path . -s tests/smoke/v2_backdrops.gd
 
 const NAME := "v2_backdrops"   # must equal the file basename
@@ -43,10 +47,12 @@ const ROOM_WIDTH := 2880.0
 const MINE_END := 8640.0           # Room_Surface starts here; the painted rooms end here
 const BAND_TOP := 300.0            # RoomBounds.FloorTop of the mine rooms
 const BAND_BOTTOM := 600.0         # RoomBounds.FloorBottom
-const DRAWN_FLOOR_TOP := 380.0     # plan: world y of the drawn floor's far edge (mockup row 280)
+const DRAWN_FLOOR_TOP := BAND_TOP  # world y of the drawn floor's far edge (mockup row 280) == the band's top
 const EDGE_TOL := 1.0              # px of slack on the drawn floor edge (one texel at scale 0.627)
+const UNREACHABLE_FLOOR_MAX := 2.0 # px of drawn floor allowed below the band's bottom (600.8 - 600)
+const FEET_PROBE_DEPTH := 1.0      # world px into the band the feet probe samples the layers at
 const EXPECTED_SCALE := 1.88 / 3.0
-const EXPECTED_OFFSET_Y := -146.4  # 380 - 280 * 1.88
+const EXPECTED_OFFSET_Y := -226.4  # 300 - 280 * 1.88
 const SCALE_EPS := 0.001
 const POS_EPS := 0.05              # px: sprites abut, edges meet
 const Z_BACK_MIN := -100           # visual brief: parallax background -100…-60
@@ -290,9 +296,11 @@ func _run() -> void:
 			var far_edge: float = floor_section.position.y + first_row * floor_section.scale.y
 			var near_edge: float = floor_section.position.y + img.get_height() * floor_section.scale.y
 			_check(first_row >= 0 and _approx(far_edge, DRAWN_FLOOR_TOP, EDGE_TOL),
-				"%s: drawn floor far edge at world y=%.1f (texture row %d), expected %.0f" % [room, far_edge, first_row, DRAWN_FLOOR_TOP])
-			_check(far_edge > BAND_TOP and near_edge >= BAND_BOTTOM,
-				"%s: drawn floor %.1f…%.1f does not sit inside the band %.0f…%.0f the way the plan wants" % [room, far_edge, near_edge, BAND_TOP, BAND_BOTTOM])
+				"%s: drawn floor far edge at world y=%.1f (texture row %d), expected the band's top %.0f — a hero on the far edge of the band would stand on the wall" % [room, far_edge, first_row, DRAWN_FLOOR_TOP])
+			_check(near_edge >= BAND_BOTTOM,
+				"%s: drawn floor ends at y=%.1f, short of the band's bottom %.0f — the near part of the band has no floor under it" % [room, near_edge, BAND_BOTTOM])
+			_check(near_edge - BAND_BOTTOM <= UNREACHABLE_FLOOR_MAX,
+				"%s: drawn floor reaches y=%.1f, %.1f px below the band's bottom %.0f the hero can never step on" % [room, near_edge, near_edge - BAND_BOTTOM, BAND_BOTTOM])
 		var mid_section: Sprite2D = mid.get_node_or_null("Section")
 		if mid_section != null and mid_section.texture != null:
 			var img: Image = mid_section.texture.get_image()
@@ -301,8 +309,17 @@ func _run() -> void:
 				if img.get_pixel(PROBE_COLUMN * IMPORT_SCALE, row).a > 0.0:
 					last_row = row
 			var wall_base: float = mid_section.position.y + (last_row + 1) * mid_section.scale.y
-			_check(last_row >= 0 and _approx(wall_base, DRAWN_FLOOR_TOP, EDGE_TOL) and wall_base > BAND_TOP,
-				"%s: wall base at world y=%.1f, expected %.0f (the band's far 80 px stand against it)" % [room, wall_base, DRAWN_FLOOR_TOP])
+			_check(last_row >= 0 and _approx(wall_base, BAND_TOP, EDGE_TOL),
+				"%s: wall base at world y=%.1f, expected the band's top %.0f (the wall ends where the walk band starts)" % [room, wall_base, BAND_TOP])
+		# Under the feet of a hero on the band's far edge: floor ink, no wall ink.
+		if mid_section != null and floor_section != null and mid_section.texture != null and floor_section.texture != null:
+			var feet_y: float = BAND_TOP + FEET_PROBE_DEPTH
+			var floor_row: int = int(floor((feet_y - floor_section.position.y) / floor_section.scale.y))
+			var wall_row: int = int(floor((feet_y - mid_section.position.y) / mid_section.scale.y))
+			var floor_a: float = floor_section.texture.get_image().get_pixel(PROBE_COLUMN * IMPORT_SCALE, floor_row).a
+			var wall_a: float = mid_section.texture.get_image().get_pixel(PROBE_COLUMN * IMPORT_SCALE, wall_row).a
+			_check(floor_a == 1.0 and wall_a == 0.0,
+				"%s: at world y %.0f (the band's far edge) the hero stands on floor alpha %.2f / wall alpha %.2f (texture row %d), expected floor 1 / wall 0" % [room, feet_y, floor_a, wall_a, floor_row])
 		_check(mids.size() > 0 and floors.size() > 0, "%s: a layer has no sprites" % room)
 
 		# Far layer: tiles abut, sit on the level-wide grid, cover the window for every camera x.
@@ -368,6 +385,14 @@ func _run() -> void:
 		var band: ColorRect = test_scene.get_node_or_null("PH_WalkBand")
 		_check(band != null and band.offset_top == BAND_TOP and band.offset_bottom == BAND_BOTTOM,
 			"TestBackdrops: PH_WalkBand missing or not %.0f…%.0f" % [BAND_TOP, BAND_BOTTOM])
+		var lip: ColorRect = test_scene.get_node_or_null("PH_NearLip")
+		var face_floor: Sprite2D = test_scene.get_node_or_null("Backdrop_Face/Floor/Section")
+		if lip != null and face_floor != null and face_floor.texture != null:
+			var floor_bottom: float = face_floor.position.y + face_floor.texture.get_height() * face_floor.scale.y
+			_check(lip.offset_top >= floor_bottom and lip.offset_top - floor_bottom <= EDGE_TOL,
+				"TestBackdrops: PH_NearLip starts at y=%.1f but the drawn floor ends at %.1f" % [lip.offset_top, floor_bottom])
+		else:
+			_check(false, "TestBackdrops: PH_NearLip or Backdrop_Face/Floor/Section missing")
 		var cam: Camera2D = test_scene.get_node_or_null("Camera2D")
 		_check(cam != null and cam.zoom == CAMERA_ZOOM, "TestBackdrops: Camera2D missing or zoom != %s" % CAMERA_ZOOM)
 		# The far layer follows the camera limits: on while the limits overlap the room, off otherwise.

@@ -243,6 +243,32 @@ func _check_pile_band(level: Node, pile_name: String, player: Node) -> void:
 			"%s blocks Y %.0f..%.0f, expected the whole walk band %.0f..%.0f — it could be walked around in depth"
 			% [pile_name, ptop, pbottom, player.FloorTop, player.FloorBottom])
 
+# Segment 0's obstacle: the crate row at CRATE_X spans the whole band, blocks a walk at every depth
+# and yields to a jump. The v2 script overrides this — the author's playtest of 2026-09-12 took
+# the crates out of the v2 first room (tests/smoke/v2_level_prologue.gd).
+func _check_crate(level: Node, player: Node) -> void:
+	var crate: Node = level.get_node_or_null("Crate")
+	_check(crate != null, "the prologue has no 'Crate'")
+	if crate != null and crate.Shape != null and crate.Shape.shape is RectangleShape2D:
+		var cbox: RectangleShape2D = crate.Shape.shape
+		var ctop: float = crate.Shape.global_position.y - cbox.size.y * 0.5
+		var cbottom: float = crate.Shape.global_position.y + cbox.size.y * 0.5
+		_check(ctop <= player.FloorTop and cbottom >= player.FloorBottom,
+			"the crate blocks Y %.0f..%.0f, expected the whole walk band" % [ctop, cbottom])
+	for crate_depth in [player.FloorTop + BAND_MARGIN, 450.0, player.FloorBottom - BAND_MARGIN]:
+		var blocked: float = await _walk_right(player, Vector2(BEFORE_CRATE.x, crate_depth))
+		_check(blocked <= CRATE_BLOCK_MAX_X, "walking right at Y %.0f the hero reached x %.0f, past the crate at x %.0f" % [crate_depth, blocked, CRATE_X])
+	_release_all()
+	player.global_position = BEFORE_CRATE
+	await _step(2)
+	Input.action_press("move_right")
+	await _tap("jump")
+	await _step(JUMP_CAP)
+	Input.action_release("move_right")
+	await _step(2)
+	_check(player.global_position.x >= CRATE_CLEAR_X, "jumping the crate the hero only reached x %.0f, expected past %.0f" % [player.global_position.x, CRATE_CLEAR_X])
+	_release_all()
+
 func _run() -> void:
 	for a in ["move_right", "move_up", "move_down", "jump", "attack", "heavy_attack", "interact", "flashlight"]:
 		_check(InputMap.has_action(a), "InputMap missing action '%s'" % a)
@@ -381,27 +407,7 @@ func _run() -> void:
 	_check(hint != null and hint.IsShown == true, "the move hint never appeared where the hero walks")
 	await _wait_until(func(): return lines.has(level.DanMoveLine), BUBBLE_CAP)
 	_check(lines.has(level.DanMoveLine), "Dan did not say the move line (%s)" % [lines])
-	var crate: Node = level.get_node_or_null("Crate")
-	_check(crate != null, "the prologue has no 'Crate'")
-	if crate != null and crate.Shape != null and crate.Shape.shape is RectangleShape2D:
-		var cbox: RectangleShape2D = crate.Shape.shape
-		var ctop: float = crate.Shape.global_position.y - cbox.size.y * 0.5
-		var cbottom: float = crate.Shape.global_position.y + cbox.size.y * 0.5
-		_check(ctop <= player.FloorTop and cbottom >= player.FloorBottom,
-			"the crate blocks Y %.0f..%.0f, expected the whole walk band" % [ctop, cbottom])
-	for crate_depth in [player.FloorTop + BAND_MARGIN, 450.0, player.FloorBottom - BAND_MARGIN]:
-		var blocked: float = await _walk_right(player, Vector2(BEFORE_CRATE.x, crate_depth))
-		_check(blocked <= CRATE_BLOCK_MAX_X, "walking right at Y %.0f the hero reached x %.0f, past the crate at x %.0f" % [crate_depth, blocked, CRATE_X])
-	_release_all()
-	player.global_position = BEFORE_CRATE
-	await _step(2)
-	Input.action_press("move_right")
-	await _tap("jump")
-	await _step(JUMP_CAP)
-	Input.action_release("move_right")
-	await _step(2)
-	_check(player.global_position.x >= CRATE_CLEAR_X, "jumping the crate the hero only reached x %.0f, expected past %.0f" % [player.global_position.x, CRATE_CLEAR_X])
-	_release_all()
+	await _check_crate(level, player)
 
 	# 5. The jam blocks the drift at every depth before the blast; the charge panel is reachable.
 	for depth in [player.FloorTop + BAND_MARGIN, 450.0, player.FloorBottom - BAND_MARGIN]:
