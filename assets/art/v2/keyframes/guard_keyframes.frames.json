@@ -1,0 +1,357 @@
+{
+  "sheet": "guard_keyframes.svg",
+  "viewbox": [
+    680,
+    800
+  ],
+  "rows": [
+    {
+      "label": "стійка, ходьба (3 ключі)",
+      "y0": 0,
+      "y1": 200,
+      "floor_rect_y": 160,
+      "feet_y": 162
+    },
+    {
+      "label": "атака шокером (телеграф 0.3 с, потім випад)",
+      "y0": 200,
+      "y1": 400,
+      "floor_rect_y": 360,
+      "feet_y": 362
+    },
+    {
+      "label": "отримання удару та падіння",
+      "y0": 400,
+      "y1": 600,
+      "floor_rect_y": 560,
+      "feet_y": 562
+    },
+    {
+      "label": "idle: дихання (4 ключі) + рідкий погляд убік",
+      "y0": 600,
+      "y1": 800,
+      "floor_rect_y": 760,
+      "feet_y": 762
+    }
+  ],
+  "poses": {
+    "stance": {
+      "x": 23,
+      "y": 33,
+      "w": 109,
+      "h": 139,
+      "row": 0,
+      "label": "стійка",
+      "origin": [
+        70,
+        130
+      ],
+      "label_x": 70,
+      "body_bottom_y": 167.0,
+      "margin": [
+        75,
+        22,
+        60,
+        0
+      ]
+    },
+    "walk_1": {
+      "x": 141,
+      "y": 33,
+      "w": 113,
+      "h": 139,
+      "row": 0,
+      "label": "крок 1",
+      "origin": [
+        190,
+        130
+      ],
+      "label_x": 190,
+      "body_bottom_y": 167.0,
+      "margin": [
+        73,
+        22,
+        58,
+        0
+      ]
+    },
+    "walk_pass": {
+      "x": 273,
+      "y": 31,
+      "w": 99,
+      "h": 141,
+      "row": 0,
+      "label": "прохід",
+      "origin": [
+        310,
+        130
+      ],
+      "label_x": 310,
+      "body_bottom_y": 167.0,
+      "margin": [
+        85,
+        20,
+        60,
+        0
+      ]
+    },
+    "walk_2": {
+      "x": 394,
+      "y": 33,
+      "w": 92,
+      "h": 139,
+      "row": 0,
+      "label": "крок 2",
+      "origin": [
+        430,
+        130
+      ],
+      "label_x": 430,
+      "body_bottom_y": 167.0,
+      "margin": [
+        86,
+        22,
+        66,
+        0
+      ]
+    },
+    "attack_windup": {
+      "x": 43,
+      "y": 211,
+      "w": 113,
+      "h": 161,
+      "row": 1,
+      "label": "телеграф",
+      "origin": [
+        90,
+        330
+      ],
+      "label_x": 90,
+      "body_bottom_y": 367.0,
+      "margin": [
+        75,
+        0,
+        56,
+        0
+      ]
+    },
+    "attack_hit": {
+      "x": 218,
+      "y": 243,
+      "w": 164,
+      "h": 129,
+      "row": 1,
+      "label": "випад",
+      "origin": [
+        260,
+        330
+      ],
+      "label_x": 260,
+      "body_bottom_y": 367.0,
+      "margin": [
+        80,
+        32,
+        0,
+        0
+      ]
+    },
+    "hurt": {
+      "x": 26,
+      "y": 424,
+      "w": 117,
+      "h": 148,
+      "row": 2,
+      "label": "попадання",
+      "origin": [
+        80,
+        530
+      ],
+      "label_x": 80,
+      "body_bottom_y": 567.0,
+      "margin": [
+        68,
+        13,
+        59,
+        0
+      ]
+    },
+    "knockback": {
+      "x": 328,
+      "y": 440,
+      "w": 158,
+      "h": 132,
+      "row": 2,
+      "label": "політ",
+      "origin": [
+        400,
+        530
+      ],
+      "label_x": 400,
+      "body_bottom_y": 553.0,
+      "margin": [
+        50,
+        29,
+        36,
+        0
+      ]
+    },
+    "knockdown": {
+      "x": 486,
+      "y": 501,
+      "w": 184,
+      "h": 69,
+      "row": 2,
+      "label": "нокдаун",
+      "origin": [
+        556,
+        530
+      ],
+      "label_x": 556,
+      "body_bottom_y": 565.0,
+      "margin": [
+        52,
+        90,
+        8,
+        2
+      ]
+    },
+    "idle_1": {
+      "x": 23,
+      "y": 633,
+      "w": 109,
+      "h": 139,
+      "row": 3,
+      "label": "нейтраль",
+      "origin": [
+        70,
+        730
+      ],
+      "label_x": 70,
+      "body_bottom_y": 767.0,
+      "margin": [
+        75,
+        22,
+        60,
+        0
+      ]
+    },
+    "idle_2": {
+      "x": 143,
+      "y": 631,
+      "w": 109,
+      "h": 141,
+      "row": 3,
+      "label": "вдих (−2 px)",
+      "origin": [
+        190,
+        730
+      ],
+      "label_x": 190,
+      "body_bottom_y": 767.0,
+      "margin": [
+        75,
+        20,
+        60,
+        0
+      ]
+    },
+    "idle_3": {
+      "x": 263,
+      "y": 633,
+      "w": 109,
+      "h": 139,
+      "row": 3,
+      "label": "нейтраль",
+      "origin": [
+        310,
+        730
+      ],
+      "label_x": 310,
+      "body_bottom_y": 767.0,
+      "margin": [
+        75,
+        22,
+        60,
+        0
+      ]
+    },
+    "idle_4": {
+      "x": 383,
+      "y": 634,
+      "w": 109,
+      "h": 138,
+      "row": 3,
+      "label": "видих (+1) + погляд",
+      "origin": [
+        430,
+        730
+      ],
+      "label_x": 430,
+      "body_bottom_y": 767.0,
+      "margin": [
+        75,
+        23,
+        60,
+        0
+      ]
+    },
+    "stagger": {
+      "x": 157,
+      "y": 430,
+      "w": 153,
+      "h": 142,
+      "row": 2,
+      "label": "хитання",
+      "origin": [
+        220,
+        530
+      ],
+      "label_x": 220,
+      "body_bottom_y": 567.0,
+      "margin": [
+        59,
+        19,
+        32,
+        0
+      ]
+    }
+  },
+  "anchor": "feet",
+  "anchor_note": "feet_y = floor contact line of the row (drop-shadow centre, floor rect top + 2). Sprite origin: (x + w/2, feet_y - y) inside the region. body_bottom_y = lowest ink of the pose incl. stroke.",
+  "notes": [
+    "knockback/knockdown: bounding boxes overlapped, split at x=486; knockback loses 6 px of ink on the right (baton tip), knockdown loses 0 px on the left"
+  ],
+  "feet_y_per_pose": {
+    "stance": 162,
+    "walk_1": 162,
+    "walk_pass": 162,
+    "walk_2": 162,
+    "attack_windup": 362,
+    "attack_hit": 362,
+    "hurt": 562,
+    "knockback": 562,
+    "knockdown": 562,
+    "idle_1": 762,
+    "idle_2": 762,
+    "idle_3": 762,
+    "idle_4": 762,
+    "stagger": 562
+  },
+  "margin_px": 4,
+  "uniform_cell": {
+    "w": 244,
+    "h": 161,
+    "feet_from_top": 151,
+    "origin_x_from_left": 122,
+    "note": "cell size if every pose is padded with its 'margin' (AtlasTexture.margin: left, top, right, bottom); origin = (origin_x_from_left, feet_from_top)"
+  },
+  "missing": [
+    "jump_crouch",
+    "jump_air",
+    "attack_recover",
+    "kick"
+  ],
+  "extra": [
+    "stagger"
+  ]
+}
