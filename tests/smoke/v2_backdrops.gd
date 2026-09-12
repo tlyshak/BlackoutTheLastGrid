@@ -1,0 +1,292 @@
+extends SceneTree
+# Smoke: the painted section backdrops of the v2 mine rooms (T-V2-01 01c). Headless has no
+# renderer, so this asserts the data the picture is made of:
+#   * import — the twelve derivatives from assets/art/v2/backgrounds import at svg/scale 3
+#     (2040x1320 each) and the three `_back` layers are the same image, the premise the far layer's
+#     level-wide tile grid rests on;
+#   * layer content — probed pixels: the mid layer is transparent above the wall and opaque down to
+#     the wall base, the floor layer starts exactly at the mockup's floor row;
+#   * placement — on each Backdrop_* scene the Mid/Floor sprites have the plan's scale (1.88/3) and
+#     offset (-146.4), the drawn floor's far edge lands on world 380 with the walk band's far 80 px
+#     against the wall base and the floor reaching past 600, sprites abut without a gap from FillFrom
+#     to FillTo, every region_rect lies inside its texture, the Section sprite sits at SectionX;
+#   * rooms — placed at the level's room x, Face/Drift/Patrol meet edge to edge (one's FillTo is
+#     the next one's FillFrom) on a pillar: the earlier room's last mid slice is cut at the pillar's
+#     right edge and the later room's first mid slice is a whole tile whose left edge is the pipe end;
+#     together they cover the three mine rooms 0…8640;
+#   * far layer — Back is a Parallax2D at the brief's parallax depth, its tiles abut, sit on a grid
+#     anchored at level x 0 and cover the camera window for every camera x inside the room;
+#   * depth — z of Back/Mid/Floor per docs/plans/t07i-visual-kit/visual-brief.md;
+#   * TestBackdrops.tscn instantiates with the three backdrops, the PH_ walk band and the v2 camera zoom.
+# Run: godot --headless --path . -s tests/smoke/v2_backdrops.gd
+
+const NAME := "v2_backdrops"   # must equal the file basename
+# Safety net: quit(1) instead of hanging into the runner timeout (60 s).
+const MAX_FRAMES := 600
+const ART := "res://assets/art/v2/backgrounds/"
+const SECTIONS := ["level0_section1_mineface", "level0_section2_ventilation", "level0_section3_exit"]
+const LAYERS := ["", "_back", "_mid", "_floor"]
+const IMPORT_SCALE := 3            # svg/scale in the .import sidecars
+const TEXTURE_SIZE := Vector2i(2040, 1320)   # 680x440 mockup x IMPORT_SCALE
+const SCENE_DIR := "res://scenes/v2/levels/"
+const TEST_SCENE := SCENE_DIR + "TestBackdrops.tscn"
+# Room order and world x of the v3 prologue map (scenes/levels/Level00_Prologue.tscn, Rooms/*).
+const ROOMS := [["Face", 0.0], ["Drift", 2880.0], ["Patrol", 5760.0]]
+const ROOM_WIDTH := 2880.0
+const MINE_END := 8640.0           # Room_Surface starts here; the painted rooms end here
+const BAND_TOP := 300.0            # RoomBounds.FloorTop of the mine rooms
+const BAND_BOTTOM := 600.0         # RoomBounds.FloorBottom
+const DRAWN_FLOOR_TOP := 380.0     # plan: world y of the drawn floor's far edge (mockup row 280)
+const EDGE_TOL := 1.0              # px of slack on the drawn floor edge (one texel at scale 0.627)
+const EXPECTED_SCALE := 1.88 / 3.0
+const EXPECTED_OFFSET_Y := -146.4  # 380 - 280 * 1.88
+const SCALE_EPS := 0.001
+const POS_EPS := 0.05              # px: sprites abut, edges meet
+const Z_BACK_MIN := -100           # visual brief: parallax background -100…-60
+const Z_BACK_MAX := -60
+const Z_MID := -40                 # visual brief: room background, walls
+const Z_FLOOR := -20               # visual brief: floor, decals
+const VIEW_WIDTH := 1280.0         # 1920 / camera zoom 1.5 (Backdrop ViewWidth default)
+const CAMERA_ZOOM := Vector2(1.5, 1.5)
+const PROBE_COLUMN := 78           # mockup column clear of props in all six mid/floor layers (door frame ends 73.5, first power bank starts 79.25)
+const SKY_ROW := 120               # mockup row between the beam (to 113) and the pipes (from 124): mid transparent, back shows through
+const WALL_ROW := 170              # mockup row inside the wall band 160…280
+const WALL_BASE_ROW := 279         # last wall row
+const FLOOR_ROW := 281             # first floor row (floor layer starts at 280)
+const PILLAR_WIDTH := 16           # mockup px: every beam pillar is a 16 px rect, the slices start/end on its edges
+
+var _started := false
+var _frames := 0
+var _failures: Array[String] = []
+
+func _check(cond: bool, msg: String) -> void:
+	if not cond:
+		_failures.append(msg)
+
+func _process(_delta: float) -> bool:
+	# First frame: start the coroutine (no await here). Returning false keeps the main loop
+	# running so the awaits inside _run() resume; _run() itself calls quit().
+	if not _started:
+		_started = true
+		_run()
+	_frames += 1
+	if _frames > MAX_FRAMES:
+		print("SMOKE %s FAIL: exceeded %d frames without quit()" % [NAME, MAX_FRAMES])
+		quit(1)
+	return false
+
+func _finish() -> void:
+	if _failures.is_empty():
+		print("SMOKE %s PASS" % NAME)
+		quit(0)
+	else:
+		print("SMOKE %s FAIL: %s" % [NAME, "; ".join(_failures)])
+		quit(1)
+
+func _alpha(img: Image, column: int, row: int) -> float:
+	return img.get_pixel(column * IMPORT_SCALE, row * IMPORT_SCALE).a
+
+func _approx(a: float, b: float, eps: float) -> bool:
+	return absf(a - b) <= eps
+
+func _sprites(layer: Node) -> Array:
+	var list: Array = []
+	for c in layer.get_children():
+		if c is Sprite2D:
+			list.append(c)
+	list.sort_custom(func(a, b): return a.position.x < b.position.x)
+	return list
+
+func _world_width(s: Sprite2D) -> float:
+	return s.region_rect.size.x * s.scale.x
+
+# The mid/floor sprites of one layer: abut from `from` to `to`, region inside the texture,
+# plan scale and offset. Returns the sorted list for further checks.
+func _check_layer(room: String, layer: Node, from: float, to: float) -> Array:
+	var list := _sprites(layer)
+	_check(list.size() >= 2, "%s/%s: %d sprites, expected the section plus slices" % [room, layer.name, list.size()])
+	if list.is_empty():
+		return list
+	_check(_approx(list[0].position.x, from, POS_EPS),
+		"%s/%s: first sprite at x=%.2f, expected FillFrom %.2f" % [room, layer.name, list[0].position.x, from])
+	var cursor: float = list[0].position.x
+	for s: Sprite2D in list:
+		_check(_approx(s.position.x, cursor, POS_EPS),
+			"%s/%s/%s: x=%.2f, expected %.2f (gap or overlap with the previous slice)" % [room, layer.name, s.name, s.position.x, cursor])
+		cursor = s.position.x + _world_width(s)
+		_check(not s.centered and s.region_enabled, "%s/%s/%s: expected centered=false, region_enabled=true" % [room, layer.name, s.name])
+		_check(_approx(s.scale.x, EXPECTED_SCALE, SCALE_EPS) and _approx(s.scale.y, EXPECTED_SCALE, SCALE_EPS),
+			"%s/%s/%s: scale=%s, expected %.4f" % [room, layer.name, s.name, s.scale, EXPECTED_SCALE])
+		_check(_approx(s.position.y, EXPECTED_OFFSET_Y, EDGE_TOL),
+			"%s/%s/%s: y=%.2f, expected %.1f" % [room, layer.name, s.name, s.position.y, EXPECTED_OFFSET_Y])
+		var tex_size: Vector2 = Vector2(s.texture.get_size()) if s.texture != null else Vector2.ZERO
+		var r: Rect2 = s.region_rect
+		_check(s.texture != null and r.position.x >= -POS_EPS and r.position.y >= -POS_EPS \
+			and r.end.x <= tex_size.x + POS_EPS and r.end.y <= tex_size.y + POS_EPS and r.size.x > 0.0,
+			"%s/%s/%s: region %s outside texture %s" % [room, layer.name, s.name, r, tex_size])
+	_check(_approx(cursor, to, POS_EPS), "%s/%s: last sprite ends at x=%.2f, expected FillTo %.2f" % [room, layer.name, cursor, to])
+	return list
+
+func _run() -> void:
+	# 1. Import: every derivative is a 2040x1320 texture; the three back layers are one image.
+	var back_data: Array = []
+	var images := {}
+	for section in SECTIONS:
+		for layer in LAYERS:
+			var path: String = ART + section + layer + ".svg"
+			var tex: Texture2D = load(path)
+			_check(tex != null, "%s did not load" % path)
+			if tex == null:
+				continue
+			_check(tex.get_size() == Vector2(TEXTURE_SIZE),
+				"%s is %s, expected %s (svg/scale=%d)" % [path, tex.get_size(), TEXTURE_SIZE, IMPORT_SCALE])
+			var img := tex.get_image()
+			images[section + layer] = img
+			if layer == "_back":
+				back_data.append(img.get_data())
+	_check(back_data.size() == 3 and back_data[0] == back_data[1] and back_data[1] == back_data[2],
+		"the three _back layers are not the same image; the far layer's shared tile grid needs them equal")
+
+	# 2. Layer content: mid transparent above the wall, opaque to the wall base; floor starts at row 280.
+	for section in SECTIONS:
+		var mid: Image = images.get(section + "_mid")
+		var floor: Image = images.get(section + "_floor")
+		if mid == null or floor == null:
+			continue
+		_check(_alpha(mid, PROBE_COLUMN, SKY_ROW) == 0.0, "%s_mid: opaque above the wall at row %d" % [section, SKY_ROW])
+		_check(_alpha(mid, PROBE_COLUMN, WALL_ROW) == 1.0, "%s_mid: not opaque inside the wall at row %d" % [section, WALL_ROW])
+		_check(_alpha(mid, PROBE_COLUMN, WALL_BASE_ROW) == 1.0, "%s_mid: not opaque at the wall base row %d" % [section, WALL_BASE_ROW])
+		_check(_alpha(floor, PROBE_COLUMN, WALL_BASE_ROW) == 0.0, "%s_floor: opaque above the floor at row %d" % [section, WALL_BASE_ROW])
+		_check(_alpha(floor, PROBE_COLUMN, FLOOR_ROW) == 1.0, "%s_floor: not opaque at the first floor row %d" % [section, FLOOR_ROW])
+
+	# 3. Room scenes at their level x.
+	var edges: Array = []   # [level FillFrom, level FillTo] per room, in order
+	for entry in ROOMS:
+		var room: String = entry[0]
+		var room_x: float = entry[1]
+		var packed: PackedScene = load(SCENE_DIR + "Backdrop_%s.tscn" % room)
+		_check(packed != null, "Backdrop_%s.tscn did not load" % room)
+		if packed == null:
+			continue
+		var bd: Node2D = packed.instantiate()
+		bd.position = Vector2(room_x, 0)
+		root.add_child(bd)
+		await process_frame
+
+		var back: Node = bd.get_node_or_null("Back")
+		var mid: Node = bd.get_node_or_null("Mid")
+		var floor: Node = bd.get_node_or_null("Floor")
+		_check(back is Parallax2D, "%s: Back missing or not a Parallax2D" % room)
+		_check(mid is Node2D and not (mid is Parallax2D), "%s: Mid missing or not a plain Node2D" % room)
+		_check(floor is Node2D and not (floor is Parallax2D), "%s: Floor missing or not a plain Node2D" % room)
+		if back == null or mid == null or floor == null:
+			bd.queue_free()
+			continue
+		_check(back.z_index >= Z_BACK_MIN and back.z_index <= Z_BACK_MAX,
+			"%s: Back z_index=%d, expected %d…%d (brief: parallax background)" % [room, back.z_index, Z_BACK_MIN, Z_BACK_MAX])
+		_check(mid.z_index == Z_MID, "%s: Mid z_index=%d, expected %d (brief: room background)" % [room, mid.z_index, Z_MID])
+		_check(floor.z_index == Z_FLOOR, "%s: Floor z_index=%d, expected %d (brief: floor)" % [room, floor.z_index, Z_FLOOR])
+		_check(back.scroll_scale == Vector2(bd.BackScrollScale, 1.0),
+			"%s: Back.scroll_scale=%s, expected (%s, 1)" % [room, back.scroll_scale, bd.BackScrollScale])
+
+		var fill_from: float = bd.FillFrom
+		var fill_to: float = bd.FillTo
+		var mids := _check_layer(room, mid, fill_from, fill_to)
+		var floors := _check_layer(room, floor, fill_from, fill_to)
+		edges.append([room_x + fill_from, room_x + fill_to])
+		# Seams land on pillars: a room with a left neighbour starts with a whole left slice (pipe end
+		# flush against the neighbour's pillar); a room with a right neighbour ends inside the pillar
+		# that opens its last right slice.
+		var order: int = ROOMS.find(entry)
+		if not mids.is_empty() and order > 0:
+			var first_mid: Sprite2D = mids[0]
+			_check(_approx(first_mid.region_rect.position.x, bd.LeftFillSlice.x * IMPORT_SCALE, POS_EPS),
+				"%s: first mid slice %s starts at texture x=%.1f, expected the whole slice from %.1f (seam not on the neighbour's pillar)" % [room, first_mid.name, first_mid.region_rect.position.x, bd.LeftFillSlice.x * IMPORT_SCALE])
+		if not mids.is_empty() and order < ROOMS.size() - 1:
+			var last_mid: Sprite2D = mids[mids.size() - 1]
+			var pillar_end: float = (bd.RightFillSlice.x + PILLAR_WIDTH) * IMPORT_SCALE
+			_check(_approx(last_mid.region_rect.end.x, pillar_end, POS_EPS),
+				"%s: last mid slice %s ends at texture x=%.1f, expected the pillar's right edge %.1f" % [room, last_mid.name, last_mid.region_rect.end.x, pillar_end])
+
+		# The Section sprite sits at SectionX (cropped to FillFrom); the drawn floor covers the band.
+		var section: Node = mid.get_node_or_null("Section")
+		_check(section is Sprite2D and _approx(section.position.x, maxf(bd.SectionX, fill_from), POS_EPS),
+			"%s: Mid/Section at %s, expected x=%.2f" % [room, section.position if section else null, maxf(bd.SectionX, fill_from)])
+		var floor_section: Sprite2D = floor.get_node_or_null("Section")
+		if floor_section != null and floor_section.texture != null:
+			var img: Image = floor_section.texture.get_image()
+			var first_row := -1
+			for row in img.get_height():
+				if img.get_pixel(PROBE_COLUMN * IMPORT_SCALE, row).a > 0.0:
+					first_row = row
+					break
+			var far_edge: float = floor_section.position.y + first_row * floor_section.scale.y
+			var near_edge: float = floor_section.position.y + img.get_height() * floor_section.scale.y
+			_check(first_row >= 0 and _approx(far_edge, DRAWN_FLOOR_TOP, EDGE_TOL),
+				"%s: drawn floor far edge at world y=%.1f (texture row %d), expected %.0f" % [room, far_edge, first_row, DRAWN_FLOOR_TOP])
+			_check(far_edge > BAND_TOP and near_edge >= BAND_BOTTOM,
+				"%s: drawn floor %.1f…%.1f does not sit inside the band %.0f…%.0f the way the plan wants" % [room, far_edge, near_edge, BAND_TOP, BAND_BOTTOM])
+		var mid_section: Sprite2D = mid.get_node_or_null("Section")
+		if mid_section != null and mid_section.texture != null:
+			var img: Image = mid_section.texture.get_image()
+			var last_row := -1
+			for row in img.get_height():
+				if img.get_pixel(PROBE_COLUMN * IMPORT_SCALE, row).a > 0.0:
+					last_row = row
+			var wall_base: float = mid_section.position.y + (last_row + 1) * mid_section.scale.y
+			_check(last_row >= 0 and _approx(wall_base, DRAWN_FLOOR_TOP, EDGE_TOL) and wall_base > BAND_TOP,
+				"%s: wall base at world y=%.1f, expected %.0f (the band's far 80 px stand against it)" % [room, wall_base, DRAWN_FLOOR_TOP])
+		_check(mids.size() > 0 and floors.size() > 0, "%s: a layer has no sprites" % room)
+
+		# Far layer: tiles abut, sit on the level-wide grid, cover the window for every camera x.
+		var tiles := _sprites(back)
+		_check(tiles.size() >= 2, "%s: Back has %d tiles" % [room, tiles.size()])
+		if not tiles.is_empty():
+			var period: float = (bd.BackSlice.y - bd.BackSlice.x) * bd.WorldScale
+			var cursor: float = tiles[0].position.x
+			for t: Sprite2D in tiles:
+				_check(_approx(t.position.x, cursor, POS_EPS), "%s/Back/%s: x=%.2f, expected %.2f (gap)" % [room, t.name, t.position.x, cursor])
+				cursor = t.position.x + _world_width(t)
+				var level_x: float = room_x + t.position.x
+				var phase: float = fposmod(level_x, period)
+				_check(phase < POS_EPS or period - phase < POS_EPS,
+					"%s/Back/%s: level x=%.2f is not on the %.2f grid (phase %.2f)" % [room, t.name, level_x, period, phase])
+			var s: float = bd.BackScrollScale
+			var first_x: float = room_x + tiles[0].position.x
+			var last_x: float = room_x + cursor
+			for f in [0.0, 0.5, 1.0]:
+				var o: float = room_x + f * (ROOM_WIDTH - VIEW_WIDTH)   # camera left edge inside the room
+				var shown_from: float = first_x + o * (1.0 - s)
+				var shown_to: float = last_x + o * (1.0 - s)
+				_check(shown_from <= o and shown_to >= o + VIEW_WIDTH,
+					"%s: far layer shows %.0f…%.0f at camera x=%.0f, window %.0f…%.0f uncovered" % [room, shown_from, shown_to, o, o, o + VIEW_WIDTH])
+		bd.queue_free()
+
+	# 4. Rooms meet edge to edge and cover the whole mine.
+	if edges.size() == ROOMS.size():
+		_check(edges[0][0] <= 0.0, "Face starts at level x=%.2f, expected <= 0" % edges[0][0])
+		for i in range(1, edges.size()):
+			_check(_approx(edges[i - 1][1], edges[i][0], POS_EPS),
+				"%s ends at %.2f but %s starts at %.2f (seam gap or double draw)" % [ROOMS[i - 1][0], edges[i - 1][1], ROOMS[i][0], edges[i][0]])
+		_check(edges[edges.size() - 1][1] >= MINE_END - POS_EPS,
+			"Patrol ends at level x=%.2f, expected %.0f" % [edges[edges.size() - 1][1], MINE_END])
+
+	# 5. The F6 scene: three backdrops, the walk band placeholder, the v2 camera zoom.
+	var test_packed: PackedScene = load(TEST_SCENE)
+	_check(test_packed != null, "%s did not load" % TEST_SCENE)
+	if test_packed != null:
+		var test_scene: Node = test_packed.instantiate()
+		root.add_child(test_scene)
+		await process_frame
+		for entry in ROOMS:
+			var node: Node2D = test_scene.get_node_or_null("Backdrop_%s" % entry[0])
+			_check(node != null and node.position.x == entry[1], "TestBackdrops: Backdrop_%s missing or not at x=%s" % [entry[0], entry[1]])
+		var band: ColorRect = test_scene.get_node_or_null("PH_WalkBand")
+		_check(band != null and band.offset_top == BAND_TOP and band.offset_bottom == BAND_BOTTOM,
+			"TestBackdrops: PH_WalkBand missing or not %.0f…%.0f" % [BAND_TOP, BAND_BOTTOM])
+		var cam: Camera2D = test_scene.get_node_or_null("Camera2D")
+		_check(cam != null and cam.zoom == CAMERA_ZOOM, "TestBackdrops: Camera2D missing or zoom != %s" % CAMERA_ZOOM)
+		test_scene.queue_free()
+		await process_frame
+
+	_finish()

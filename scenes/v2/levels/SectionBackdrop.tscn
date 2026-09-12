@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://b2p2i0v3m0xeh"]
+
+[ext_resource type="Script" path="res://scripts/levels/SectionBackdrop.cs" id="1_backdrop"]
+
+[node name="SectionBackdrop" type="Node2D"]
+script = ExtResource("1_backdrop")

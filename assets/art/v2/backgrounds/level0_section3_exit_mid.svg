@@ -1,7 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 440" width="680" height="440"><title>Рівень 0 — секція 3: вихід і підйомник — шар mid</title>
-<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><line x1="0" y1="0" x2="0" y2="6" stroke="#000000" stroke-width="1" opacity="0.35" /></pattern><pattern id="dots" width="8" height="8" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="#000000" opacity="0.3" /></pattern><pattern id="stripes" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="12" fill="#e8b23a" /><rect x="6" width="6" height="12" fill="#1a1a1a" /></pattern><pattern id="grate" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="none" stroke="#2c3550" stroke-width="1.5" /></pattern></defs>
 <rect x="0" y="160" width="680" height="120" fill="#181d2b" />
-<rect x="0" y="160" width="680" height="120" fill="url(#dots)" />
+<rect x="0" y="160" width="680" height="120" fill="#000000" fill-opacity="0.02" />
 <g fill="#1a2030" stroke="#0a0d14" stroke-width="1.5"><rect x="56" y="96" width="16" height="170" /><rect x="306" y="96" width="16" height="170" /></g><g fill="#0a0d14"><rect x="56" y="96" width="16" height="6" /><rect x="306" y="96" width="16" height="6" /></g><rect x="56" y="102" width="266" height="10" fill="#242c40" stroke="#0a0d14" stroke-width="1.5" /><g fill="#0a0d14"><circle cx="64" cy="107" r="2" /><circle cx="314" cy="107" r="2" /></g><g fill="none" stroke="#3a3040" stroke-width="14" stroke-linecap="round"><path d="M0 134 L206 134 L206 160" /></g>
 <g fill="none" stroke="#5a4a3a" stroke-width="5"><path d="M0 134 L206 134 L206 160" /></g>
 <g fill="#4a3a2a" stroke="#0a0d14" stroke-width="1"><rect x="60" y="125" width="12" height="18" /><rect x="150" y="125" width="12" height="18" /></g>
@@ -10,14 +9,14 @@
 <g fill="#4a3a2a"><rect x="336" y="60" width="8" height="6" /><rect x="336" y="90" width="8" height="6" /><rect x="400" y="36" width="6" height="8" /></g>
 <rect x="0" y="160" width="84" height="120" fill="#0a0c14" />
 <rect x="8" y="168" width="64" height="112" fill="#1c2233" stroke="#2c3550" stroke-width="3" />
-<rect x="8" y="168" width="64" height="112" fill="url(#hatch)" />
-<rect x="8" y="168" width="64" height="10" fill="url(#stripes)" />
-<rect x="22" y="200" width="36" height="20" fill="#0a0c14" /><g fill="url(#grate)"><rect x="22" y="200" width="36" height="20" /></g>
+<rect x="8" y="168" width="64" height="112" fill="#000000" fill-opacity="0.06" />
+<rect x="8" y="168" width="64" height="10" fill="#816634" />
+<rect x="22" y="200" width="36" height="20" fill="#0a0c14" /><g fill="#2c3550" fill-opacity="0.28"><rect x="22" y="200" width="36" height="20" /></g>
 <rect x="36" y="236" width="8" height="16" rx="1" fill="#3a4462" stroke="#0a0c14" stroke-width="1" />
 <circle cx="40" cy="188" r="4" fill="#c9403a" /><circle cx="40" cy="188" r="10" fill="#c9403a" opacity="0.25" />
 <g fill="#c9403a" opacity="0.14"><rect x="0" y="160" width="84" height="120" /></g>
 <rect x="100" y="150" width="150" height="130" fill="#0e121a" stroke="#2c3550" stroke-width="3" />
-<rect x="100" y="150" width="150" height="130" fill="url(#dots)" />
+<rect x="100" y="150" width="150" height="130" fill="#000000" fill-opacity="0.02" />
 <g fill="#0a0c14"><circle cx="108" cy="158" r="2" /><circle cx="242" cy="158" r="2" /><circle cx="108" cy="272" r="2" /><circle cx="242" cy="272" r="2" /></g>
 <rect x="100" y="150" width="150" height="18" fill="#c9403a" opacity="0.85" />
 <g fill="#0a0c14"><rect x="110" y="155" width="46" height="8" /><rect x="166" y="155" width="70" height="8" /></g>
@@ -48,16 +47,16 @@
 <path d="M480 56 L480 100 M504 56 L504 100" stroke="#6b7080" stroke-width="2" />
 <path d="M478 56 L482 56 M478 70 L482 70 M478 84 L482 84 M502 56 L506 56 M502 70 L506 70 M502 84 L506 84" stroke="#0a0c14" stroke-width="1.5" />
 <rect x="382" y="100" width="220" height="180" fill="#10131c" stroke="#3a4462" stroke-width="3" />
-<rect x="382" y="100" width="220" height="180" fill="url(#hatch)" />
-<g fill="url(#grate)"><rect x="382" y="100" width="220" height="180" /></g>
-<rect x="382" y="100" width="220" height="10" fill="url(#stripes)" />
-<rect x="382" y="270" width="220" height="10" fill="url(#stripes)" />
+<rect x="382" y="100" width="220" height="180" fill="#000000" fill-opacity="0.06" />
+<g fill="#2c3550" fill-opacity="0.28"><rect x="382" y="100" width="220" height="180" /></g>
+<rect x="382" y="100" width="220" height="10" fill="#816634" />
+<rect x="382" y="270" width="220" height="10" fill="#816634" />
 <g fill="#1a2030" stroke="#0a0d14" stroke-width="1"><rect x="488" y="100" width="8" height="180" /><rect x="382" y="186" width="220" height="6" /></g>
 <g fill="#3a4462"><circle cx="478" cy="192" r="4" /><circle cx="506" cy="192" r="4" /></g>
 <rect x="610" y="150" width="16" height="46" rx="2" fill="#232a3e" stroke="#3a4462" stroke-width="2" /><circle cx="618" cy="162" r="4" fill="#4a1c20" /><rect x="614" y="174" width="8" height="12" fill="#0a0c14" /><rect x="616" y="178" width="4" height="4" fill="#3a4462" />
 <g fill="#5a3a2a" opacity="0.5"><rect x="392" y="120" width="10" height="6" /><rect x="580" y="240" width="12" height="6" /></g>
 <rect x="644" y="120" width="36" height="160" fill="#131826" />
-<rect x="644" y="120" width="36" height="160" fill="url(#hatch)" />
+<rect x="644" y="120" width="36" height="160" fill="#000000" fill-opacity="0.06" />
 <g fill="none" stroke="#2a3148" stroke-width="2"><path d="M654 130 L672 170 L654 210 L670 250 L656 280" /></g>
 <rect x="656" y="150" width="10" height="130" fill="#1a2030" stroke="#0a0d14" stroke-width="1" />
 <g fill="#c9403a" opacity="0.16"><rect x="100" y="150" width="150" height="130" /></g>
