@@ -32,7 +32,13 @@
       "PowerShell(Rename-Item *assets*)",
       "PowerShell(git rm *assets/*)",
       "PowerShell(git mv *assets/*)",
-      "Edit(assets/**)"
+      "Edit(assets/art/player/**)",
+      "Edit(assets/art/tiles/**)",
+      "Edit(assets/art/props/**)",
+      "Edit(assets/art/backgrounds/**)",
+      "Edit(assets/audio/**)",
+      "Edit(assets/art/v2/keyframes/*.svg)",
+      "Edit(assets/art/v2/level0/**)"
     ],
     "ask": [
       "Bash(git push *)",

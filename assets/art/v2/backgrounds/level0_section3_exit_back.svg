@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 440" width="680" height="440"><title>Рівень 0 — секція 3: вихід і підйомник — шар back</title>
+<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><line x1="0" y1="0" x2="0" y2="6" stroke="#000000" stroke-width="1" opacity="0.35" /></pattern><pattern id="dots" width="8" height="8" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="#000000" opacity="0.3" /></pattern><pattern id="stripes" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="12" fill="#e8b23a" /><rect x="6" width="6" height="12" fill="#1a1a1a" /></pattern><pattern id="grate" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="none" stroke="#2c3550" stroke-width="1.5" /></pattern></defs>
+<rect width="680" height="440" fill="#06080d" />
+<path d="M0 0 L680 0 L680 96 L640 84 L610 98 L560 72 L520 100 L470 66 L430 92 L380 62 L340 90 L290 68 L240 96 L190 70 L150 94 L100 72 L60 98 L20 84 L0 92 Z" fill="#0e121a" />
+<path d="M0 92 L20 84 L60 98 L100 72 L150 94 L190 70 L240 96 L290 68 L340 90 L380 62 L430 92 L470 66 L520 100 L560 72 L610 98 L640 84 L680 96 L680 160 L0 160 Z" fill="#131826" />
+<path d="M0 92 L20 84 L60 98 L100 72 L150 94 L190 70 L240 96 L290 68 L340 90 L380 62 L430 92 L470 66 L520 100 L560 72 L610 98 L640 84 L680 96 L680 160 L0 160 Z" fill="url(#hatch)" />
+<g fill="#0e121a"><path d="M30 110 L52 118 L44 140 L24 132 Z" /><path d="M300 104 L326 112 L318 134 L296 126 Z" /><path d="M560 112 L586 118 L580 142 L556 136 Z" /></g>
+<g fill="none" stroke="#2a3148" stroke-width="2"><path d="M0 118 Q120 132 240 120 T480 124 T680 118" /><path d="M0 128 Q140 142 260 130 T500 134 T680 128" /></g>
+</svg>
