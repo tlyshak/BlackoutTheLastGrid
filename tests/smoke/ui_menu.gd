@@ -103,6 +103,7 @@ func _run() -> void:
 	gs.ResetRun()
 	var real_before: int = _stamp()
 	gset.ConfigPath = PROBE_PATH   # closing the settings screen saves; never into the player's file
+	gset.GameVersion = 0           # pin v1: a persisted «v2» on this machine would re-route «New Game» (T-V2-01)
 
 	# 1. The scene loads with its script and the shared theme.
 	var scene: PackedScene = load(MENU_PATH)
