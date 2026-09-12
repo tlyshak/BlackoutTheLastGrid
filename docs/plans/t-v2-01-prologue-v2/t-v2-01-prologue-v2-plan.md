@@ -634,7 +634,8 @@ lamp glows after the blast; whether `zoom 2.0` looks closer to the author's mock
 12. Let Ray die in the gas (v1 playtest step 7). Expected: respawn at the checkpoint, still in the drawn mine (never back to the procedural one). Die before the first checkpoint (fight with the lamp on and lose) → the level restarts in v2.
 13. Esc → Settings → `v1` → Back → Resume. Expected: the drawn mine continues; nothing reloads.
 14. Regression: `scenes/levels/TestRoom.tscn` (F6), `TestMine.tscn` (F6), `Level01_District.tscn` (F6) — as before, procedural figures.
-15. **Questions for the author:** (a) 15 % on-screen hero (zoom 1.5) or 20 % (zoom 2.0 — one number in `scenes/v2/levels/Level00_Prologue.tscn`)? (b) Does the mine read as too big for the people (pillars ≈ 3 heads tall)? (c) Is the 4-phase walk acceptable, or should two in-betweens per step be drawn? (d) Should the v2 hit/hurt boxes move up to the drawn fist/torso (T-B26)?
+15. **Proportions — the coordinator's decision, balance frozen:** the hero is 108 world px at zoom 1.5 (≈15 % of the screen height), the pillars ≈3 heads tall, a power bank ≈⅔ of the hero's width, a door ≈2 heights, the rig's hit/hurt boxes ≈60 % of the drawn body (T-B26); the mine is ≈2.2× larger relative to the people than in the mockups. **Questions for the author:** (a) accept it, or file a task for a v2-only shallower walk band plus a re-authored map? (b) 15 % on-screen hero (zoom 1.5) or 20 % (zoom 2.0 — one number in `scenes/v2/levels/Level00_Prologue.tscn`)? (c) Is the 4-phase walk acceptable, or should two in-betweens per step be drawn? (d) Should the v2 hit/hurt boxes move up to the drawn fist/torso (T-B26)?
+16. No dark rectangle behind any figure (Ray, Dan, the wave guards, the patrol); in the capture the three held guards overlap as figures, not as cards. The filler walls between a section and the room edge show a niche under a pillar repeating — the fan and the information board appear once per screen. On the surface: the v1 rock parallax, no strip of mine sky above the wall.
 
 ---
 
@@ -794,4 +795,275 @@ below is shared.
 
 ## Review findings
 
-filled in by /reviewer
+### Round 1 — Ship: no
+
+Reviewed at `5b794e5` (`task/t-v2-01-prologue-v2-assets`, clean tree), delta `main...HEAD`: 95 files, 11 commits.
+Verification run by the reviewer: `dotnet build` 0 warnings / 0 errors; `godot --headless --import`, `--quit` and
+`res://scenes/v2/Main.tscn --quit` — no `ERROR:`/`SCRIPT ERROR:`; `tools/smoke.ps1` **38 passed, 0 failed**
+(one run, no T-B13/T-B21 flake seen); `tools/check-v1-untouched.ps1` PASS. Screenshots
+`scratchpad/v2_prologue_1..4.png` and `backdrops_seam_*.png` inspected.
+
+#### Summary
+The branch adds a persisted `GameSettings.GameVersion` switch with a `SettingsMenu` row, routes «New Game» through
+`Exposition.NextScenePathV2`, and builds the whole v2 scene set under `scenes/v2/` on the shared scripts: three
+actor twins whose `AnimationPlayer`s drive an `AnimatedSprite2D` through discrete `animation`/`frame` tracks,
+four generated `SpriteFrames` (`tools/build_spriteframes.gd` from the region maps + `sprite_animations.json`),
+a data-driven `SectionBackdrop` (`Back` parallax / `Mid` / `Floor` layers, slice fill, seams on pillars) with three
+inherited room scenes, and the v2 prologue with v2 actors, the three backdrops, camera zoom 1.5 and `HeldGuards`
+as `Sprite2D`s. Eight `v2_*` smoke tests plus a git gate prove v1 untouched, v1↔v2 parity and the sprite data.
+
+#### Plan conformance
+Plan: `docs/plans/t-v2-01-prologue-v2/t-v2-01-prologue-v2-plan.md` (+ `## Coordinator decisions`), design §6a.
+TASKS.md: T-V2-01 is `done` with a truthful «Зроблено / Не зроблено» note and the playtest — **but `done` was set
+before this review and before a Ship: yes (CLAUDE.md step 4), and the note files the baked-card defect as backlog
+T-B30 instead of fixing it in the task** → S1. T-B26..T-B30 landed as `backlog` lines as required.
+- Implemented as planned: switch/persistence/signal (contract B), `SettingsMenu` row (A), `Exposition` as the single
+  branch point (C), `Guard.SetDown` → `down` gated on `HasAnimation` (D), actor twins E/F/G on the shared scripts
+  with the frozen shapes/exports/timings (verified in the `.tscn`s: `HitboxOn/Off` 0.08/0.18, 0.12/0.24, 0.22/0.36,
+  guard 0.30/0.40; `animation` track index 0 below `frame` index 1; `autoplay` unset; no `Play()` on the sprite —
+  `Player.PlayAnimation` always takes the `AnimationPlayer` branch because every name exists there), v2 level (H)
+  with camera 1.5/450, `HeldGuards` `Sprite2D`s on the guard `stance` region (46,66,218,278 = JSON bbox ×2),
+  `scenes/v2/Main.tscn` (I), generator (K), git gate (L), `.import` sidecars at 2.0/3.0, no `project.godot`/`.csproj`
+  change, commit bodies document the sidecars and the `.claude/settings.json` narrowing.
+- Verified v1 byte-identical myself: `git diff --stat main...HEAD` lists **no** file under `scenes/levels/`,
+  `scenes/player/`, `scenes/enemies/`, `scenes/actors/`, `scenes/props/`, `scenes/Main.tscn`, `project.godot`,
+  `.csproj`; the only script edits are `GameSettings.cs` (additive), `SettingsMenu.cs` (additive), `Exposition.cs`
+  (`PickNextScene` falls back to `NextScenePath` when the autoload is missing or `V1`), `Guard.cs` (`SetDown` keeps
+  the 90° rotation when no `down` animation exists — `enemy_guard.gd` still asserts it), new `SectionBackdrop.cs`.
+- Deviates from plan (accepted, surfaced): v2 actors live in `scenes/v2/actors/` (plan: `player/`, `enemies/`);
+  test names differ (`v2_version_switch.gd` replaces `core_settings.gd`-extend + `ui_settings_version.gd` +
+  `ui_version_routing.gd`; `v2_spriteframes.gd` replaces `v2_sprites.gd`) — coverage is equivalent or better
+  (verified line by line, see Tests); pose ids follow the region map (`attack_windup`, `stance`…) per Open question 4;
+  `AtlasTexture.margin` is written as `(left, top, left+right, top+bottom)` — **the plan's formula was wrong**,
+  Godot's `margin.size` is the *total* padding (`texture size = region.size + margin.size`), the generator is right
+  and additionally re-derives feet line and origin x from the map and fails on a mismatch; backgrounds come as
+  `_back/_mid/_floor` layers (plan: one flat section), so N4 parallax is partly in (`Back` at scroll 0.6);
+  section 1 viewBox was normalised to 680×440 by the cutter (the plan's 690×450 caveat is moot);
+  the surface room lost the v1 `Parallax/PxRock*` layers (removed with the `Parallax` node) and got a flat
+  `PH_Sky_Surface` instead — declared in TASKS, see S3.
+- Missing / partial: N1 (0.45 s walk) not applied — fine; N2 cone → T-B28; N5 dark variant → not done, declared.
+- Accepted limitation (per plan / coordinator §1): hero 108 px on 72-px boxes, mine ≈2.2× larger relative to
+  people than the mockups — residual risk: the author's first impression of proportions; the TASKS playtest
+  says «Рей ≈108 px» but does not carry the plan's questions (zoom 1.5 vs 2.0, pillars ≈3 heads, boxes at 60 % of
+  the body → T-B26) → S6.
+
+#### Code
+- [x] **B1. Every v2 sprite carries the sheet's dark canvas and the row separator** — `assets/art/v2/keyframes/*_keyframes.svg:1`
+  (`<rect width="680" height="800" fill="#0d1018"/>` + `<rect x="0" y="160" width="680" height="8" fill="#151212"/>` per
+  row), consumed by `assets/art/v2/keyframes/*.frames.json` (all 64 pose bboxes end below `floor_rect_y`, so each region
+  contains the canvas *and* a strip of the separator), `scenes/v2/actors/*Frames.tres`, and the `HeldGuards` regions in
+  `scenes/v2/levels/Level00_Prologue.tscn:942-970` — Blocker
+  **Problem:** the region is a bounding box on an opaque sheet, so each `AtlasTexture` is an opaque card; `PH_Shadow`
+  is hidden, the baked shadow is inside the card, and the card's bottom edge is the separator's own colour.
+  **Why it blocks:** the point of the task is «let the author *see* the generated art in motion». In
+  `v2_prologue_1_face_start.png` Ray and Dan stand on dark rectangles; in `v2_prologue_3_patrol.png` the guard is a
+  dark card with «HP 30» on it; in `v2_prologue_4_cage_held.png` the three held guards are three overlapping cards.
+  That is what the author sees first — it cannot be shown as the v2 line. Filing it as backlog T-B30 while marking
+  T-V2-01 `done` inverts the definition of done («New Game у v2 запускає пролог … зі спрайтами»).
+  **Solution options:**
+  - Option A (correct, already in progress in a parallel worktree): derived sheets without the canvas rect, the four
+    separator rects and the `<text>` labels, in a new folder (`assets/art/v2/sprites/`), **same viewBox 680×800 and
+    the same pose `translate`s**. Then the region maps stay valid unchanged (bboxes, `origin`, `margin`, `feet_y_per_pose`
+    are viewBox coordinates independent of fills); only these pointers move: `sprite_animations.json` `sheet`
+    (keep `map` where it is or copy it — the generator reads them independently), the `.import` sidecar for each new
+    sheet with `svg/scale=2.0` (otherwise the generator's `s` becomes 1 and `v2_spriteframes.gd` fails on 1360×1600),
+    regenerate the four `.tres` (the pinned `1_sheet` ext id and the kept uid make the diff a one-line path change),
+    `Level00_Prologue.tscn` ext `14_guardsheet`, and the sheet paths in `v2_spriteframes.gd`. The `.claude/settings.json`
+    deny on `assets/art/v2/keyframes/*.svg` and `tools/check-v1-untouched.ps1` (additions under `assets/art/v2/**`
+    allowed, modifications flagged) both already permit exactly this. Check afterwards that the cutter did not touch
+    any pose geometry: `v2_spriteframes.gd` already re-derives regions from the map, so a moved pose shows as a
+    misaligned figure only in playtest — add the alpha probe from Tests §1.
+  - Option B (quick, lossy): make the canvas colour transparent at import — not possible for a rasterised SVG
+    without editing the file; a chroma-key shader on the sprites would also eat the `#0d1018` tones inside the
+    figures. Rejected.
+  Also fix the bookkeeping: close T-B30 in this task's fix pass (or reword it as done), and align its text with the
+  real path (`assets/art/v2/sprites/`, not `keyframes/*_keyframes_clean.svg` — the latter is denied by
+  `.claude/settings.json` `Edit(assets/art/v2/keyframes/*.svg)`).
+  **Closed** by `1922499` (merge `c9b5741`, worktree `wt/v2-cards`): Option A — `assets/art/v2/sprites/*_keyframes.svg`
+  derived by `tools/derive_sprite_sheets.py` (pose group only, same viewBox and translates), `.import` at 2.0,
+  `sprite_animations.json` `sheet` → `sprites/`, the four `.tres` regenerated (one path line each), `HeldGuards`
+  ext `14_guardsheet` → `sprites/`; `v2_spriteframes.gd` asserts the sheets come from `sprites/` and the four corner
+  texels of every region are transparent (falsified against `keyframes/`: 268 findings). Verified in the fix pass:
+  `v2_spriteframes.gd` PASS, `GUARD_SHEET` in `v2_prologue_integration.gd` → `sprites/`, plus the HeldGuards corner
+  probe added there. T-B30 reworded and closed as done by the same merge.
+
+- [x] **S1. T-V2-01 marked `done` before review and Ship** — `docs/TASKS.md` (T-V2-01 status line) — Should-fix
+  **Problem / why it matters:** CLAUDE.md step 4: `done` only after a green post-fix `/verify` and Ship: yes. The
+  status also carries the B1 defect into the «done» state.
+  **Fix:** `in_progress` until the fix pass lands; then `done` with the note updated (B1 fixed, T-B30 closed).
+  **Closed:** status set to `in_progress` for the fix pass and to `done` only after the post-fix verification; a
+  «Рев'ю» line names Round 1, B1 and S1–S7; the Зроблено/Не зроблено note no longer files B1 as backlog.
+
+- [x] **S2. Fill slices repeat unique props — the drift and patrol walls read as wallpaper** —
+  `scenes/v2/levels/Backdrop_Drift.tscn:15` (`LeftFillTexture = level0_section3_exit_mid.svg` with the default
+  `LeftFillSlice (72, 322)`), `scenes/v2/levels/Backdrop_Patrol.tscn` (same default for its left fill),
+  `scripts/levels/SectionBackdrop.cs:54` — Should-fix
+  **Problem / why it matters:** mockup columns 72…322 of section 3 contain the red-headed information board
+  (100…250), the control box on the column (258…286) and a tripwire post — distinctive one-off props. In
+  `v2_prologue_3_patrol.png` the same board appears twice on one screen; in `backdrops_seam_face_drift.png` the
+  drift's left third is the exit section's board + box repeated. The face room's right fill (section 1, 228…418)
+  repeats the ventilation fan on the beam. It is the second thing the author will notice after B1.
+  **Fix:** per-room slice columns with plain wall between pillars (the exports exist for exactly this): e.g. a
+  section-3 column without the board/box, a section-1 column without the fan; keep the pillar-edge rule so
+  `v2_backdrops.gd:200-209` (seams on pillars) stays meaningful. Data change in the two room scenes only.
+  **Closed:** probed the three mid layers (row 100 pillar runs 55–73, 227–245, 417–435, 597–615; wall-band colour
+  signatures per column): **no pillar-to-pillar bay is prop-free** in any mockup (section 1: board / doors+fan /
+  door+pipe+panel; section 2: arch+panel / fan housing / housing+panel; section 3: board+box / cage). The honest
+  filler is section 1 columns **370…470** — plain black wall at both cuts (363–380 and 447–479 are one colour down
+  the band), one pillar (417–435) and the third door niche under it, no fan (ends 365), no board, no panel. All four
+  fills (`Backdrop_Face` right, `Backdrop_Drift` left+right, `Backdrop_Patrol` left) use that column of
+  `level0_section1_mineface_mid.svg`, so a room seam is the same texture cut at the same x (the pillar's right edge
+  435): Face `FillTo` 2716.6, Drift `SectionX` 842.4 / `FillFrom` −163.4 / `FillTo` 2807, Patrol `SectionX` 1684.8 /
+  `FillFrom` −73 (the drawn cage 2403…2817 still covers the Hoist at 2740, and is no longer cut by the room end).
+  Script defaults and docs follow the convention. `v2_backdrops.gd`: seam = texture continuity + pillar right edge
+  at row 100; every filler column must be plain wall at both cuts and hold exactly one pillar-sized run on rows
+  100/130/150 (falsified with the old (228, 418): fan run on rows 130/150). Renders `scratchpad/v2_fixpass_*.png`.
+  Remaining: a niche repeats every 188 px (architecture, not a one-off prop) — a prop-free derivative is T-B32.
+
+- [x] **S3. `PH_Sky_Surface` is a patch over a far-layer leak, not a sky** — `scripts/levels/SectionBackdrop.cs:150-175`
+  (`BuildBack`: `spanTo = s·roomRight + (1−s)·ViewWidth + BackMargin` in base space, never clipped to the room),
+  `scenes/v2/levels/Level00_Prologue.tscn:313-318` (`PH_Sky_Surface`, z −60, x 8640…10560, y 0…300) — Should-fix
+  **Problem / why it matters:** with scroll 0.6 the Patrol room's back tiles (base x ≤ ≈6016) display at
+  `b + 0.4·cameraLeft`, i.e. up to world ≈9470 while the camera is in the Surface room, so the mine sky/hills would
+  show behind the surface. The opaque rect hides it for y 0…300 (the rest is covered by `PH_Floor_Surface` z −20 and
+  `Ground/PH_NearBand` z 4 by luck of the layer stack). `v2_prologue_integration.gd:202-207` then pins the patch
+  as if it were design. It is declared in TASKS, so honest — but the mechanism is wrong and every future room added
+  after a backdrop room needs the same patch.
+  **Fix:** clip the far layer at the room edge when the room has no right neighbour: an `[Export] float BackClipTo`
+  (default `+inf`, set on `Backdrop_Patrol` to `RoomWidth`) passed as `clipTo` to `AddSlice`, or `Parallax2D.limit_end`.
+  Keep `PH_Sky_Surface` only if the surface is meant to have a flat sky (then say so in its name/TASKS); the plan's
+  «surface as in v1» is otherwise no longer true because the v1 `Parallax/PxRock*` layers went with the `Parallax` node.
+  **Closed — with a different mechanism, because the suggested one cannot work:** measured headless, `Parallax2D`
+  places a tile at `b + (centre − w/2)·(1 − s)` (w = viewport *pixel* width, zoom ignored), so the leak depends on
+  the camera, not on the base span — a base-space `clipTo` at `RoomWidth` is a no-op (the span ends at ≈6016
+  anyway), and `limit_end` glues the layer to the screen beyond the limit (`pos = o − s·L`) instead of clipping.
+  Fix: `SectionBackdrop._Process` shows `Back` only while the current camera's `LimitLeft/LimitRight` overlap the
+  room — `LevelBase.ApplyRoomBounds` sets them the moment the hero arrives, so the mine's sky is off on the surface
+  before the black beat fades (no pop; window-overlap would have leaked for as long as the smoothing converges).
+  `BuildBack` now covers the window for every camera centre from half a window left of the room to half a window
+  right of it (the slide-in after a limit switch) with the real Parallax2D formula; `BackMargin` stays 320 for
+  shake. `PH_Sky_Surface` deleted; the v1 `Parallax` node (PxRockFar/PxRockMid/PxStruct, verbatim) is back with
+  the container at z −80 so its layers (−180/−160/−140) sit strictly under the painted `Back` (−120): hidden in the
+  mine by the opaque painted sky, seen on the surface as in v1. Skeleton test untouched by it (`Parallax` is
+  dressing). Tests: `v2_backdrops.gd` drives the TestBackdrops camera limits (whole mine / patrol / surface / face)
+  and checks each `Back.visible`; `v2_prologue_integration.gd` calls `ApplyRoomBounds(Room_Surface|Room_Patrol)`
+  and checks the same on the level, plus rock layers below the painted z. Note: the old coverage formula in the
+  test (`o·(1 − s)`) was off by 128 px and passed only thanks to the margin — replaced.
+
+- [x] **S4. Hidden `PH_Wall_Face|Drift|Patrol` kept only to satisfy a test rule** —
+  `scenes/v2/levels/Level00_Prologue.tscn:282-305` (`visible = false` `ColorRect`s), `tests/smoke/v2_level_skeleton.gd:30`
+  (`PHYSICAL_PH_PREFIXES = ["PH_Wall", "PH_Landmark_"]`) — Should-fix
+  **Problem / why it matters:** the prefix rule was written in this task and treats a `ColorRect` as physical; the
+  physical walls are `PH_WallLeft/Right/Shaft` (`StaticBody2D`). Three dead nodes in the scene, and the skeleton diff
+  cannot tell «hidden» from «shown» (`_record` compares no `visible`/`z_index`), so it proves less than it looks.
+  T-B29 defers this, but it is a three-line test change plus deleting three nodes — do it here.
+  **Fix:** in `_is_dressing`, treat a `PH_*` node as physical iff it is/has a `CollisionObject2D` or `Light2D`
+  descendant (or list `PH_WallLeft/Right/Shaft`), delete the three `ColorRect`s; add `visible` to `_record` for
+  gameplay nodes.
+  **Closed:** the three `ColorRect`s deleted from `scenes/v2/levels/Level00_Prologue.tscn`; `v2_level_skeleton.gd`
+  lists `PH_WallLeft/Right/Shaft` in `PHYSICAL_PH` (prefix rule now only `PH_Landmark_`) and records `visible` for
+  every gameplay `CanvasItem` (falsified: `PH_WallLeft.visible = false` in v2 → «visible true / visible false»).
+  `v2_prologue_integration.gd` asserts the three walls are gone (not merely hidden). T-B29 reworded.
+
+- [x] **S5. `Flashlight` compared «by class only» also drops its balance exports** — `tests/smoke/v2_level_skeleton.gd:115-117`,
+  `tests/smoke/v2_actors.gd:39-43` (`SHAPE_NODES` has no `Flashlight`) — Should-fix
+  **Problem / why it matters:** I checked the claim behind the relaxation: `HeadOffset` is cosmetic —
+  `Flashlight.ApplyTransform` only positions the `PointLight2D`; gameplay reads `Flashlight.IsOn`
+  (`Player.IsLit` `scripts/player/Player.cs:146`, `GasZone.cs:204-207`, `WatchZone.cs:147`, `Guard.cs:224`) and the
+  lit-zone sensor is the separate `LightSensor` `Area2D` on the actor root, which *is* compared. So 92 vs 60 is not a
+  balance change. But the class-only compare also skips `DrainPerSecond`, `EnabledAtStart`, `BeamAngleDeg` — the
+  energy drain *is* balance and nothing else asserts it equal (today both scenes use the defaults, so no drift yet).
+  **Fix:** compare the `Flashlight` on everything except `position`/`HeadOffset` (skeleton), or add `Flashlight` to
+  `v2_actors` export comparison with `HeadOffset` excluded.
+  **Closed:** `v2_level_skeleton.gd` records the actor `Flashlight` as class + `DrainPerSecond` + `EnabledAtStart`
+  (`LAMP_BALANCE`), skipping only `HeadOffset`/`BeamAngleDeg`/position (falsified: `DrainPerSecond = 2` on the v2
+  Player's lamp → «DrainPerSecond 1.0 / 2.0»).
+
+- [x] **S6. Proportions decision not carried to the author** — `docs/TASKS.md` T-V2-01 «Плейтест» — Should-fix
+  **Problem / why it matters:** the coordinator froze balance and accepted «small people in a big mine»; the playtest
+  note says only «Рей ≈108 px». The author will see pillars ≈3 heads tall, the powerbank ⅔ of Ray's width and a door
+  nearly two Rays tall without being told it is a known compromise or what the alternatives are.
+  **Fix:** add the plan's Playtest §15 questions (a) zoom 1.5 vs 2.0 — one number in `Level00_Prologue.tscn`;
+  (b) mine-to-people ratio ≈2.2× the mockups, honest fix = a v2-only shallower band + re-authored map (separate task);
+  (d) boxes at 60 % of the body → T-B26. Two lines.
+  **Closed:** TASKS.md playtest step (4) and `## Playtest` §15 below now state the numbers (hero 108 px at zoom 1.5,
+  pillars ≈3 heads, power bank ≈⅔ of the hero's width, door ≈2 heights, boxes ≈60 % of the body) and the questions
+  (accept, or a shallower-band + re-authored-map task; zoom 1.5 vs 2.0; T-B26).
+
+- [x] **S7. `tools/check-v1-untouched.ps1` guards fewer files than the plan's «untouched» list** —
+  `tools/check-v1-untouched.ps1:27-42` — Should-fix (low)
+  **Problem / why it matters:** the gate lists the v1 scenes and `Level00_Prologue.cs` only; the plan's script list
+  (`Player.cs`, `Companion*.cs`, `Guard*State.cs`, `LevelBase.cs`, `Main.cs`, `MainMenu.cs`, `CharacterRig.cs`,
+  `GameState.cs`) and the v1 tests (`enemy_guard.gd`, `combat_dummy.gd`, …) are not in it, so a future v2 change that
+  edits one of them passes the gate. Dirty-tree detection is correct (`git diff` against the working tree + the
+  `status --porcelain` pass); the art rule correctly allows additions and flags M/D/R under `assets/art/v2/**/*.svg`.
+  **Fix:** extend `$v1Files` with the plan's list; optionally `assets/art/v2/**/*.json` under the same M/D/R rule.
+  **Closed:** the checker adds every `scripts/**` file that exists on the base ref (`git ls-tree`) to the frozen
+  list except the five the plan allows (`GameSettings.cs`, `SettingsMenu.cs`, `Exposition.cs`, `Guard.cs`,
+  `SectionBackdrop.cs`); new scripts stay allowed (falsified: an uncommitted line in `scripts/player/Player.cs` →
+  FAIL «scripts/player/Player.cs (uncommitted change)»). v1 tests and the `.json` maps are not added (the v1 test
+  bases gained overridable hooks in this task by design).
+
+#### Tests
+- [x] **Alpha probe on the generated frames** — the test that would have caught B1 and guards the clean sheets: for
+  every `AtlasTexture` in each `*Frames.tres`, read the sheet `Image` and assert the region's four corner pixels have
+  alpha 0 (and, stronger, that the row of pixels at the cell's feet line outside the body bbox is transparent) —
+  `tests/smoke/v2_spriteframes.gd`. Also assert the `HeldGuards` regions the same way in `v2_prologue_integration.gd`.
+  **Closed:** corners in `v2_spriteframes.gd` (B1 merge) and for the three `HeldGuards` regions in
+  `v2_prologue_integration.gd` (falsified: `14_guardsheet` → `keyframes/` → «corner texel … opaque (alpha 1.00)»).
+- [x] **Room x literals** — `v2_backdrops.gd:34-36` and `v2_prologue_integration.gd:40-42` duplicate 0/2880/5760/8640
+  from the level's `Rooms/Room_*`; read them from the level in the integration test so a moved room fails the coverage
+  check — `tests/smoke/v2_prologue_integration.gd`.
+  **Closed:** `BACKDROPS` names the level room; position and `RoomWidth` are compared to `Rooms/Room_*.Rect`
+  (falsified: `Backdrop_Drift` moved to 2900 → «expected the level's Room_Drift rect»). `v2_backdrops.gd` keeps its
+  own room table (it has no level).
+- [x] **Playtest checklist** — add the S6 questions and «no dark rectangle behind any figure; the held guards overlap
+  as figures, not as cards» to the TASKS playtest after B1.
+  **Closed:** both in TASKS.md playtest (2) and (4).
+- Verified by reading (subagent audit + own checks): every `v2_*` script quits 1 only through `_finish()`/watchdog, no
+  `push_warning`-only failure paths; checks run from `_process` (autoloads present); `v2_actors.gd:379-386` pins the
+  exact hit windows; `:398` asserts the `animation` track index below the `frame` track; `:466-478` exercises
+  `SetDown` on both versions; `v2_spriteframes.gd:175` asserts `autoplay == ""`, `:181-182` the feet line at the actor
+  origin; `v2_version_switch.gd:138-140,279-282` restores the real `GameVersion`/`ConfigPath` and asserts the real
+  `settings.cfg` mtime unchanged; `v2_level_prologue*.gd` override only `_name/_main_path/_prologue_path` and the base
+  scripts use those everywhere (no leftover const use); the escape run correctly exits into the shared
+  `Level01_District`. Commit «falsified» claims match the assertions they name.
+
+#### Nits
+- `ui_exposition.gd:110` sets the real autoload's `GameVersion = 0` without redirecting `ConfigPath` and never restores
+  it; harmless today (nothing saves in that script), but a later `Save()` in the same process would overwrite a
+  machine's «v2». Redirect + restore like `ui_menu.gd`.
+- `v2_version_switch.gd:217-218` — the `expo_scene == null` early exit leaves `ConfigPath = PROBE_PATH` (failing run
+  only).
+- `.claude/settings.json` — the narrowing is as intended (originals `keyframes/*.svg`, `level0/**`, legacy folders,
+  audio stay denied; `Bash rm/mv *assets/*` unchanged); pre-existing gap: only `Edit(...)` is denied, `Write(...)` never
+  was — consider mirroring the deny list for `Write`.
+- `v2_v1_untouched.gd` has no `MAX_FRAMES` (synchronous, relies on the runner's 60 s) — fine, but every other script
+  has one.
+- `scripts/levels/SectionBackdrop.cs:184` `sectionWidth = section.GetWidth() / ImportScale` — correct, but the
+  `_back` viewBox height (440) and `DrawnFloorTop` (280) are only right for these three files; a comment naming the
+  assumption would help the next cutter.
+- `HeldGuards/Overseer` offset (−31, −121) puts the pose origin x ≈ 23 tex px left of the node (feet are on the
+  origin vertically) — cosmetic, visible only against the drawn cage.
+
+#### What's done well
+- **One clock.** The v2 `AnimationPlayer`s carry v1's names, lengths and method tracks verbatim; the sprite is a frame
+  holder (`autoplay` unset, never `Play()`ed); hit-stop, `ResetPose`, `IsAnimationPlaying`, `AnimationTime` and the
+  combo window are literally the same code paths. `Guard.SetDown`'s `down` branch composes correctly with
+  `GuardDown.Enter` (`ResetPose` → `SetDown(true)` plays `down`) and `Exit` (`ResetPose` before Approach's `walk`).
+- **The generator is honest and stable:** it re-derives feet line and origin x from the map and fails the build on a
+  mismatch instead of producing a hovering figure; deterministic sub-resource ids, pinned `1_sheet` ext id and a kept
+  uid make regeneration diff-free; the margin semantics are right (the plan was wrong).
+- **`SectionBackdrop`** is all exports, no magic numbers; seams meet on pillar edges (`FillTo == next.FillFrom`
+  asserted to 0.05 px); the three `_back` layers are byte-identical, so overlapping parallax copies coincide.
+- **v1 is byte-identical** (checked by diff, not by the checker's word), and the three shared-script edits are
+  provably neutral for v1 (`HasAnimation("down")` gate, `NextScenePathV2` default path, `_name()` defaults).
+- The backgrounds README states the `<pattern>` → flat-fill replacement, what was cut and what was kept, with
+  coordinates — exactly the honesty the asset policy needs.
+
+#### Verdict
+Ship: no — B1 is the whole point of the task: as it stands, the author's first look at v2 is figures on dark cards.
+Everything underneath (switch, parity, pipeline, backdrops) is sound and well tested; the fix is a re-point, not a
+redesign. First: (1) B1 — clean sheets in `assets/art/v2/sprites/` + re-point `.import`/table/`.tres`/level, add the
+alpha probe; (2) S1 + S4 — status back to `in_progress`, fix the `PH_Wall` test rule and delete the hidden walls;
+(3) S2 — plain-wall fill slices, then S6/S3.

@@ -1,15 +1,18 @@
-[gd_scene load_steps=6 format=3 uid="uid://bgngpp8wg67s7"]
+[gd_scene load_steps=7 format=3 uid="uid://bgngpp8wg67s7"]
 
 [ext_resource type="PackedScene" uid="uid://b2p2i0v3m0xeh" path="res://scenes/v2/levels/SectionBackdrop.tscn" id="1_base"]
 [ext_resource type="Texture2D" uid="uid://dbu0xdviou01c" path="res://assets/art/v2/backgrounds/level0_section3_exit_back.svg" id="2_back"]
 [ext_resource type="Texture2D" uid="uid://cxff3gxvuydx1" path="res://assets/art/v2/backgrounds/level0_section3_exit_mid.svg" id="3_mid"]
 [ext_resource type="Texture2D" uid="uid://jvmifwwwn16a" path="res://assets/art/v2/backgrounds/level0_section3_exit_floor.svg" id="4_floor"]
-[ext_resource type="Texture2D" uid="uid://dhkl3ooaabfc0" path="res://assets/art/v2/backgrounds/level0_section1_mineface_floor.svg" id="5_floor_fill"]
+[ext_resource type="Texture2D" uid="uid://puex54shemd1" path="res://assets/art/v2/backgrounds/level0_section1_mineface_mid.svg" id="5_mid_fill"]
+[ext_resource type="Texture2D" uid="uid://dhkl3ooaabfc0" path="res://assets/art/v2/backgrounds/level0_section1_mineface_floor.svg" id="6_floor_fill"]
 
 [node name="Backdrop_Patrol" instance=ExtResource("1_base")]
 BackTexture = ExtResource("2_back")
 MidTexture = ExtResource("3_mid")
 FloorTexture = ExtResource("4_floor")
-FloorFillTexture = ExtResource("5_floor_fill")
-SectionX = 1820.16
-FillFrom = -59.84
+LeftFillTexture = ExtResource("5_mid_fill")
+FloorFillTexture = ExtResource("6_floor_fill")
+LeftFillSlice = Vector2(370, 470)
+SectionX = 1684.8
+FillFrom = -73

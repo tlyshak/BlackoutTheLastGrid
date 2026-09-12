@@ -4,22 +4,27 @@ extends SceneTree
 #   * instance the v2 actors: Player, Dan and Patrol/Guard_1..3 come from scenes/v2/actors/*
 #     (no Visual/Rig, a null Rig export, a Sprite with SpriteFrames) and GuardWave.EnemyScene is
 #     the v2 guard, so the wave does not spawn v1 rigs into the drawn mine;
-#   * carry the three painted room backdrops under Backgrounds (not y-sorted) at the room x of the
-#     v3 map — Face 0, Drift 2880, Patrol 5760 — each built with its Back/Mid/Floor layers;
+#   * carry the three painted room backdrops under Backgrounds (not y-sorted) at the x of the
+#     level's own Rooms/Room_Face|Drift|Patrol rects, each built with its Back/Mid/Floor layers;
 #   * have no v1 dressing left in the three mine rooms: the PH_ walls/floors/supports/conveyor/coal/
-#     cage shaft, the rock Parallax, the Backdrop/Ground/Props/Foreground decoration (everything
-#     under Backdrop and Ground now lies at x >= 8640, every Props child either carries a Blocker
-#     collision or stands in Room_Surface), the hidden PH_Wall_Face|Drift|Patrol tones;
+#     cage shaft, the Backdrop/Ground/Props/Foreground decoration (everything under Backdrop and
+#     Ground now lies at x >= 8640, every Props child either carries a Blocker collision or stands
+#     in Room_Surface), the PH_Wall_Face|Drift|Patrol tones (deleted, not hidden) and the
+#     PH_Sky_Surface patch (the painted far layer is switched off outside its room instead);
 #   * keep what is light, decal, collision or Room_Surface: Darkness, Vignette, the hero's lamp,
 #     LitZone_*, PH_Decals (after Backgrounds in the tree, z -20), the lamps, landmarks, jam carts,
-#     crate stack, Fx_*, the physical walls, the surface room's dressing plus an opaque PH_Sky_Surface
-#     above the Patrol far layer, and Foreground/PH_NearLip starting at the drawn floor's bottom edge;
+#     crate stack, Fx_*, the physical walls, the surface room's dressing including the v1 rock
+#     Parallax (drawn under the painted far layers, so it shows only on the surface), and
+#     Foreground/PH_NearLip starting at the drawn floor's bottom edge;
+#   * switch every painted far layer off while the camera is limited to Room_Surface and keep the
+#     patrol room's on while it is limited to Room_Patrol (LevelBase.ApplyRoomBounds drives it);
 #   * run the camera at zoom 1.5 from y 450: a 1280x720 world window (90…810) inside the limits,
 #     the walk band 300…600 and the drawn floor edge 380 inside it;
 #   * stage the capture with Sprite2Ds: HeldGuards/Overseer|PH_Guard_A|PH_Guard_B show the guard
 #     sheet's `stance` region (assets/art/v2/keyframes/guard_keyframes.frames.json x svg/scale 2) at
-#     scale 0.5 with the feet on the node origin, PH_Gun keeps its world size, PH_HeldLamp stays,
-#     and the group is exported as HeldGuards and hidden until the Held stage.
+#     scale 0.5 with the feet on the node origin and the region's four corner texels transparent
+#     (no card behind the figure), PH_Gun keeps its world size, PH_HeldLamp stays, and the group is
+#     exported as HeldGuards and hidden until the Held stage.
 # The v1/v2 parity of everything else is v2_level_skeleton.gd; the play-through is v2_level_prologue*.gd.
 # Run: godot --headless --path . -s tests/smoke/v2_prologue_integration.gd
 
@@ -37,10 +42,11 @@ const HELD_SCALE := Vector2(0.5, 0.5)
 const HELD_FIGURES := ["Overseer", "PH_Guard_A", "PH_Guard_B"]
 const FEET_TOL := 1.0                    # px between the pose origin and the node origin
 const INK_BELOW_FEET_MAX := 12.0         # world px of drop shadow the sheet paints under the feet line
-const BACKDROPS := [["Backdrop_Face", 0.0, "res://scenes/v2/levels/Backdrop_Face.tscn"],
-	["Backdrop_Drift", 2880.0, "res://scenes/v2/levels/Backdrop_Drift.tscn"],
-	["Backdrop_Patrol", 5760.0, "res://scenes/v2/levels/Backdrop_Patrol.tscn"]]
+const BACKDROPS := [["Backdrop_Face", "Room_Face", "res://scenes/v2/levels/Backdrop_Face.tscn"],
+	["Backdrop_Drift", "Room_Drift", "res://scenes/v2/levels/Backdrop_Drift.tscn"],
+	["Backdrop_Patrol", "Room_Patrol", "res://scenes/v2/levels/Backdrop_Patrol.tscn"]]
 const LAYERS := ["Back", "Mid", "Floor"]
+const ROCK_LAYERS := ["PxRockFar", "PxRockMid", "PxStruct"]   # the v1 rock parallax kept for the surface
 const SURFACE_X := 8640.0
 const CAMERA_ZOOM := Vector2(1.5, 1.5)
 const CAMERA_Y := 450.0
@@ -52,17 +58,18 @@ const LIP_SEAM_MAX := 1.0                # ...and may not leave more than a texe
 const DECALS_Z := -20
 const DECAL_COUNT := 7                   # three pools, three dark stripes, the timber hit strip
 const GONE_ROOT := ["PH_Ceiling", "PH_Floor_Face", "PH_Floor_Drift", "PH_Floor_Patrol", "PH_FloorEdge",
-	"PH_Conveyor", "PH_ConveyorEdge", "PH_Coal_1", "PH_Coal_2", "PH_Coal_3", "PH_CageShaft", "PH_CageCable", "Parallax",
+	"PH_Conveyor", "PH_ConveyorEdge", "PH_Coal_1", "PH_Coal_2", "PH_Coal_3", "PH_CageShaft", "PH_CageCable",
+	"PH_Wall_Face", "PH_Wall_Drift", "PH_Wall_Patrol", "PH_Sky_Surface",
 	"Backdrop/PH_WallTone_Face", "Backdrop/PH_WallTone_Drift", "Backdrop/PH_WallTone_Patrol", "Backdrop/PH_CeilingRock",
 	"Backdrop/PH_PipeLow", "Ground/PH_FloorTone_Face", "Ground/PH_FloorTone_Drift", "Ground/PH_FloorTone_Patrol",
 	"Ground/PH_Shaft_1", "Props/ScrapPile_1", "Props/BatteryStack_1", "Props/ExitSign_1",
 	"Foreground/PH_NearPost", "Foreground/PH_NearPostRim", "Foreground/PH_NearCable"]
 const SUPPORT_COUNT := 22
-const OFF_ROOT := ["PH_Wall_Face", "PH_Wall_Drift", "PH_Wall_Patrol"]
 const KEPT := ["Darkness", "Vignette", "Player/Flashlight", "LitZone_Arena", "LitZone_P1", "LitZone_P2", "LitZone_P3",
 	"PH_Decals", "WorkLamps", "DriftLamps", "PH_ArenaLamp", "PH_Landmark_Face", "PH_Landmark_Drift", "PH_Landmark_PastGas",
 	"PH_Landmark_Surface", "PH_JamCarts", "PH_Crate_Stack", "Fx_Face", "Fx_Drift", "Fx_Patrol", "Fx_Surface",
-	"PH_WallLeft", "PH_WallRight", "PH_WallShaft", "PH_Wall_Surface", "PH_Floor_Surface", "PH_Sky_Surface",
+	"PH_WallLeft", "PH_WallRight", "PH_WallShaft", "PH_Wall_Surface", "PH_Floor_Surface",
+	"Parallax/PxRockFar/PH_FarMassif", "Parallax/PxRockMid/PH_MidWall", "Parallax/PxStruct/PH_Trestle_1",
 	"Backdrop/PH_Horizon", "Ground/PH_FloorTone_Surface", "Foreground/PH_NearLip", "Fx_Face/Conveyor/ConveyorAnim"]
 
 var _started := false
@@ -162,7 +169,10 @@ func _run() -> void:
 				_check(false, "Backgrounds/%s is missing" % entry[0])
 				continue
 			_check(bd.scene_file_path == entry[2], "%s comes from %s, expected %s" % [entry[0], bd.scene_file_path, entry[2]])
-			_check(bd.position == Vector2(entry[1], 0.0), "%s at %s, expected (%s, 0)" % [entry[0], bd.position, entry[1]])
+			var room: Node = level.get_node_or_null("Rooms/" + entry[1])
+			var room_rect: Rect2 = room.get("Rect") if room != null else Rect2()
+			_check(room != null and bd.position == Vector2(room_rect.position.x, 0.0) and bd.get("RoomWidth") == room_rect.size.x,
+				"%s at %s, RoomWidth %s, expected the level's %s rect %s" % [entry[0], bd.position, bd.get("RoomWidth"), entry[1], room_rect])
 			for layer in LAYERS:
 				var l: Node = bd.get_node_or_null(layer)
 				_check(l != null and l.get_child_count() > 0, "%s/%s missing or empty (SectionBackdrop did not build)" % [entry[0], layer])
@@ -172,9 +182,6 @@ func _run() -> void:
 		_check(level.get_node_or_null(path) == null, "v1 dressing '%s' is still in the v2 prologue" % path)
 	for i in range(1, SUPPORT_COUNT + 1):
 		_check(level.get_node_or_null("PH_Support_%d" % i) == null, "PH_Support_%d is still in the v2 prologue" % i)
-	for path in OFF_ROOT:
-		var n: CanvasItem = level.get_node_or_null(path)
-		_check(n == null or not n.visible, "'%s' is still visible over the painted wall" % path)
 	for group in ["Backdrop", "Ground"]:
 		var g: Node = level.get_node_or_null(group)
 		if g == null:
@@ -199,13 +206,37 @@ func _run() -> void:
 		_check(decals.z_index == DECALS_Z, "PH_Decals z_index=%d, expected %d" % [decals.z_index, DECALS_Z])
 		_check(decals.get_index() > backgrounds.get_index(), "PH_Decals precedes Backgrounds in the tree; the light pools would draw under the floor")
 		_check(decals.get_child_count() == DECAL_COUNT, "PH_Decals has %d children, expected %d" % [decals.get_child_count(), DECAL_COUNT])
-	var sky: ColorRect = level.get_node_or_null("PH_Sky_Surface")
-	if sky != null and backgrounds != null:
-		var patrol_back: Node = level.get_node_or_null("Backgrounds/Backdrop_Patrol/Back")
-		var back_z: int = backgrounds.z_index + (patrol_back.z_index if patrol_back != null else 0)
-		_check(sky.z_index > back_z, "PH_Sky_Surface z_index=%d does not cover the Patrol far layer (effective z %d)" % [sky.z_index, back_z])
-		_check(sky.color.a == 1.0 and sky.offset_left == SURFACE_X and sky.offset_right >= 10560.0 and sky.offset_top <= 0.0 and sky.offset_bottom >= BAND_TOP,
-			"PH_Sky_Surface must be opaque over x %.0f…10560, y 0…%.0f (got %s..%s x %s..%s, alpha %s)" % [SURFACE_X, BAND_TOP, sky.offset_left, sky.offset_right, sky.offset_top, sky.offset_bottom, sky.color.a])
+	# The v1 rock parallax is back for the surface, strictly under every painted far layer.
+	var rock: Node2D = level.get_node_or_null("Parallax")
+	var patrol_back: Node = level.get_node_or_null("Backgrounds/Backdrop_Patrol/Back")
+	if rock != null and backgrounds != null and patrol_back != null:
+		var painted_z: int = backgrounds.z_index + patrol_back.z_index
+		for name in ROCK_LAYERS:
+			var layer: Parallax2D = rock.get_node_or_null(name)
+			if layer == null:
+				_check(false, "Parallax/%s is missing — the surface lost its v1 rock parallax" % name)
+				continue
+			var z: int = rock.z_index + layer.z_index
+			_check(z < painted_z, "Parallax/%s draws at effective z %d, expected below the painted far layers (%d) so it shows only on the surface" % [name, z, painted_z])
+	else:
+		_check(rock != null, "Parallax is gone — the surface has no far layer at all")
+	# The painted far layers follow the camera limits LevelBase.ApplyRoomBounds sets: all off on the surface.
+	var surface_room: Node = level.get_node_or_null("Rooms/Room_Surface")
+	var patrol_room: Node = level.get_node_or_null("Rooms/Room_Patrol")
+	if backgrounds != null and surface_room != null and patrol_room != null:
+		level.ApplyRoomBounds(surface_room)
+		await process_frame
+		await process_frame
+		for entry in BACKDROPS:
+			var back: CanvasItem = backgrounds.get_node_or_null(entry[0] + "/Back")
+			_check(back != null and not back.visible, "%s/Back is shown while the camera is limited to Room_Surface — the mine's sky follows the camera onto the surface" % entry[0])
+		level.ApplyRoomBounds(patrol_room)
+		await process_frame
+		await process_frame
+		var patrol: CanvasItem = backgrounds.get_node_or_null("Backdrop_Patrol/Back")
+		var face: CanvasItem = backgrounds.get_node_or_null("Backdrop_Face/Back")
+		_check(patrol != null and patrol.visible, "Backdrop_Patrol/Back is hidden while the camera is limited to Room_Patrol")
+		_check(face != null and not face.visible, "Backdrop_Face/Back is shown while the camera is limited to Room_Patrol")
 	var lip: Polygon2D = level.get_node_or_null("Foreground/PH_NearLip")
 	var floor_section: Sprite2D = level.get_node_or_null("Backgrounds/Backdrop_Face/Floor/Section")
 	if lip != null and floor_section != null and floor_section.texture != null:
@@ -253,6 +284,13 @@ func _run() -> void:
 				continue
 			var expected := Rect2(pose.x * SHEET_SCALE, pose.y * SHEET_SCALE, pose.w * SHEET_SCALE, pose.h * SHEET_SCALE)
 			_check(s.region_rect == expected, "HeldGuards/%s region %s, expected the '%s' pose %s" % [figure, s.region_rect, HELD_POSE, expected])
+			# No card behind the figure: the region's four corner texels are transparent on the sheet.
+			if s.texture != null:
+				var sheet: Image = s.texture.get_image()
+				var r: Rect2i = Rect2i(s.region_rect)
+				for corner in [r.position, Vector2i(r.end.x - 1, r.position.y), Vector2i(r.position.x, r.end.y - 1), r.end - Vector2i.ONE]:
+					var a: float = sheet.get_pixelv(corner).a
+					_check(is_zero_approx(a), "HeldGuards/%s: corner texel %s of the region is opaque (alpha %.2f) — the figure stands on a card" % [figure, corner, a])
 			# Feet on the origin: the pose origin (region-relative, mockup px) lands on the node position.
 			var origin := Vector2(pose.origin[0], pose.origin[1]) * SHEET_SCALE
 			var feet_local: Vector2 = s.offset - s.region_rect.size / 2.0 + origin

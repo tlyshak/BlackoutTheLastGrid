@@ -9,5 +9,6 @@
 BackTexture = ExtResource("2_back")
 MidTexture = ExtResource("3_mid")
 FloorTexture = ExtResource("4_floor")
+RightFillSlice = Vector2(370, 470)
 SectionX = 0.0
-FillTo = 2737.28
+FillTo = 2716.6

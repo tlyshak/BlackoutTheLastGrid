@@ -11,11 +11,18 @@ extends SceneTree
 #     against the wall base and the floor reaching past 600, sprites abut without a gap from FillFrom
 #     to FillTo, every region_rect lies inside its texture, the Section sprite sits at SectionX;
 #   * rooms — placed at the level's room x, Face/Drift/Patrol meet edge to edge (one's FillTo is
-#     the next one's FillFrom) on a pillar: the earlier room's last mid slice is cut at the pillar's
-#     right edge and the later room's first mid slice is a whole tile whose left edge is the pipe end;
-#     together they cover the three mine rooms 0…8640;
+#     the next one's FillFrom) as texture continuity: both rooms fill with the same column of the
+#     same texture and the earlier room's last mid slice ends at the very texture x the later
+#     room's first slice starts at, and that x is a pillar's right edge (opaque → transparent at
+#     PILLAR_ROW); together they cover the three mine rooms 0…8640;
+#   * fill columns — a filler is plain wall at both ends (one colour down the wall band) and holds
+#     exactly one pillar-sized opaque run above the wall on every probed row: no fan, board or other
+#     one-off prop repeats with the tiles (review round 1, S2);
 #   * far layer — Back is a Parallax2D at the brief's parallax depth, its tiles abut, sit on a grid
-#     anchored at level x 0 and cover the camera window for every camera x inside the room;
+#     anchored at level x 0 and cover the camera window for every camera centre from half a window
+#     left of the room to half a window right of it (Parallax2D shifts a tile by
+#     (centre − viewport px / 2) · (1 − scroll)); the layer is shown only while the camera's limits
+#     overlap the room, so the last mine room's sky never follows the camera onto the surface;
 #   * depth — z of Back/Mid/Floor per docs/plans/t07i-visual-kit/visual-brief.md;
 #   * TestBackdrops.tscn instantiates with the three backdrops, the PH_ walk band and the v2 camera zoom.
 # Run: godot --headless --path . -s tests/smoke/v2_backdrops.gd
@@ -47,13 +54,21 @@ const Z_BACK_MAX := -60
 const Z_MID := -40                 # visual brief: room background, walls
 const Z_FLOOR := -20               # visual brief: floor, decals
 const VIEW_WIDTH := 1280.0         # 1920 / camera zoom 1.5 (Backdrop ViewWidth default)
+const VIEWPORT_PX := 1920.0        # display/window/size/viewport_width: Parallax2D scrolls from the camera centre minus half of this
 const CAMERA_ZOOM := Vector2(1.5, 1.5)
 const PROBE_COLUMN := 78           # mockup column clear of props in all six mid/floor layers (door frame ends 73.5, first power bank starts 79.25)
 const SKY_ROW := 120               # mockup row between the beam (to 113) and the pipes (from 124): mid transparent, back shows through
 const WALL_ROW := 170              # mockup row inside the wall band 160…280
 const WALL_BASE_ROW := 279         # last wall row
 const FLOOR_ROW := 281             # first floor row (floor layer starts at 280)
-const PILLAR_WIDTH := 16           # mockup px: every beam pillar is a 16 px rect, the slices start/end on its edges
+const PILLAR_ROW := 100            # mockup row through the pillar stubs (93…160) above the fan (from 106) and the pipes (from 120)
+const PROP_ROWS := [100, 130, 150] # rows above the wall where a filler column may hold nothing but its one pillar
+const PILLAR_MIN := 14             # mockup px: a pillar stub is an 18 px opaque run (16 px rect plus its stroke)
+const PILLAR_MAX := 22
+const WALL_FIRST_ROW := 166        # rows of the wall band probed for one colour at a filler's cut columns
+const WALL_LAST_ROW := 276
+const LIMIT_SLACK := 0.01          # the camera's LimitLeft/LimitRight sit exactly on room edges; the room test is strict
+const ROOM_SURFACE := [8640.0, 10560.0]   # Room_Surface of the v3 map: no painted backdrop, the mine's sky must be off here
 
 var _started := false
 var _frames := 0
@@ -99,6 +114,60 @@ func _sprites(layer: Node) -> Array:
 
 func _world_width(s: Sprite2D) -> float:
 	return s.region_rect.size.x * s.scale.x
+
+# Opaque runs [from, to) of mockup columns on one mockup row, inside columns from…to.
+func _opaque_runs(img: Image, row: int, from: int, to: int) -> Array:
+	var runs: Array = []
+	var start := -1
+	for col in range(from, to):
+		var opaque: bool = _alpha(img, col, row) > 0.0
+		if opaque and start < 0:
+			start = col
+		elif not opaque and start >= 0:
+			runs.append([start, col])
+			start = -1
+	if start >= 0:
+		runs.append([start, to])
+	return runs
+
+# True when one mockup column shows a single colour down the wall band (no prop touches it).
+func _plain_wall_column(img: Image, col: int) -> bool:
+	var first: Color = img.get_pixel(col * IMPORT_SCALE, WALL_FIRST_ROW * IMPORT_SCALE)
+	if first.a < 1.0:
+		return false
+	for row in range(WALL_FIRST_ROW, WALL_LAST_ROW + 1):
+		if not img.get_pixel(col * IMPORT_SCALE, row * IMPORT_SCALE).is_equal_approx(first):
+			return false
+	return true
+
+# Limits the camera to `limits` (level x), waits a frame and asserts each room's far layer is shown or hidden as `expected`.
+func _expect_backs(cam: Camera2D, backs: Dictionary, limits: Array, expected: Dictionary, label: String) -> void:
+	cam.limit_left = int(limits[0])
+	cam.limit_right = int(limits[1])
+	await process_frame
+	await process_frame
+	for room in expected:
+		var back: CanvasItem = backs[room]
+		if back == null:
+			_check(false, "TestBackdrops: Backdrop_%s/Back missing" % room)
+			continue
+		_check(back.visible == expected[room], "TestBackdrops: Backdrop_%s/Back is %s while the camera is %s (%d…%d); expected %s" % [room, "shown" if back.visible else "hidden", label, limits[0], limits[1], "shown" if expected[room] else "hidden"])
+
+# A filler column of `tex` is plain wall at both cut columns and holds exactly one pillar (and
+# nothing else) on every probed row above the wall.
+func _check_filler(label: String, tex: Texture2D, slice: Vector2) -> void:
+	if tex == null:
+		_check(false, "%s: no fill texture" % label)
+		return
+	var img: Image = tex.get_image()
+	var from: int = int(slice.x)
+	var to: int = int(slice.y)
+	for col in [from, to - 1]:
+		_check(_plain_wall_column(img, col), "%s: column %d of %s is not plain wall down rows %d…%d — a prop is cut at the tile edge" % [label, col, tex.resource_path.get_file(), WALL_FIRST_ROW, WALL_LAST_ROW])
+	for row in PROP_ROWS:
+		var runs: Array = _opaque_runs(img, row, from, to)
+		var ok: bool = runs.size() == 1 and runs[0][1] - runs[0][0] >= PILLAR_MIN and runs[0][1] - runs[0][0] <= PILLAR_MAX
+		_check(ok, "%s: columns %d…%d of %s hold %s on row %d, expected one pillar-sized opaque run (a fan, board or other prop would repeat with every tile)" % [label, from, to, tex.resource_path.get_file(), runs, row])
 
 # The mid/floor sprites of one layer: abut from `from` to `to`, region inside the texture,
 # plan scale and offset. Returns the sorted list for further checks.
@@ -161,6 +230,7 @@ func _run() -> void:
 
 	# 3. Room scenes at their level x.
 	var edges: Array = []   # [level FillFrom, level FillTo] per room, in order
+	var seams: Array = []   # [texture path, texture x, image] of each room's first and last mid slice
 	for entry in ROOMS:
 		var room: String = entry[0]
 		var room_x: float = entry[1]
@@ -194,19 +264,16 @@ func _run() -> void:
 		var mids := _check_layer(room, mid, fill_from, fill_to)
 		var floors := _check_layer(room, floor, fill_from, fill_to)
 		edges.append([room_x + fill_from, room_x + fill_to])
-		# Seams land on pillars: a room with a left neighbour starts with a whole left slice (pipe end
-		# flush against the neighbour's pillar); a room with a right neighbour ends inside the pillar
-		# that opens its last right slice.
+		# Seams: remembered here, compared room to room in step 4. Fillers: plain wall, one pillar.
 		var order: int = ROOMS.find(entry)
-		if not mids.is_empty() and order > 0:
+		if not mids.is_empty():
 			var first_mid: Sprite2D = mids[0]
-			_check(_approx(first_mid.region_rect.position.x, bd.LeftFillSlice.x * IMPORT_SCALE, POS_EPS),
-				"%s: first mid slice %s starts at texture x=%.1f, expected the whole slice from %.1f (seam not on the neighbour's pillar)" % [room, first_mid.name, first_mid.region_rect.position.x, bd.LeftFillSlice.x * IMPORT_SCALE])
-		if not mids.is_empty() and order < ROOMS.size() - 1:
 			var last_mid: Sprite2D = mids[mids.size() - 1]
-			var pillar_end: float = (bd.RightFillSlice.x + PILLAR_WIDTH) * IMPORT_SCALE
-			_check(_approx(last_mid.region_rect.end.x, pillar_end, POS_EPS),
-				"%s: last mid slice %s ends at texture x=%.1f, expected the pillar's right edge %.1f" % [room, last_mid.name, last_mid.region_rect.end.x, pillar_end])
+			seams.append([first_mid.texture, first_mid.region_rect.position.x, last_mid.texture, last_mid.region_rect.end.x])
+		if order > 0:
+			_check_filler("%s left fill" % room, bd.LeftFillTexture if bd.LeftFillTexture != null else bd.MidTexture, bd.LeftFillSlice)
+		if order < ROOMS.size() - 1:
+			_check_filler("%s right fill" % room, bd.RightFillTexture if bd.RightFillTexture != null else bd.MidTexture, bd.RightFillSlice)
 
 		# The Section sprite sits at SectionX (cropped to FillFrom); the drawn floor covers the band.
 		var section: Node = mid.get_node_or_null("Section")
@@ -251,18 +318,20 @@ func _run() -> void:
 				var phase: float = fposmod(level_x, period)
 				_check(phase < POS_EPS or period - phase < POS_EPS,
 					"%s/Back/%s: level x=%.2f is not on the %.2f grid (phase %.2f)" % [room, t.name, level_x, period, phase])
-			var s: float = bd.BackScrollScale
+			var slide: float = 1.0 - bd.BackScrollScale
 			var first_x: float = room_x + tiles[0].position.x
 			var last_x: float = room_x + cursor
-			for f in [0.0, 0.5, 1.0]:
-				var o: float = room_x + f * (ROOM_WIDTH - VIEW_WIDTH)   # camera left edge inside the room
-				var shown_from: float = first_x + o * (1.0 - s)
-				var shown_to: float = last_x + o * (1.0 - s)
-				_check(shown_from <= o and shown_to >= o + VIEW_WIDTH,
-					"%s: far layer shows %.0f…%.0f at camera x=%.0f, window %.0f…%.0f uncovered" % [room, shown_from, shown_to, o, o, o + VIEW_WIDTH])
+			# Camera centres from half a window left of the room (where the camera stands when the
+			# limits switch to this room and it starts sliding in) to half a window right of it.
+			for f in [0.0, 0.25, 0.5, 0.75, 1.0]:
+				var c: float = room_x - VIEW_WIDTH / 2.0 + f * (ROOM_WIDTH + VIEW_WIDTH)
+				var shown_from: float = first_x + (c - VIEWPORT_PX / 2.0) * slide
+				var shown_to: float = last_x + (c - VIEWPORT_PX / 2.0) * slide
+				_check(shown_from <= c - VIEW_WIDTH / 2.0 and shown_to >= c + VIEW_WIDTH / 2.0,
+					"%s: far layer shows %.0f…%.0f at camera centre %.0f, window %.0f…%.0f uncovered" % [room, shown_from, shown_to, c, c - VIEW_WIDTH / 2.0, c + VIEW_WIDTH / 2.0])
 		bd.queue_free()
 
-	# 4. Rooms meet edge to edge and cover the whole mine.
+	# 4. Rooms meet edge to edge and cover the whole mine; every seam is the fill texture's own continuity, cut on a pillar's right edge.
 	if edges.size() == ROOMS.size():
 		_check(edges[0][0] <= 0.0, "Face starts at level x=%.2f, expected <= 0" % edges[0][0])
 		for i in range(1, edges.size()):
@@ -270,6 +339,21 @@ func _run() -> void:
 				"%s ends at %.2f but %s starts at %.2f (seam gap or double draw)" % [ROOMS[i - 1][0], edges[i - 1][1], ROOMS[i][0], edges[i][0]])
 		_check(edges[edges.size() - 1][1] >= MINE_END - POS_EPS,
 			"Patrol ends at level x=%.2f, expected %.0f" % [edges[edges.size() - 1][1], MINE_END])
+	if seams.size() == ROOMS.size():
+		for i in range(1, seams.size()):
+			var left_tex: Texture2D = seams[i - 1][2]
+			var cut_left: float = seams[i - 1][3]
+			var right_tex: Texture2D = seams[i][0]
+			var cut_right: float = seams[i][1]
+			_check(left_tex != null and left_tex == right_tex,
+				"%s|%s seam: the last slice draws %s but the first slice of the next room draws %s — the seam is not one texture continuing" % [ROOMS[i - 1][0], ROOMS[i][0], left_tex.resource_path if left_tex else null, right_tex.resource_path if right_tex else null])
+			_check(_approx(cut_left, cut_right, POS_EPS),
+				"%s|%s seam: the last slice ends at texture x=%.1f but the next room's first slice starts at %.1f (the wall would jump at the room edge)" % [ROOMS[i - 1][0], ROOMS[i][0], cut_left, cut_right])
+			if left_tex != null:
+				var cut_col: int = int(round(cut_left / IMPORT_SCALE))
+				var img: Image = left_tex.get_image()
+				_check(_alpha(img, cut_col - 1, PILLAR_ROW) > 0.0 and _alpha(img, cut_col, PILLAR_ROW) == 0.0,
+					"%s|%s seam at mockup column %d is not a pillar's right edge (row %d: opaque left %.1f, right %.1f)" % [ROOMS[i - 1][0], ROOMS[i][0], cut_col, PILLAR_ROW, _alpha(img, cut_col - 1, PILLAR_ROW), _alpha(img, cut_col, PILLAR_ROW)])
 
 	# 5. The F6 scene: three backdrops, the walk band placeholder, the v2 camera zoom.
 	var test_packed: PackedScene = load(TEST_SCENE)
@@ -286,6 +370,16 @@ func _run() -> void:
 			"TestBackdrops: PH_WalkBand missing or not %.0f…%.0f" % [BAND_TOP, BAND_BOTTOM])
 		var cam: Camera2D = test_scene.get_node_or_null("Camera2D")
 		_check(cam != null and cam.zoom == CAMERA_ZOOM, "TestBackdrops: Camera2D missing or zoom != %s" % CAMERA_ZOOM)
+		# The far layer follows the camera limits: on while the limits overlap the room, off otherwise.
+		if cam != null:
+			var backs := {}
+			for entry in ROOMS:
+				backs[entry[0]] = test_scene.get_node_or_null("Backdrop_%s/Back" % entry[0])
+			await _expect_backs(cam, backs, [0.0, MINE_END], {"Face": true, "Drift": true, "Patrol": true}, "limited to the whole mine")
+			var patrol_x: float = ROOMS[2][1]
+			await _expect_backs(cam, backs, [patrol_x, patrol_x + ROOM_WIDTH], {"Face": false, "Drift": false, "Patrol": true}, "limited to the patrol room")
+			await _expect_backs(cam, backs, ROOM_SURFACE, {"Face": false, "Drift": false, "Patrol": false}, "limited to the surface room")
+			await _expect_backs(cam, backs, [0.0, ROOM_WIDTH], {"Face": true, "Drift": false, "Patrol": false}, "limited to the face room")
 		test_scene.queue_free()
 		await process_frame
 

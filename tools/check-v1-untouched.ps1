@@ -5,9 +5,12 @@
 # repo root on a v2 branch, next to tools/smoke.ps1 (which cannot see git):
 #     powershell -ExecutionPolicy Bypass -File tools/check-v1-untouched.ps1 [-Base <ref>]
 #
-# Two rules:
+# Three rules:
 #   1. the v1 files listed below must not differ from the base in any way (added lines included);
-#   2. the author's art under assets/art/v2/ may be *added* on a branch (the derivative agents
+#   2. every script under scripts/ that exists on the base is frozen too, except the few the plan
+#      lets the v2 line extend (GameSettings, SettingsMenu, Exposition, Guard, SectionBackdrop) —
+#      new scripts may be added, the shared ones may not drift by accident;
+#   3. the author's art under assets/art/v2/ may be *added* on a branch (the derivative agents
 #      commit their inputs there) but never modified, deleted or renamed — the asset policy.
 #
 # Exit codes: 0 = nothing differs; 1 = at least one v1 file differs (listed); 2 = git failed
@@ -41,11 +44,33 @@ $v1Files = @(
     "BlackoutLastGrid.csproj"
 )
 $artDir = "assets/art/v2"
+# The shared scripts the plan allows the v2 line to touch (additively); everything else under
+# scripts/ that the base already has joins the frozen list below.
+$scriptsDir = "scripts"
+$allowedScripts = @(
+    "scripts/core/GameSettings.cs",
+    "scripts/ui/SettingsMenu.cs",
+    "scripts/ui/Exposition.cs",
+    "scripts/enemies/Guard.cs",
+    "scripts/levels/SectionBackdrop.cs"
+)
 
 & git rev-parse --verify --quiet "$Base^{commit}" | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "V1-UNTOUCHED: base ref '$Base' is not a commit in this repository"
     exit 2
+}
+
+$baseScripts = & git ls-tree -r --name-only $Base -- $scriptsDir
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "V1-UNTOUCHED: git ls-tree failed on $scriptsDir"
+    exit 2
+}
+foreach ($script in @($baseScripts)) {
+    if ([string]::IsNullOrWhiteSpace($script)) { continue }
+    if ($allowedScripts -contains $script) { continue }
+    if ($v1Files -contains $script) { continue }
+    $v1Files += $script
 }
 
 $differing = @()

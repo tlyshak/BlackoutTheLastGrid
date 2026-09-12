@@ -15,8 +15,11 @@ namespace BlackoutLastGrid.Levels;
 /// <see cref="BackZ"/> whose tiles sit on a level-wide grid, so where the parallax shift makes
 /// the copies of neighbouring rooms overlap they coincide pixel for pixel; <c>Mid</c>
 /// (<see cref="MidZ"/>) and <c>Floor</c> (<see cref="FloorZ"/>) scroll with the world — the wall
-/// base must stay glued to the floor seam. No collision, no signals; the node's own position is
-/// the room's left edge (world x of the room rect).
+/// base must stay glued to the floor seam. The far layer is drawn only while the camera is
+/// limited to this room (<see cref="_Process"/>): a parallax layer slides its tiles by
+/// <c>1 − scroll</c> of the camera travel, so the tiles of the last mine room would otherwise
+/// follow the camera into the surface room, and no base-space clip can express that. No collision,
+/// no signals; the node's own position is the room's left edge (world x of the room rect).
 /// </para>
 /// </summary>
 public partial class SectionBackdrop : Node2D
@@ -50,11 +53,17 @@ public partial class SectionBackdrop : Node2D
     /// <summary>Column of the back texture tiled across the whole far layer (hill height equal at both ends).</summary>
     [Export] public Vector2 BackSlice { get; set; } = new(240f, 680f);
 
-    /// <summary>Column of <see cref="LeftFillTexture"/> tiled left of the section: pillar right edge to pillar right edge.</summary>
-    [Export] public Vector2 LeftFillSlice { get; set; } = new(72f, 322f);
+    /// <summary>
+    /// Column of <see cref="LeftFillTexture"/> tiled left of the section. A filler column is plain
+    /// wall at both ends with one pillar and no one-off prop inside (section 1: the third door niche
+    /// under its pillar, between the fan and the tone change); the mockups have no prop-free bay
+    /// between two pillars. Neighbouring rooms fill with the same column and cut it at the same
+    /// texture x (the pillar's right edge), so a room seam is the texture's own continuity.
+    /// </summary>
+    [Export] public Vector2 LeftFillSlice { get; set; } = new(370f, 470f);
 
-    /// <summary>Column of <see cref="RightFillTexture"/> tiled right of the section: pillar left edge to pillar left edge.</summary>
-    [Export] public Vector2 RightFillSlice { get; set; } = new(228f, 418f);
+    /// <summary>Column of <see cref="RightFillTexture"/> tiled right of the section (see <see cref="LeftFillSlice"/>).</summary>
+    [Export] public Vector2 RightFillSlice { get; set; } = new(370f, 470f);
 
     /// <summary>
     /// Column of <see cref="FloorFillTexture"/> tiled under every mid slice: plates, rails and one
@@ -107,7 +116,7 @@ public partial class SectionBackdrop : Node2D
     /// <summary>World width the camera shows (viewport width / camera zoom) — the far layer must cover it at every camera x inside the room.</summary>
     [Export] public float ViewWidth { get; set; } = 1280f;
 
-    /// <summary>Extra far-layer coverage on each side, in world px, for camera look-ahead and shake.</summary>
+    /// <summary>Extra far-layer coverage on each side, in world px, for camera shake and look-ahead (the smoothing travel into the room is covered by construction).</summary>
     [Export] public float BackMargin { get; set; } = 320f;
 
     // ---- depth ------------------------------------------------------------------------------------
@@ -127,6 +136,8 @@ public partial class SectionBackdrop : Node2D
     /// <summary>World y of every sprite's top edge: puts mockup y <see cref="DrawnFloorTop"/> on <see cref="FloorFarEdgeY"/>.</summary>
     public float OffsetY => FloorFarEdgeY - DrawnFloorTop * WorldScale;
 
+    private Parallax2D? _back;
+
     public override void _Ready()
     {
         var back = new Parallax2D { Name = BackName, ZIndex = BackZ, ScrollScale = new Vector2(BackScrollScale, 1f) };
@@ -135,6 +146,7 @@ public partial class SectionBackdrop : Node2D
         AddChild(back);
         AddChild(mid);
         AddChild(floor);
+        _back = back;
 
         BuildBack(back);
         BuildLayer(mid, MidTexture, LeftFillTexture ?? MidTexture, LeftFillSlice, RightFillTexture ?? MidTexture, RightFillSlice);
@@ -142,10 +154,37 @@ public partial class SectionBackdrop : Node2D
     }
 
     /// <summary>
+    /// Shows the far layer while the current camera's horizontal limits overlap this room and
+    /// hides it otherwise: <see cref="LevelBase.ApplyRoomBounds"/> limits the camera to the active
+    /// room, so the last mine room's sky stops at the surface the moment the hero arrives there,
+    /// and a room the camera is sliding into is already lit. Without a camera the layer stays on.
+    /// </summary>
+    public override void _Process(double delta)
+    {
+        if (_back == null)
+        {
+            return;
+        }
+        Camera2D? camera = GetViewport().GetCamera2D();
+        if (camera == null)
+        {
+            return;
+        }
+        float roomLeft = GlobalPosition.X;
+        bool inRoom = camera.LimitRight > roomLeft && camera.LimitLeft < roomLeft + RoomWidth;
+        if (_back.Visible != inRoom)
+        {
+            _back.Visible = inRoom;
+        }
+    }
+
+    /// <summary>
     /// Tiles <see cref="BackSlice"/> on a grid anchored at world x = 0 across the span the far
-    /// layer must cover for this room. With follow-viewport parallax a tile at base x <c>b</c> shows
-    /// at <c>b + o·(1 − s)</c> for camera left edge <c>o</c>, so covering the screen for every
-    /// <c>o</c> inside the room needs base x from <c>s·room.left</c> to <c>s·room.right + (1 − s)·view</c>.
+    /// layer must cover for this room. A follow-viewport <see cref="Parallax2D"/> shows a tile at
+    /// base x <c>b</c> at <c>b + (c − w/2)·(1 − s)</c> for camera centre <c>c</c> and viewport
+    /// pixel width <c>w</c> (the camera zoom is not part of it). The centre runs from half a window
+    /// left of the room to half a window right of it — where the camera stands when the limits
+    /// switch to this room and it starts sliding in — so the window is covered for the whole slide.
     /// </summary>
     private void BuildBack(Parallax2D back)
     {
@@ -160,9 +199,13 @@ public partial class SectionBackdrop : Node2D
         }
         float roomLeft = GlobalPosition.X;
         float roomRight = roomLeft + RoomWidth;
-        float s = BackScrollScale;
-        float spanFrom = s * roomLeft - BackMargin;
-        float spanTo = s * roomRight + (1f - s) * ViewWidth + BackMargin;
+        float halfView = ViewWidth * 0.5f;
+        float halfPixel = GetViewportRect().Size.X * 0.5f;
+        float slide = 1f - BackScrollScale;
+        float centreMin = roomLeft - halfView;
+        float centreMax = roomRight + halfView;
+        float spanFrom = centreMin - halfView - (centreMin - halfPixel) * slide - BackMargin;
+        float spanTo = centreMax + halfView - (centreMax - halfPixel) * slide + BackMargin;
         int first = Mathf.FloorToInt(spanFrom / period);
         int last = Mathf.CeilToInt(spanTo / period) - 1;
         int index = 0;
