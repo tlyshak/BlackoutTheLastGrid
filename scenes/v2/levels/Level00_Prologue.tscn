@@ -14,7 +14,7 @@
 [ext_resource type="PackedScene" uid="uid://4hbuflsw3m5e" path="res://scenes/ui/Cutscene.tscn" id="11_cutscene"]
 [ext_resource type="PackedScene" uid="uid://g0gjms1b3i3p" path="res://scenes/levels/Level01_District.tscn" id="12_next"]
 [ext_resource type="PackedScene" uid="uid://b01co21wm8ogb" path="res://scenes/ui/PauseMenu.tscn" id="13_pause"]
-[ext_resource type="Texture2D" uid="uid://bx7ux8xnpbvh0" path="res://assets/art/v2/keyframes/guard_keyframes.svg" id="14_guardsheet"]
+[ext_resource type="Texture2D" uid="uid://bkjg660isobge" path="res://assets/art/v2/sprites/guard_keyframes.svg" id="14_guardsheet"]
 [ext_resource type="PackedScene" uid="uid://dd7kx0ipvfynt" path="res://scenes/ui/Vignette.tscn" id="15_vignette"]
 [ext_resource type="Script" path="res://scripts/props/FlickerLight.cs" id="16_flicker"]
 [ext_resource type="Script" path="res://scripts/levels/LevelFx.cs" id="17_levelfx"]

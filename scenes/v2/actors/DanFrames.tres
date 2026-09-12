@@ -1,6 +1,6 @@
 [gd_resource type="SpriteFrames" format=3 uid="uid://bvb3wbf763ykd"]
 
-[ext_resource type="Texture2D" path="res://assets/art/v2/keyframes/dan_keyframes.svg" id="1_sheet"]
+[ext_resource type="Texture2D" path="res://assets/art/v2/sprites/dan_keyframes.svg" id="1_sheet"]
 
 [sub_resource type="AtlasTexture" id="Atlas_idle_1"]
 resource_name = "idle_1"
