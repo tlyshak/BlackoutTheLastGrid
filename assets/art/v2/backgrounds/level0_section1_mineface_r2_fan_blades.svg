@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="68" height="68" viewBox="296 106 68 68"><title>section 1 r2 — fan blades</title><g stroke="#3a4462" stroke-width="5" stroke-linecap="round"><path d="M330 140 L330 112" /><path d="M330 140 L354 154" /><path d="M330 140 L306 154" /></g>
+<g stroke="#1e2538" stroke-width="2" stroke-linecap="round" opacity="0.9"><path d="M328 138 L328 114" /><path d="M332 142 L352 154" /><path d="M328 142 L308 154" /></g>
+<g stroke="#4a5678" stroke-width="1" stroke-linecap="round" opacity="0.7"><path d="M332 138 L332 116" /><path d="M334 140 L354 152" /><path d="M328 140 L308 152" /></g>
+<circle cx="330" cy="140" r="6" fill="#3a4462" stroke="#0a0c14" stroke-width="1.5" />
+<circle cx="330" cy="140" r="3" fill="#232a3e" stroke="#0a0c14" stroke-width="1" />
+<g fill="#0a0c14"><circle cx="330" cy="135.5" r="0.8" /><circle cx="334.5" cy="140" r="0.8" /><circle cx="330" cy="144.5" r="0.8" /><circle cx="325.5" cy="140" r="0.8" /></g>
+</svg>

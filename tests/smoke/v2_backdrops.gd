@@ -1,9 +1,10 @@
 extends SceneTree
 # Smoke: the painted section backdrops of the v2 mine rooms (T-V2-01 01c). Headless has no
 # renderer, so this asserts the data the picture is made of:
-#   * import — the twelve derivatives from assets/art/v2/backgrounds import at svg/scale 3
-#     (2040x1320 each) and the three `_back` layers are the same image, the premise the far layer's
-#     level-wide tile grid rests on;
+#   * import — the twelve derivatives of the first three sections and the five frame-sized
+#     derivatives of the revised section 1 (level0_section1_mineface_r2, 2026-09-16) import at
+#     svg/scale 3 (2040x1320 each), the four animated crops at their own sizes; every room draws
+#     the one r2 `_back` texture, the premise the far layer's level-wide tile grid rests on;
 #   * layer content — probed pixels: the mid layer is transparent above the wall and opaque down to
 #     the wall base, the floor layer starts exactly at the mockup's floor row;
 #   * placement — on each Backdrop_* scene the Mid/Floor sprites have the plan's scale (1.88/3) and
@@ -37,12 +38,24 @@ const MAX_FRAMES := 600
 const ART := "res://assets/art/v2/backgrounds/"
 const SECTIONS := ["level0_section1_mineface", "level0_section2_ventilation", "level0_section3_exit"]
 const LAYERS := ["", "_back", "_mid", "_floor"]
+const R2 := "level0_section1_mineface_r2"   # revised section 1 (tools/derive_section1_r2.py)
 const IMPORT_SCALE := 3            # svg/scale in the .import sidecars
 const TEXTURE_SIZE := Vector2i(2040, 1320)   # 680x440 mockup x IMPORT_SCALE
+# The r2 derivatives: frame-sized layers and the animated crops (crop size in mockup px x IMPORT_SCALE).
+const R2_LAYERS := {"_back": TEXTURE_SIZE, "_mid": TEXTURE_SIZE, "_floor": TEXTURE_SIZE,
+	"_mid_fill": TEXTURE_SIZE, "_floor_fill": TEXTURE_SIZE,
+	"_alarm": Vector2i(1950, 378), "_worklamp_wall": Vector2i(900, 564),
+	"_worklamp_floor": Vector2i(720, 204), "_fan_blades": Vector2i(204, 204)}
+const SHARED_BACK := ART + R2 + "_back.svg"   # the one far layer every mine room tiles
+const BACK_SLICE := Vector2(240, 680)   # SectionBackdrop.BackSlice default: the tiled column of the far layer
+const BACK_SEAM_ROWS := 160             # mockup rows of the far layer (the wall covers it from 160)
+const BACK_SEAM_TOL := 0.1              # per-channel colour slack at the two cut columns
+const BACK_SEAM_MAX_ROWS := 4           # rows allowed to differ (anti-aliased stroke edges)
 const SCENE_DIR := "res://scenes/v2/levels/"
 const TEST_SCENE := SCENE_DIR + "TestBackdrops.tscn"
-# Room order and world x of the v3 prologue map (scenes/levels/Level00_Prologue.tscn, Rooms/*).
-const ROOMS := [["Face", 0.0], ["Drift", 2880.0], ["Patrol", 5760.0]]
+# Room order, world x of the v3 prologue map (scenes/levels/Level00_Prologue.tscn, Rooms/*) and
+# the section each room's Mid/Floor are cut from.
+const ROOMS := [["Face", 0.0, R2], ["Drift", 2880.0, "level0_section2_ventilation"], ["Patrol", 5760.0, "level0_section3_exit"]]
 const ROOM_WIDTH := 2880.0
 const MINE_END := 8640.0           # Room_Surface starts here; the painted rooms end here
 const BAND_TOP := 300.0            # RoomBounds.FloorTop of the mine rooms
@@ -62,13 +75,17 @@ const Z_FLOOR := -20               # visual brief: floor, decals
 const VIEW_WIDTH := 1280.0         # 1920 / camera zoom 1.5 (Backdrop ViewWidth default)
 const VIEWPORT_PX := 1920.0        # display/window/size/viewport_width: Parallax2D scrolls from the camera centre minus half of this
 const CAMERA_ZOOM := Vector2(1.5, 1.5)
-const PROBE_COLUMN := 78           # mockup column clear of props in all six mid/floor layers (door frame ends 73.5, first power bank starts 79.25)
+# Mockup column clear of props in a section's mid/floor layers: 78 for the first three sections (door
+# frame ends 73.5, first power bank starts 79.25); 100 for r2 (through the power bank shelf, whose
+# shadow ends at row 258: the wires pass rows 122…127 there, the wall ends exactly at 280 — the
+# terminal's ground shadow reaches row 285 at columns 4…56 and the dividers' at 193…209).
+const PROBE_COLUMNS := {"level0_section1_mineface": 78, "level0_section2_ventilation": 78, "level0_section3_exit": 78, R2: 100}
 const SKY_ROW := 120               # mockup row between the beam (to 113) and the pipes (from 124): mid transparent, back shows through
 const WALL_ROW := 170              # mockup row inside the wall band 160…280
 const WALL_BASE_ROW := 279         # last wall row
 const FLOOR_ROW := 281             # first floor row (floor layer starts at 280)
 const PILLAR_ROW := 100            # mockup row through the pillar stubs (93…160) above the fan (from 106) and the pipes (from 120)
-const PROP_ROWS := [100, 130, 150] # rows above the wall where a filler column may hold nothing but its one pillar
+const PROP_ROWS := [100, 130, 153] # rows above the wall where a filler column may hold nothing but its one pillar (153: under the r2 pipe, to 149.75, above the top rail from 156.6)
 const PILLAR_MIN := 14             # mockup px: a pillar stub is an 18 px opaque run (16 px rect plus its stroke)
 const PILLAR_MAX := 22
 const WALL_FIRST_ROW := 166        # rows of the wall band probed for one colour at a filler's cut columns
@@ -203,36 +220,50 @@ func _check_layer(room: String, layer: Node, from: float, to: float) -> Array:
 	return list
 
 func _run() -> void:
-	# 1. Import: every derivative is a 2040x1320 texture; the three back layers are one image.
-	var back_data: Array = []
+	# 1. Import: every frame-sized derivative is a 2040x1320 texture, every r2 crop its own size.
 	var images := {}
+	var expected := {}
 	for section in SECTIONS:
 		for layer in LAYERS:
-			var path: String = ART + section + layer + ".svg"
-			var tex: Texture2D = load(path)
-			_check(tex != null, "%s did not load" % path)
-			if tex == null:
-				continue
-			_check(tex.get_size() == Vector2(TEXTURE_SIZE),
-				"%s is %s, expected %s (svg/scale=%d)" % [path, tex.get_size(), TEXTURE_SIZE, IMPORT_SCALE])
-			var img := tex.get_image()
-			images[section + layer] = img
-			if layer == "_back":
-				back_data.append(img.get_data())
-	_check(back_data.size() == 3 and back_data[0] == back_data[1] and back_data[1] == back_data[2],
-		"the three _back layers are not the same image; the far layer's shared tile grid needs them equal")
+			expected[section + layer] = TEXTURE_SIZE
+	for layer in R2_LAYERS:
+		expected[R2 + layer] = R2_LAYERS[layer]
+	for name in expected:
+		var path: String = ART + name + ".svg"
+		var tex: Texture2D = load(path)
+		_check(tex != null, "%s did not load" % path)
+		if tex == null:
+			continue
+		_check(tex.get_size() == Vector2(expected[name]),
+			"%s is %s, expected %s (svg/scale=%d)" % [path, tex.get_size(), expected[name], IMPORT_SCALE])
+		images[name] = tex.get_image()
+
+	# 1b. The shared far layer tiles seamlessly: the two cut columns of BackSlice (240 and 679) show
+	#     the same colour on (almost) every row — the derivation bends the gallery rail and the far
+	#     cables to one height at both cuts; a few rows of anti-aliasing slack are allowed.
+	var back_img: Image = images.get(R2 + "_back")
+	if back_img != null:
+		var differing: Array = []
+		for row in range(0, BACK_SEAM_ROWS):
+			var left: Color = back_img.get_pixel(int(BACK_SLICE.x) * IMPORT_SCALE, row * IMPORT_SCALE)
+			var right: Color = back_img.get_pixel(int(BACK_SLICE.y) * IMPORT_SCALE - 1, row * IMPORT_SCALE)
+			if absf(left.r - right.r) > BACK_SEAM_TOL or absf(left.g - right.g) > BACK_SEAM_TOL or absf(left.b - right.b) > BACK_SEAM_TOL:
+				differing.append(row)
+		_check(differing.size() <= BACK_SEAM_MAX_ROWS,
+			"%s_back: columns %d and %d differ on %d rows %s — the far layer would show a step at every tile seam (allowed %d)" % [R2, int(BACK_SLICE.x), int(BACK_SLICE.y) - 1, differing.size(), differing.slice(0, 12), BACK_SEAM_MAX_ROWS])
 
 	# 2. Layer content: mid transparent above the wall, opaque to the wall base; floor starts at row 280.
-	for section in SECTIONS:
+	for section in PROBE_COLUMNS:
+		var col: int = PROBE_COLUMNS[section]
 		var mid: Image = images.get(section + "_mid")
 		var floor: Image = images.get(section + "_floor")
 		if mid == null or floor == null:
 			continue
-		_check(_alpha(mid, PROBE_COLUMN, SKY_ROW) == 0.0, "%s_mid: opaque above the wall at row %d" % [section, SKY_ROW])
-		_check(_alpha(mid, PROBE_COLUMN, WALL_ROW) == 1.0, "%s_mid: not opaque inside the wall at row %d" % [section, WALL_ROW])
-		_check(_alpha(mid, PROBE_COLUMN, WALL_BASE_ROW) == 1.0, "%s_mid: not opaque at the wall base row %d" % [section, WALL_BASE_ROW])
-		_check(_alpha(floor, PROBE_COLUMN, WALL_BASE_ROW) == 0.0, "%s_floor: opaque above the floor at row %d" % [section, WALL_BASE_ROW])
-		_check(_alpha(floor, PROBE_COLUMN, FLOOR_ROW) == 1.0, "%s_floor: not opaque at the first floor row %d" % [section, FLOOR_ROW])
+		_check(_alpha(mid, col, SKY_ROW) == 0.0, "%s_mid: opaque above the wall at row %d" % [section, SKY_ROW])
+		_check(_alpha(mid, col, WALL_ROW) == 1.0, "%s_mid: not opaque inside the wall at row %d" % [section, WALL_ROW])
+		_check(_alpha(mid, col, WALL_BASE_ROW) == 1.0, "%s_mid: not opaque at the wall base row %d" % [section, WALL_BASE_ROW])
+		_check(_alpha(floor, col, WALL_BASE_ROW) == 0.0, "%s_floor: opaque above the floor at row %d" % [section, WALL_BASE_ROW])
+		_check(_alpha(floor, col, FLOOR_ROW) == 1.0, "%s_floor: not opaque at the first floor row %d" % [section, FLOOR_ROW])
 
 	# 3. Room scenes at their level x.
 	var edges: Array = []   # [level FillFrom, level FillTo] per room, in order
@@ -240,6 +271,7 @@ func _run() -> void:
 	for entry in ROOMS:
 		var room: String = entry[0]
 		var room_x: float = entry[1]
+		var probe_column: int = PROBE_COLUMNS[entry[2]]
 		var packed: PackedScene = load(SCENE_DIR + "Backdrop_%s.tscn" % room)
 		_check(packed != null, "Backdrop_%s.tscn did not load" % room)
 		if packed == null:
@@ -264,6 +296,9 @@ func _run() -> void:
 		_check(floor.z_index == Z_FLOOR, "%s: Floor z_index=%d, expected %d (brief: floor)" % [room, floor.z_index, Z_FLOOR])
 		_check(back.scroll_scale == Vector2(bd.BackScrollScale, 1.0),
 			"%s: Back.scroll_scale=%s, expected (%s, 1)" % [room, back.scroll_scale, bd.BackScrollScale])
+		var back_tex: Texture2D = bd.BackTexture
+		_check(back_tex != null and back_tex.resource_path == SHARED_BACK,
+			"%s: BackTexture is %s, expected the shared far layer %s (the level-wide tile grid needs one image in every room)" % [room, back_tex.resource_path if back_tex else null, SHARED_BACK])
 
 		var fill_from: float = bd.FillFrom
 		var fill_to: float = bd.FillTo
@@ -290,7 +325,7 @@ func _run() -> void:
 			var img: Image = floor_section.texture.get_image()
 			var first_row := -1
 			for row in img.get_height():
-				if img.get_pixel(PROBE_COLUMN * IMPORT_SCALE, row).a > 0.0:
+				if img.get_pixel(probe_column * IMPORT_SCALE, row).a > 0.0:
 					first_row = row
 					break
 			var far_edge: float = floor_section.position.y + first_row * floor_section.scale.y
@@ -306,7 +341,7 @@ func _run() -> void:
 			var img: Image = mid_section.texture.get_image()
 			var last_row := -1
 			for row in img.get_height():
-				if img.get_pixel(PROBE_COLUMN * IMPORT_SCALE, row).a > 0.0:
+				if img.get_pixel(probe_column * IMPORT_SCALE, row).a > 0.0:
 					last_row = row
 			var wall_base: float = mid_section.position.y + (last_row + 1) * mid_section.scale.y
 			_check(last_row >= 0 and _approx(wall_base, BAND_TOP, EDGE_TOL),
@@ -316,8 +351,8 @@ func _run() -> void:
 			var feet_y: float = BAND_TOP + FEET_PROBE_DEPTH
 			var floor_row: int = int(floor((feet_y - floor_section.position.y) / floor_section.scale.y))
 			var wall_row: int = int(floor((feet_y - mid_section.position.y) / mid_section.scale.y))
-			var floor_a: float = floor_section.texture.get_image().get_pixel(PROBE_COLUMN * IMPORT_SCALE, floor_row).a
-			var wall_a: float = mid_section.texture.get_image().get_pixel(PROBE_COLUMN * IMPORT_SCALE, wall_row).a
+			var floor_a: float = floor_section.texture.get_image().get_pixel(probe_column * IMPORT_SCALE, floor_row).a
+			var wall_a: float = mid_section.texture.get_image().get_pixel(probe_column * IMPORT_SCALE, wall_row).a
 			_check(floor_a == 1.0 and wall_a == 0.0,
 				"%s: at world y %.0f (the band's far edge) the hero stands on floor alpha %.2f / wall alpha %.2f (texture row %d), expected floor 1 / wall 0" % [room, feet_y, floor_a, wall_a, floor_row])
 		_check(mids.size() > 0 and floors.size() > 0, "%s: a layer has no sprites" % room)

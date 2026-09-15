@@ -1,7 +1,7 @@
 [gd_scene load_steps=59 format=3 uid="uid://dkswkamsuv26r"]
 
 [ext_resource type="Script" path="res://scripts/levels/Level00_Prologue.cs" id="1_level"]
-; v2 (T-V2-01): the level runs on the shared scripts/levels/Level00_Prologue.cs; only the scene differs from scenes/levels/Level00_Prologue.tscn: v2 actors (scenes/v2/actors), painted room backdrops under Backgrounds (scenes/v2/levels/Backdrop_*.tscn), camera zoom 1.5. The v1 PH_ dressing of the three mine rooms is gone; Room_Surface keeps its procedural v1 dressing, including the rock Parallax, which sits under the painted far layers (z -80) and is seen only on the surface. Author's playtest 2026-09-12: the first room has no crate obstacle (v1's Crate + PH_Crate_Stack) — the jump hint stays, nothing has to be jumped; the drawn floor's far edge sits on the walk band's top (SectionBackdrop.FloorFarEdgeY 300) and PH_NearLip starts where the drawn floor ends (600.8); playtest #2 («room 2, nothing happens»): DebrisPile_Timber's PH_ rubble is recoloured light (the prop's default rocks are the drawn floor's own darkness and vanished on it) and PH_HitStrip_Timber is stronger (alpha 0.4), so the gate and the strip the heavy hit must be thrown from read on the painted floor.
+; v2 (T-V2-01): the level runs on the shared scripts/levels/Level00_Prologue.cs; only the scene differs from scenes/levels/Level00_Prologue.tscn: v2 actors (scenes/v2/actors), painted room backdrops under Backgrounds (scenes/v2/levels/Backdrop_*.tscn), camera zoom 1.5. The v1 PH_ dressing of the three mine rooms is gone; Room_Surface keeps its procedural v1 dressing, including the rock Parallax, which sits under the painted far layers (z -80) and is seen only on the surface. Author's playtest 2026-09-12: the first room has no crate obstacle (v1's Crate + PH_Crate_Stack) — the jump hint stays, nothing has to be jumped; the drawn floor's far edge sits on the walk band's top (SectionBackdrop.FloorFarEdgeY 300) and PH_NearLip starts where the drawn floor ends (600.8); playtest #2 («room 2, nothing happens»): DebrisPile_Timber's PH_ rubble is recoloured light (the prop's default rocks are the drawn floor's own darkness and vanished on it) and PH_HitStrip_Timber is stronger (alpha 0.4), so the gate and the strip the heavy hit must be thrown from read on the painted floor. 2026-09-16 (the author's r2 concept of the first room, T-V2-05): the camera runs at y 280 and the three mine rooms (and the wave lock) start at y -80, so the 1280x720 window (-80…640) shows the beam, the turning fan, the blinking alarm and the flickering work lamp above the wall with 40 px of floor lip under the near edge of the walk band; Room_Surface keeps its top at 0 and the camera slides down to the window 0…720 there. The three Backdrop_* instances get PowerFrom = WorkLamps: the shared level script hides that string at the blast, and each painted room follows its visibility_changed — the drawn work lamp goes dark, the fan spins down, the alarm keeps blinking on its battery.
 [ext_resource type="PackedScene" uid="uid://b7wdrbbe2dkvc" path="res://scenes/v2/actors/Player.tscn" id="2_player"]
 [ext_resource type="PackedScene" uid="uid://2adcecasbtv6" path="res://scenes/ui/HUD.tscn" id="3_hud"]
 [ext_resource type="PackedScene" uid="uid://bl4rdh3hy5v37" path="res://scenes/core/WaveSpawner.tscn" id="4_spawner"]
@@ -234,13 +234,16 @@ Checkpoints = NodePath("Checkpoints")
 [node name="Backgrounds" type="Node2D" parent="."]
 z_index = -40
 
-[node name="Backdrop_Face" parent="Backgrounds" instance=ExtResource("30_bd_face")]
+[node name="Backdrop_Face" parent="Backgrounds" node_paths=PackedStringArray("PowerFrom") instance=ExtResource("30_bd_face")]
+PowerFrom = NodePath("../../WorkLamps")
 
-[node name="Backdrop_Drift" parent="Backgrounds" instance=ExtResource("31_bd_drift")]
+[node name="Backdrop_Drift" parent="Backgrounds" node_paths=PackedStringArray("PowerFrom") instance=ExtResource("31_bd_drift")]
 position = Vector2(2880, 0)
+PowerFrom = NodePath("../../WorkLamps")
 
-[node name="Backdrop_Patrol" parent="Backgrounds" instance=ExtResource("32_bd_patrol")]
+[node name="Backdrop_Patrol" parent="Backgrounds" node_paths=PackedStringArray("PowerFrom") instance=ExtResource("32_bd_patrol")]
 position = Vector2(5760, 0)
+PowerFrom = NodePath("../../WorkLamps")
 
 [node name="Darkness" type="CanvasModulate" parent="."]
 color = Color(0.560784, 0.592157, 0.639216, 1.0)
@@ -249,21 +252,21 @@ color = Color(0.560784, 0.592157, 0.639216, 1.0)
 
 [node name="Room_Face" type="Node2D" parent="Rooms" node_paths=PackedStringArray("Fx")]
 script = ExtResource("8_room")
-Rect = Rect2(0, 0, 2880, 1080)
+Rect = Rect2(0, -80, 2880, 1160)
 FloorTop = 300.0
 FloorBottom = 600.0
 Fx = NodePath("../../Fx_Face")
 
 [node name="Room_Drift" type="Node2D" parent="Rooms" node_paths=PackedStringArray("Fx")]
 script = ExtResource("8_room")
-Rect = Rect2(2880, 0, 2880, 1080)
+Rect = Rect2(2880, -80, 2880, 1160)
 FloorTop = 300.0
 FloorBottom = 600.0
 Fx = NodePath("../../Fx_Drift")
 
 [node name="Room_Patrol" type="Node2D" parent="Rooms" node_paths=PackedStringArray("Fx")]
 script = ExtResource("8_room")
-Rect = Rect2(5760, 0, 2880, 1080)
+Rect = Rect2(5760, -80, 2880, 1160)
 FloorTop = 300.0
 FloorBottom = 600.0
 Fx = NodePath("../../Fx_Patrol")
@@ -730,7 +733,7 @@ default_color = Color(0.039216, 0.05098, 0.078431, 1.0)
 position = Vector2(2200, 450)
 Count = 2
 SpawnInterval = 0.6
-LockRect = Rect2(960, 0, 1920, 1080)
+LockRect = Rect2(960, -80, 1920, 1160)
 Player = NodePath("../Player")
 Director = NodePath("../EnemyDirector")
 Camera = NodePath("../Camera2D")
@@ -1002,10 +1005,10 @@ position = Vector2(960, 470)
 Target = NodePath("../Player")
 
 [node name="Camera2D" type="Camera2D" parent="."]
-position = Vector2(960, 450)
+position = Vector2(960, 280)
 zoom = Vector2(1.5, 1.5)
 limit_left = 0
-limit_top = 0
+limit_top = -80
 limit_right = 2880
 limit_bottom = 1080
 limit_smoothed = true

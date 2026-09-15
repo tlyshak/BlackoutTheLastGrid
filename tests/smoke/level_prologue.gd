@@ -35,9 +35,16 @@ const STAGE_BLAST := 3
 const STAGE_DARK := 4
 const STAGE_FIGHT := 5
 const STAGE_DRIFT := 6
-const ROOM_FACE_LIMITS := [0, 0, 2880, 1080]
-const ROOM_DRIFT_LIMITS := [2880, 0, 5760, 1080]
-const WAVE_LOCK_LIMITS := [960, 0, 2880, 1080]
+# Camera limits of the rooms and the wave lock: x from the map, top from _limit_top() (0 in v1;
+# the v2 mine rooms start at -80 so the painted beam, fan and lamps are in the window), bottom 1080.
+func _room_face_limits() -> Array:
+	return [0, _limit_top(), 2880, 1080]
+
+func _room_drift_limits() -> Array:
+	return [2880, _limit_top(), 5760, 1080]
+
+func _wave_lock_limits() -> Array:
+	return [960, _limit_top(), 2880, 1080]
 const LINE_COUNTS := [7, 3, 2, 2, 8, 5]   # intro / charge / blast / guards / held / surface
 # Segment 0.
 const HERO_START := Vector2(200, 480)
@@ -94,6 +101,10 @@ func _main_path() -> String:
 
 func _prologue_path() -> String:
 	return PROLOGUE_PATH
+
+# Top of the mine rooms' camera limits (RoomBounds.Rect.position.y); v2 overrides it.
+func _limit_top() -> int:
+	return 0
 
 var _started := false
 var _frames := 0
@@ -338,7 +349,7 @@ func _run() -> void:
 	_check(player.process_mode == Node.PROCESS_MODE_DISABLED, "intro: the hero is not frozen during the cutscene")
 	_check(hud.PromptText == "", "intro: HUD prompt '%s' during the cutscene, expected hidden" % hud.PromptText)
 	_check(player.position == HERO_START, "hero at %s at boot, expected %s" % [player.position, HERO_START])
-	_check(_limits(camera) == ROOM_FACE_LIMITS, "camera limits %s at boot, expected %s (Room_Face)" % [_limits(camera), ROOM_FACE_LIMITS])
+	_check(_limits(camera) == _room_face_limits(), "camera limits %s at boot, expected %s (Room_Face)" % [_limits(camera), _room_face_limits()])
 	_check(is_equal_approx(player.FloorTop, 300.0) and is_equal_approx(player.FloorBottom, 600.0),
 		"the hero's floor band is %s..%s, expected 300..600" % [player.FloorTop, player.FloorBottom])
 	_check(_color_eq(level.Darkness.color, level.DarknessLit),
@@ -523,7 +534,7 @@ func _run() -> void:
 	_check(level.CurrentStage == STAGE_FIGHT, "when the wave starts the stage is %s, expected Fight (%d)" % [level.CurrentStage, STAGE_FIGHT])
 	_check(cutscene.IsPlaying == true and cutscene.LineCount == LINE_COUNTS[3], "the Guards cutscene is not playing")
 	_check(player.process_mode == Node.PROCESS_MODE_DISABLED, "the hero is not frozen for the Guards cutscene")
-	_check(_limits(camera) == WAVE_LOCK_LIMITS, "camera limits %s during the wave, expected the lock %s" % [_limits(camera), WAVE_LOCK_LIMITS])
+	_check(_limits(camera) == _wave_lock_limits(), "camera limits %s during the wave, expected the lock %s" % [_limits(camera), _wave_lock_limits()])
 	_check(arena_lamp.visible == true, "the guards' hand lamp did not come on with the wave")
 	_check(arena_shape.disabled == false, "LitZone_Arena's shape is still off with the wave running")
 	_check(dan.IsWarning == true, "Dan is not in the warning stance while the guards come")
@@ -582,7 +593,7 @@ func _run() -> void:
 				near = true
 		_check(near, "a powerbank lies at %s, not within %d px of a fallen guard" % [d.global_position, DROP_TOL])
 	_check(spawner.IsCleared == true, "the wave is not cleared with both guards down")
-	_check(_limits(camera) == ROOM_FACE_LIMITS, "camera limits %s after the wave, expected %s restored" % [_limits(camera), ROOM_FACE_LIMITS])
+	_check(_limits(camera) == _room_face_limits(), "camera limits %s after the wave, expected %s restored" % [_limits(camera), _room_face_limits()])
 	_check(dan.IsWarning == false, "Dan is still in the warning stance after the wave")
 	_check(dan.LeadTarget == route.get_node("WP_face_exit").global_position, "after the wave Dan's point is %s, expected WP_face_exit" % dan.LeadTarget)
 	_check(lines.has(level.DanBanksLine), "Dan did not say the banks line (%s)" % [lines])
@@ -613,7 +624,7 @@ func _run() -> void:
 	await _wait_until(func(): return dan.IsAtLeadTarget, DAN_ARRIVE_CAP)
 	await _place(player, CP_DRIFT)
 	_check(level.CurrentStage == STAGE_DRIFT, "at Checkpoint_Drift the stage is %s, expected Drift (%d)" % [level.CurrentStage, STAGE_DRIFT])
-	_check(_limits(camera) == ROOM_DRIFT_LIMITS, "camera limits %s in Room_Drift, expected %s" % [_limits(camera), ROOM_DRIFT_LIMITS])
+	_check(_limits(camera) == _room_drift_limits(), "camera limits %s in Room_Drift, expected %s" % [_limits(camera), _room_drift_limits()])
 	_check(dan.LeadTarget == route.get_node("WP_timber").global_position, "in the drift Dan's point is %s, expected WP_timber" % dan.LeadTarget)
 	_check(stages == ["Face", "Charge", "Blast", "Dark", "Fight", "Drift"], "the stages so far were %s" % [stages])
 	_check(player.IsKnockedOut == false, "the hero is knocked out at the end of the first half")
