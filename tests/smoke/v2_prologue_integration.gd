@@ -5,11 +5,15 @@ extends SceneTree
 #     (no Visual/Rig, a null Rig export, a Sprite with SpriteFrames) and GuardWave.EnemyScene is
 #     the v2 guard, so the wave does not spawn v1 rigs into the drawn mine;
 #   * carry the three painted room backdrops under Backgrounds (not y-sorted) at the x of the
-#     level's own Rooms/Room_Face|Drift|Patrol rects, each built with its Back/Mid/Floor layers;
+#     level's own Rooms/Room_Face|Drift|Patrol rects, each built with its Back/Mid/Floor layers.
+#     The map is one room = one painted section: a mockup is 680 px wide and WorldScale is
+#     1280/680, so a section is exactly 1280 world px — the camera window at zoom 1.5. The three
+#     mine rooms are 1280 wide at x 0, 1280 and 2560, the mine ends at 3840 and Room_Surface
+#     starts there; no room needs filler slices and no room scrolls sideways;
 #   * have no v1 dressing left in the three mine rooms: the PH_ walls/floors/supports/conveyor/coal/
 #     cage shaft, the Backdrop/Ground/Props/Foreground decoration (everything under Backdrop and
-#     Ground now lies at x >= 8640, every Props child either carries a Blocker collision or stands
-#     in Room_Surface), the PH_Wall_Face|Drift|Patrol tones (deleted, not hidden) and the
+#     Ground now lies past the mine's end, every Props child either carries a Blocker collision or
+#     stands in Room_Surface), the PH_Wall_Face|Drift|Patrol tones (deleted, not hidden) and the
 #     PH_Sky_Surface patch (the painted far layer is switched off outside its room instead);
 #   * keep what is light, decal, collision or Room_Surface: Darkness, Vignette, the hero's lamp,
 #     LitZone_*, PH_Decals (after Backgrounds in the tree, z -20), the lamps, landmarks, jam carts,
@@ -28,7 +32,9 @@ extends SceneTree
 #   * switch every painted far layer off while the camera is limited to Room_Surface and keep the
 #     patrol room's on while it is limited to Room_Patrol (LevelBase.ApplyRoomBounds drives it);
 #   * run the camera at zoom 1.5 from y 280: a 1280x720 world window (-80…640) inside the limits,
-#     the walk band 300…600 inside it with wall showing above the band's top;
+#     the walk band 300…600 inside it with wall showing above the band's top. Horizontally the
+#     window is now exactly as wide as a mine room, so the camera does not pan inside a room —
+#     one painted section is on screen whole, and the limits span exactly one window;
 #   * stage the capture with Sprite2Ds: HeldGuards/Overseer|PH_Guard_A|PH_Guard_B show the guard
 #     sheet's `stance` region (assets/art/v2/keyframes/guard_keyframes.frames.json x svg/scale 2) at
 #     scale 0.5 with the feet on the node origin and the region's four corner texels transparent
@@ -56,14 +62,17 @@ const BACKDROPS := [["Backdrop_Face", "Room_Face", "res://scenes/v2/levels/Backd
 	["Backdrop_Patrol", "Room_Patrol", "res://scenes/v2/levels/Backdrop_Patrol.tscn"]]
 const LAYERS := ["Back", "Mid", "Floor"]
 const ROCK_LAYERS := ["PxRockFar", "PxRockMid", "PxStruct"]   # the v1 rock parallax kept for the surface
-const SURFACE_X := 8640.0
+# One room = one painted section: a 680 px mockup at WorldScale 1280/680 is 1280 world px.
+const ROOM_WIDTH := 1280.0
+const MINE_ROOM_X := [0.0, 1280.0, 2560.0]   # Room_Face, Room_Drift, Room_Patrol
+const SURFACE_X := 3840.0                    # the mine's end = Room_Surface.Rect.position.x
 const CAMERA_ZOOM := Vector2(1.5, 1.5)
 const CAMERA_Y := 280.0   # T-V2-05: the window -80…640 shows the painted beam, fan and lamps; the mine rooms start at -80
 const BAND_TOP := 300.0
 const BAND_BOTTOM := 600.0
 const WALL_ABOVE_BAND_MIN := 80.0        # world px of wall the window must show above the band's top
-const UNREACHABLE_FLOOR_MAX := 2.0       # px of drawn floor allowed below the band's bottom (600.8 - 600)
-const LIP_SEAM_MAX := 1.0                # PH_NearLip may not leave more than a texel of clear colour above itself
+const UNREACHABLE_FLOOR_MAX := 2.0       # px of drawn floor allowed below the band's bottom (601.18 - 600)
+const LIP_SEAM_MAX := 1.0                # the seam between the drawn floor's end and PH_NearLip, either way, stays under one drawn texel (1 / LayerScale = 1.59 world px)
 const PLAYTEST_GONE := ["Crate", "PH_Crate_Stack"]   # author's playtest 2026-09-12: no crate row in the v2 first room
 const DECALS_Z := -20
 const DECAL_COUNT := 7                   # three pools, three dark stripes, the timber hit strip
@@ -208,6 +217,10 @@ func _run() -> void:
 			var room_rect: Rect2 = room.get("Rect") if room != null else Rect2()
 			_check(room != null and bd.position == Vector2(room_rect.position.x, 0.0) and bd.get("RoomWidth") == room_rect.size.x,
 				"%s at %s, RoomWidth %s, expected the level's %s rect %s" % [entry[0], bd.position, bd.get("RoomWidth"), entry[1], room_rect])
+			# One room = one painted section: the room is exactly one mockup wide, on the mine's grid.
+			var want_x: float = MINE_ROOM_X[BACKDROPS.find(entry)]
+			_check(room != null and room_rect.position.x == want_x and room_rect.size.x == ROOM_WIDTH,
+				"%s spans x %.0f…%.0f, expected the one-painting room %.0f…%.0f" % [entry[1], room_rect.position.x, room_rect.end.x, want_x, want_x + ROOM_WIDTH])
 			for layer in LAYERS:
 				var l: Node = bd.get_node_or_null(layer)
 				_check(l != null and l.get_child_count() > 0, "%s/%s missing or empty (SectionBackdrop did not build)" % [entry[0], layer])
@@ -283,6 +296,9 @@ func _run() -> void:
 	# The painted far layers follow the camera limits LevelBase.ApplyRoomBounds sets: all off on the surface.
 	var surface_room: Node = level.get_node_or_null("Rooms/Room_Surface")
 	var patrol_room: Node = level.get_node_or_null("Rooms/Room_Patrol")
+	var surface_rect: Rect2 = surface_room.get("Rect") if surface_room != null else Rect2()
+	_check(surface_room != null and surface_rect.position.x == SURFACE_X,
+		"Rooms/Room_Surface starts at x=%.0f, expected the mine's end %.0f — the dressing bound of step 3 is that x" % [surface_rect.position.x, SURFACE_X])
 	if backgrounds != null and surface_room != null and patrol_room != null:
 		level.ApplyRoomBounds(surface_room)
 		await process_frame
@@ -312,8 +328,10 @@ func _run() -> void:
 		for p in lip.polygon:
 			top = minf(top, p.y)
 			bottom = maxf(bottom, p.y)
-		_check(top >= floor_bottom, "PH_NearLip starts at y=%.1f, above the drawn floor's end %.1f (it would cover the floor)" % [top, floor_bottom])
-		_check(top - floor_bottom <= LIP_SEAM_MAX, "PH_NearLip starts at y=%.1f but the drawn floor ends at %.1f — a strip of clear colour shows between them" % [top, floor_bottom])
+		# The lip never eats reachable floor, and the seam with the drawn floor's end is sub-texel in
+		# either direction: above it a strip of clear colour would show, below it the lip covers floor.
+		_check(top >= BAND_BOTTOM, "PH_NearLip starts at y=%.1f, inside the walk band (ends %.0f) — it would cover floor the hero stands on" % [top, BAND_BOTTOM])
+		_check(absf(top - floor_bottom) <= LIP_SEAM_MAX, "PH_NearLip starts at y=%.1f but the drawn floor ends at %.1f — the seam is %.1f px, over the %.0f px (sub-texel) a clear strip or a covered floor edge would show" % [top, floor_bottom, absf(top - floor_bottom), LIP_SEAM_MAX])
 		_check(bottom >= CAMERA_Y + 360.0, "PH_NearLip ends at y=%.1f, expected to reach the window bottom %.0f" % [bottom, CAMERA_Y + 360.0])
 	else:
 		_check(false, "Foreground/PH_NearLip, Backgrounds/Backdrop_Face or its Floor/Section is missing")
@@ -331,6 +349,11 @@ func _run() -> void:
 			"the %sx%s world window %.0f…%.0f leaves the camera limits %d…%d" % [view.x, view.y, top, bottom, camera.limit_top, camera.limit_bottom])
 		_check(top <= BAND_TOP - WALL_ABOVE_BAND_MIN and bottom >= BAND_BOTTOM,
 			"the world window %.0f…%.0f does not hold the walk band %.0f…%.0f with %.0f px of wall above it" % [top, bottom, BAND_TOP, BAND_BOTTOM, WALL_ABOVE_BAND_MIN])
+		# One room = one painted section, so the window is the room: the camera no longer pans
+		# sideways inside a mine room, and the horizontal limits span exactly one window.
+		_check(view.x == ROOM_WIDTH, "the world window is %.0f px wide, expected one painted room %.0f" % [view.x, ROOM_WIDTH])
+		_check(camera.limit_right - camera.limit_left == int(ROOM_WIDTH),
+			"the camera limits span %d px, expected the one room the window already shows whole (%.0f)" % [camera.limit_right - camera.limit_left, ROOM_WIDTH])
 
 	# 6. The capture staging.
 	var held: Node2D = level.get_node_or_null("HeldGuards")

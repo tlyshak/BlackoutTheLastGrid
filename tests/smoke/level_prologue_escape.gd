@@ -18,6 +18,11 @@ extends SceneTree
 #     walking off the surface hands the run to Level01_District. A second instance boards from the
 #     far edge with Dan half a screen behind and lands in exactly the same picture.
 # The patrol (segment 3) and the gas death are tests/smoke/level_prologue_patrol.gd.
+# Every level x below is written in the v1 map and passed through _map_x()/_map() so that the same
+# steps land on the same props in a scene set whose map has been squeezed — v2 compressed its mine
+# rooms to one screen each (T-V2-07) and overrides the hook; here the hook is the identity, so the
+# v1 run is byte-for-byte the one it always was. Only x moves: Y depths, frame counts, speeds,
+# seconds and energies mean the same thing in both maps and are never mapped.
 # Needs physics frames.
 # Run: godot --headless --path . -s tests/smoke/level_prologue_escape.gd
 
@@ -55,11 +60,15 @@ const STAGE_CAGE := 9
 const STAGE_HELD := 10
 const STAGE_SURFACE := 11
 const STAGE_DONE := 12
-# Camera limits of the patrol room: top from _limit_top() (0 in v1, -80 in v2 — the painted beam and fan in the window).
+# Camera limits of the rooms: x from the map through _map_x(), top from _limit_top() (0 in v1,
+# -80 in v2 — the painted beam and fan sit in the window).
 func _room_patrol_limits() -> Array:
-	return [5760, _limit_top(), 8640, 1080]
-const ROOM_SURFACE_LIMITS := [8640, 0, 10560, 1080]
-# Positions.
+	return [roundi(_map_x(5760)), _limit_top(), roundi(_map_x(8640)), 1080]
+
+# The surface is the one room the compression leaves at its v1 width, and its top is 0 in both.
+func _room_surface_limits() -> Array:
+	return [roundi(_map_x(8640)), 0, roundi(_map_x(10560)), 1080]
+# Positions, all in the v1 map: every one of them goes into the level through _map()/_map_x().
 const CP_DRIFT := Vector2(2900, 450)
 const TIMBER_X := 3300.0
 const HIT_STAND := Vector2(3236, 450)      # facing right, the heavy hitbox reaches the pile
@@ -72,7 +81,7 @@ const CP_CAGE := Vector2(7700, 450)
 const NEAR_LIGHTS := Vector2(7860, 450)
 const NEAR_HOIST := Vector2(8370, 450)     # on the cage panel's reach, short of the boarding strip (8480..8560)
 const NEAR_CAGE := Vector2(8200, 450)      # within HeroCloseDistance of WP_cage (8180), out of the cage panel's reach (prompt from x ~ 8286)
-const LINE_WALK_MIN := 200.0               # px of walk a route-point line gets before a prop prompt can hide its bubble (~0.9 s)
+const LINE_WALK_MIN := 200.0               # px of walk a route-point line gets before a prop prompt can hide its bubble (~0.9 s in the v1 map; _map_x() squeezes it with the map so a compressed room is judged by its own scale)
 const BOARD_CAP := 60                      # frames of walking right from the panel into the boarding strip
 const OVERLOAD_TEXT := "Not enough power: Work lights is running"
 const HERO_FAR_EDGE := Vector2(8300, 320)  # the second boarding: from the far edge of the band
@@ -94,6 +103,14 @@ func _prologue_path() -> String:
 # Top of the mine rooms' camera limits; v2 overrides it. The surface room keeps 0 in both.
 func _limit_top() -> int:
 	return 0
+
+# A level x of the v1 map, in the map of the scene set under test. v2 compressed its mine rooms
+# (T-V2-07), so its twin overrides this; the identity here keeps v1 byte-for-byte the same run.
+func _map_x(x: float) -> float:
+	return x
+
+func _map(p: Vector2) -> Vector2:
+	return Vector2(_map_x(p.x), p.y)
 
 # Gates the v2 drift has and v1 does not (the belt line of T-V2-06): the v2 script overrides this
 # and plays them out before the run reaches the gas. The default only burns a frame.
@@ -304,14 +321,14 @@ func _run() -> void:
 	patrol.process_mode = Node.PROCESS_MODE_DISABLED
 
 	# 1. Segment 2: the timber — a gate at both edges, bounced by a punch, cleared by two heavy hits.
-	await _place(player, CP_DRIFT)
+	await _place(player, _map(CP_DRIFT))
 	_check(level.CurrentStage == STAGE_DRIFT, "at Checkpoint_Drift the stage is %s, expected Drift" % level.CurrentStage)
 	_check(dan.LeadTarget == _wp(level, "timber"), "at the drift Dan's point is %s, expected WP_timber" % dan.LeadTarget)
 	var arrived: int = await _wait_until(func(): return dan.IsAtLeadTarget, DAN_CAP)
 	_check(arrived >= 0, "Dan never reached the timber point")
 	_check(timber.HeavyHitsToClear == 2, "the timber pile wants %s heavy hits, expected 2" % timber.HeavyHitsToClear)
 	await _check_gate_blocked(player, timber, "DebrisPile_Timber")
-	await _place(player, HIT_STAND)
+	await _place(player, _map(HIT_STAND))
 	await _wait_until(func(): return lines.has(level.DanTimberLine), BUBBLE_CAP)
 	_check(lines.has(level.DanTimberLine), "Dan did not say the timber line when the hero reached him (%s)" % [lines])
 	await _tap("attack")
@@ -319,13 +336,13 @@ func _run() -> void:
 	_check(lines.has(level.DanResistedLine), "a light attack on the timber did not get Dan's bounce line (%s)" % [lines])
 	_check(timber.IsCleared == false and timber.HitsLeft == 2, "a light attack damaged the timber (hits left %d)" % timber.HitsLeft)
 	await _step(20)
-	await _place(player, HIT_STAND)
+	await _place(player, _map(HIT_STAND))
 	await _tap("heavy_attack")
 	var first_hit: int = await _wait_until(func(): return timber.HitsLeft == 1, HIT_CAP)
 	_check(first_hit >= 0, "the first heavy attack did not land on the timber (hits left %d)" % timber.HitsLeft)
 	await _wait_restored(RESTORE_CAP_MS)
 	await _step(SWING_FRAMES)
-	await _place(player, HIT_STAND)
+	await _place(player, _map(HIT_STAND))
 	await _tap("heavy_attack")
 	var cleared: int = await _wait_until(func(): return timber.IsCleared, HIT_CAP)
 	_check(cleared >= 0, "the second heavy attack did not clear the timber")
@@ -339,7 +356,7 @@ func _run() -> void:
 	await _drift_extra(level, player)
 
 	# 2. The edge of the gas: lamp out first, then the line; he waits for the hero's lamp.
-	await _place(player, GAS_APPROACH)
+	await _place(player, _map(GAS_APPROACH))
 	var at_edge: int = await _wait_until(func(): return dan.IsAtLeadTarget and dan.LeadTarget == _wp(level, "gas_edge"), DAN_CAP)
 	_check(at_edge >= 0, "Dan never reached the edge of the gas")
 	var warned: int = await _wait_until(func(): return lines.has(level.DanGasWarnLine), BUBBLE_CAP)
@@ -357,7 +374,7 @@ func _run() -> void:
 				"%s covers Y %.0f..%.0f, expected the whole walk band" % [pockets[i].name, top, bottom])
 		_check(is_equal_approx(pockets[i].WarningSeconds, 1.2), "%s's window is %s s, expected 1.2" % [pockets[i].name, pockets[i].WarningSeconds])
 	lamp.SetOn(true)
-	await _place(player, GAS_REACH)
+	await _place(player, _map(GAS_REACH))
 	_check(level.CurrentStage == STAGE_GAS, "at Checkpoint_GasNear the stage is %s, expected Gas" % level.CurrentStage)
 	_check(level.ArmedCheckpoint != null and level.ArmedCheckpoint.Label == "gas_near", "the checkpoint before the gas is %s" % level.ArmedCheckpoint)
 	await _step(5)
@@ -373,20 +390,20 @@ func _run() -> void:
 	_check(warnings.is_empty(), "a pocket started a warning while Dan crossed it (%d) — he is scenery to the gas" % warnings.size())
 
 	# 3. The hero crosses dark: nothing ignites, nothing is powered, the checkpoint past the gas arms.
-	var reached: float = await _walk(player, DARK_START, DARK_END_X - DARK_START.x)
-	_check(reached >= DARK_END_X - 20.0, "the dark walk ended at x %.0f, expected past %.0f" % [reached, DARK_END_X - 20.0])
+	var reached: float = await _walk(player, _map(DARK_START), _map_x(DARK_END_X) - _map_x(DARK_START.x))
+	_check(reached >= _map_x(DARK_END_X) - 20.0, "the dark walk ended at x %.0f, expected past %.0f" % [reached, _map_x(DARK_END_X) - 20.0])
 	_check(warnings.is_empty() and ignitions.is_empty(), "the pocket reacted to a hero with the lamp off")
 	_check(player.IsKnockedOut == false, "the hero died crossing the pocket in the dark")
 	_check(pockets[0].IsCleared == false and pockets[1].IsCleared == false, "the pocket was cleared; nothing in this level clears the gas")
 	await _wait_until(func(): return lines.has(level.DanGasPastLine), BUBBLE_CAP)
 	_check(lines.has(level.DanGasPastLine), "Dan did not say the past-gas line when the hero reached him (%s)" % [lines])
 	_check(dan.LeadTarget == _wp(level, "drift_exit"), "past the gas Dan's point is %s, expected WP_drift_exit" % dan.LeadTarget)
-	await _place(player, CP_PAST_GAS)
+	await _place(player, _map(CP_PAST_GAS))
 	_check(level.ArmedCheckpoint != null and level.ArmedCheckpoint.Label == "past_gas", "there is no checkpoint right after the pocket")
 	_check(circuit.Used == 1, "Circuit.Used=%s in the drift, expected 1 (only the work lights, untouched)" % circuit.Used)
 
 	# 4. Segment 4: the lights hold the bus, the cage refuses, the lights go off, the cage runs.
-	await _place(player, CP_CAGE)
+	await _place(player, _map(CP_CAGE))
 	_check(level.CurrentStage == STAGE_CAGE, "at Checkpoint_Cage the stage is %s, expected Cage" % level.CurrentStage)
 	_check(_limits(camera) == _room_patrol_limits(), "camera limits %s at the cage, expected %s" % [_limits(camera), _room_patrol_limits()])
 	_check(dan.LeadTarget == _wp(level, "cage"), "at the cage checkpoint Dan's point is %s, expected WP_cage" % dan.LeadTarget)
@@ -403,8 +420,10 @@ func _run() -> void:
 	var hero_reach: CollisionShape2D = player.get("InteractionArea").get_node("CollisionShape2D")
 	var cage_prompt_x: float = cage.global_position.x + cage_reach.position.x - cage_reach.shape.radius - hero_reach.shape.radius
 	var cage_line_x: float = _wp(level, "cage").x - dan.HeroCloseDistance
-	_check(cage_prompt_x - cage_line_x >= LINE_WALK_MIN, "the cage line fires at x %.0f and the cage panel's prompt at x %.0f: %.0f px of walk for the bubble, expected >= %.0f (the prompt would hide it the moment it is said)" % [cage_line_x, cage_prompt_x, cage_prompt_x - cage_line_x, LINE_WALK_MIN])
-	await _place(player, NEAR_CAGE)
+	# The gap between the two is a distance along x, so the bar it has to clear travels with the map.
+	var line_walk_min: float = _map_x(LINE_WALK_MIN)
+	_check(cage_prompt_x - cage_line_x >= line_walk_min, "the cage line fires at x %.0f and the cage panel's prompt at x %.0f: %.0f px of walk for the bubble, expected >= %.0f (the prompt would hide it the moment it is said)" % [cage_line_x, cage_prompt_x, cage_prompt_x - cage_line_x, line_walk_min])
+	await _place(player, _map(NEAR_CAGE))
 	await _wait_until(func(): return lines.has(level.DanCageLine), BUBBLE_CAP)
 	_check(lines.has(level.DanCageLine), "Dan did not say the cage line when the hero reached him (%s)" % [lines])
 	await _step(3)
@@ -412,20 +431,20 @@ func _run() -> void:
 	_check(dan.Bubble.visible == true and dan.Bubble.text == level.DanCageLine, "the cage line is not on screen (bubble visible %s, text '%s') — it must be seen, not only emitted" % [dan.Bubble.visible, dan.Bubble.text])
 	# S2 (v3 review): the lights panel's prompt must not name the solution before the cage refused.
 	_check(not lights.ActivatedPromptText.to_lower().contains("cut"), "the lights panel's prompt '%s' hands the puzzle its answer" % lights.ActivatedPromptText)
-	await _place(player, NEAR_HOIST)
+	await _place(player, _map(NEAR_HOIST))
 	await _use_panel(cage, player, [])
 	_check(refused.size() == 1 and refusals.size() == 1, "the cage was refused %d / %d times, expected once" % [refused.size(), refusals.size()])
 	if refusals.size() > 0:
 		_check(refusals[0][0] == cage and refusals[0][1] == lights, "the refusal was %s blocked by %s, expected the cage blocked by the work lights" % [refusals[0][0], refusals[0][1]])
 	_check(cage.IsPowered == false and cage.CanInteract == true, "the refused cage is powered %s / usable %s" % [cage.IsPowered, cage.CanInteract])
-	await _place(player, NEAR_HOIST)
+	await _place(player, _map(NEAR_HOIST))
 	_check(hud.PromptText.contains(OVERLOAD_TEXT), "the HUD reads '%s', expected it to contain '%s'" % [hud.PromptText, OVERLOAD_TEXT])
 	_check(lines.count(level.DanRuleLine) == 1, "Dan said the rule line %d times after one refusal (%s)" % [lines.count(level.DanRuleLine), lines])
 	_check(dan.Bubble.visible == false, "Dan's bubble shows under the cage panel's prompt — a bubble loses to a prompt")
-	await _place(player, NEAR_CAGE)
+	await _place(player, _map(NEAR_CAGE))
 	await _step(2)
 	_check(hud.PromptText == "" and dan.Bubble.visible == true and dan.Bubble.text == level.DanRuleLine, "a step back from the panel did not bring the rule line back (prompt '%s', bubble visible %s, text '%s')" % [hud.PromptText, dan.Bubble.visible, dan.Bubble.text])
-	await _place(player, NEAR_HOIST)
+	await _place(player, _map(NEAR_HOIST))
 	await _real_wait(3.1)   # the ≥ 3 s gap between two lines
 	await _use_panel(cage, player, [])
 	_check(refused.size() == 2, "the second attempt was refused %d times in total, expected 2" % refused.size())
@@ -436,7 +455,7 @@ func _run() -> void:
 	_check(pool_shapes.size() == 3, "PatrolPools holds %d zones, expected 3" % pool_shapes.size())
 	for s in pool_shapes:
 		_check(s.disabled == false, "a lamp pool is off while the work lights run")
-	await _place(player, NEAR_LIGHTS)
+	await _place(player, _map(NEAR_LIGHTS))
 	await _use_panel(lights, player, [])
 	_check(lights.IsPowered == false and circuit.Used == 0, "the work lights are still running (powered %s, Used %s)" % [lights.IsPowered, circuit.Used])
 	await _step(3)
@@ -448,7 +467,7 @@ func _run() -> void:
 	await _real_wait(level.DarknessFadeSeconds + FADE_MARGIN)
 	_check(_color_eq(level.Darkness.color, level.DarknessMine), "the drift is %s with the lights off, expected DarknessMine" % level.Darkness.color)
 	var energy_before: float = gs.Energy
-	await _place(player, NEAR_HOIST)
+	await _place(player, _map(NEAR_HOIST))
 	await _use_panel(cage, player, [])
 	_check(cage.IsPowered == true and circuit.Used == 1, "the cage did not start on the freed bus (powered %s, Used %s)" % [cage.IsPowered, circuit.Used])
 	_check(cage.HasDeparted == false, "the cage departed under the hand that started it — the panel's reach overlaps the boarding strip")
@@ -484,7 +503,7 @@ func _run() -> void:
 	await _step(2)
 	_check(level.CurrentStage == STAGE_SURFACE, "after the black beat the stage is %s, expected Surface" % level.CurrentStage)
 	_check(player.global_position.distance_to(level.SurfaceArrival) <= 2.0, "the surface put the hero at %s, expected %s" % [player.global_position, level.SurfaceArrival])
-	_check(_limits(camera) == ROOM_SURFACE_LIMITS, "camera limits %s on the surface, expected %s" % [_limits(camera), ROOM_SURFACE_LIMITS])
+	_check(_limits(camera) == _room_surface_limits(), "camera limits %s on the surface, expected %s" % [_limits(camera), _room_surface_limits()])
 	_check(level.ArmedCheckpoint != null and level.ArmedCheckpoint.Label == "surface", "the armed checkpoint on the surface is %s, expected 'surface'" % level.ArmedCheckpoint)
 	_check(level.ArmedCheckpoint == null or level.ArmedCheckpoint.Room == level.get("SurfaceRoom"), "the surface checkpoint re-applies a room that is not Room_Surface")
 	_check(cutscene.IsPlaying == true and cutscene.LineCount == 5, "the Surface cutscene is not playing (%s / %d lines)" % [cutscene.IsPlaying, cutscene.LineCount])
@@ -500,16 +519,16 @@ func _run() -> void:
 	await _real_wait(level.RespawnDelay + DELAY_MARGIN)
 	await _step(2)
 	_check(is_instance_valid(level) and level.get_instance_id() == level_id, "a KO on the surface reloaded the level")
-	_check(player.IsKnockedOut == false and player.global_position.x >= ROOM_SURFACE_LIMITS[0],
+	_check(player.IsKnockedOut == false and player.global_position.x >= _room_surface_limits()[0],
 		"a KO on the surface put the hero at %s (KO %s), expected back on the surface" % [player.global_position, player.IsKnockedOut])
 
 	# 7. Walking off the surface hands the run to level 1.
-	player.global_position = EXIT_APPROACH
+	player.global_position = _map(EXIT_APPROACH)
 	await _step(2)
 	Input.action_press("move_right")
 	var done: int = await _wait_until(func(): return level.CurrentStage == STAGE_DONE, EXIT_WALK_CAP)
 	Input.action_release("move_right")
-	_check(done >= 0, "walking east from x %.0f never reached the level exit" % EXIT_APPROACH.x)
+	_check(done >= 0, "walking east from x %.0f never reached the level exit" % _map_x(EXIT_APPROACH.x))
 	_check(stages == ["Face", "Drift", "Gas", "Cage", "Held", "Surface", "Done"], "the stage sequence was %s" % [stages])
 	var deadline: int = Time.get_ticks_msec() + SCENE_CHANGE_CAP_MS
 	while Time.get_ticks_msec() < deadline:
@@ -541,12 +560,12 @@ func _run() -> void:
 	dan2.LineShown.connect(func(t: String): lines2.append(t))
 	await _play_out(cutscene2, finished2, "intro 2")
 	level2.get("Patrol").process_mode = Node.PROCESS_MODE_DISABLED
-	await _place(player2, CP_CAGE)
+	await _place(player2, _map(CP_CAGE))
 	lights2.PowerDown()
 	await _step(3)
-	dan2.WarpTo(DAN_BEHIND)
+	dan2.WarpTo(_map(DAN_BEHIND))
 	await _step(2)
-	await _place(player2, HERO_FAR_EDGE)
+	await _place(player2, _map(HERO_FAR_EDGE))
 	cage2.ForcePower()
 	await _step(2)
 	_check(cage2.IsPowered == true and cage2.HasDeparted == false, "the cage departed before the hero stepped in (powered %s, departed %s)" % [cage2.IsPowered, cage2.HasDeparted])

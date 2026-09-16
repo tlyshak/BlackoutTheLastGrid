@@ -7,8 +7,9 @@ extends SceneTree
 #     at the brief's depths: wall pieces just above the wall layer (-39), the floor glow just above
 #     the floor layer (-19);
 #   * placement — SectionBackdrop puts every crop on its mockup pixels: node at the world point of
-#     Pivot (offset -226.4, scale 1.88), texture offset CropOrigin - Pivot in texture px, layer scale
-#     1.88/3; the fan's pivot is the hub, so its texture offset is minus half the texture — the blades
+#     Pivot (offset and scale derived from WorldScale = 1280/680), texture offset CropOrigin -
+#     Pivot in texture px, layer scale WorldScale/3; the fan's pivot is the hub, so its texture
+#     offset is minus half the texture — the blades
 #     turn about their centre;
 #   * motion — the fan's rotation grows frame after frame at TurnsPerSecond; the alarm's schedule is
 #     the pure BlinkAlpha (on for BlinkOnFraction of BlinkPeriod, else BlinkOffAlpha); the lamp's
@@ -26,9 +27,11 @@ const FACE := "res://scenes/v2/levels/Backdrop_Face.tscn"
 const LEVEL := "res://scenes/v2/levels/Level00_Prologue.tscn"
 const OVERLAY_SCRIPT := "res://scripts/levels/BackdropOverlay.cs"
 const ART := "res://assets/art/v2/backgrounds/level0_section1_mineface_r2_"
-const WORLD_SCALE := 1.88
+# One painted section is exactly one room and one camera window at zoom 1.5 (T-V2-07), so the
+# world scale is 1280/680 rather than a pasted number; everything else falls out of it.
+const WORLD_SCALE := 1280.0 / 680.0
 const IMPORT_SCALE := 3.0
-const OFFSET_Y := -226.4           # 300 - 280 * 1.88
+const OFFSET_Y := 300.0 - 280.0 * WORLD_SCALE   # the drawn floor edge on the walk band top
 const Z_WALL_FX := -39             # just above the wall layer (-40)
 const Z_FLOOR_FX := -19            # just above the floor layer (-20)
 const MOTION_BLINK := 1
@@ -106,7 +109,7 @@ func _run() -> void:
 		_check(int(node.Motion) == spec[4], "%s: Motion %s, expected %d" % [name, node.Motion, spec[4]])
 		_check(not node.centered, "%s: centered, expected the crop anchored by its offset" % name)
 		var want_pos: Vector2 = _world(spec[2])
-		_check(node.position.is_equal_approx(want_pos), "%s: at %s, expected the world point of pivot %s = %s" % [name, node.position, spec[2], want_pos])
+		_check(node.position.distance_to(want_pos) <= EPS, "%s: at %s, expected the world point of pivot %s = %s" % [name, node.position, spec[2], want_pos])
 		var want_offset: Vector2 = (spec[1] - spec[2]) * IMPORT_SCALE
 		_check(node.offset.is_equal_approx(want_offset), "%s: offset %s, expected (CropOrigin - Pivot) * %d = %s" % [name, node.offset, IMPORT_SCALE, want_offset])
 		var s: float = WORLD_SCALE / IMPORT_SCALE

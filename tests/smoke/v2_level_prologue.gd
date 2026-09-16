@@ -1,6 +1,8 @@
 extends "res://tests/smoke/level_prologue.gd"
 # Smoke: the v2 prologue plays its first half exactly like v1 (T-V2-01, GAME_DESIGN §6a — the same
-# story, the same map, the same balance). Every step and assertion of level_prologue.gd runs
+# story, the same beats, the same balance), only on a map whose mine rooms were compressed to one
+# screen each (T-V2-07): _map_x() below carries every level x of level_prologue.gd across, so the
+# same steps land on the same props. Every step and assertion of level_prologue.gd runs
 # unchanged against scenes/v2/Main.tscn → scenes/v2/levels/Level00_Prologue.tscn: boot through
 # Main, intro, the first room, jam, charge, blast, dark, the wave of two v2 guards, two pickups,
 # Dan led to the timber. Only the scene paths and the PASS-line name differ — and the first room's
@@ -16,6 +18,15 @@ const V2_MAIN_PATH := "res://scenes/v2/Main.tscn"
 const V2_PROLOGUE_PATH := "res://scenes/v2/levels/Level00_Prologue.tscn"
 const CRATES_GONE := ["Crate", "PH_Crate_Stack"]   # v2 deliberately without (author's playtest 2026-09-12)
 const V2_LIMIT_TOP := -80   # the v2 mine rooms start 80 px above v1's: the painted beam, fan and lamps sit in the window (T-V2-05)
+# T-V2-07 squeezed the three mine rooms from 2880 px to 1280 px each so that one room is exactly one
+# painted section and one screenful at zoom 1.5 — the camera no longer scrolls inside a room. The
+# surface room was already one section and keeps its width, so it is only shifted left.
+const V2_MINE_OLD_W := 2880.0
+const V2_MINE_NEW_W := 1280.0
+const V2_MINE_K := V2_MINE_NEW_W / V2_MINE_OLD_W   # 4/9
+const V2_MINE_ROOMS := 2.0                          # index of the last compressed room; past it the map is the surface
+const V2_SURFACE_OLD_X := 8640.0
+const V2_SURFACE_NEW_X := 3840.0
 
 func _name() -> String:
 	return V2_NAME
@@ -29,14 +40,23 @@ func _prologue_path() -> String:
 func _limit_top() -> int:
 	return V2_LIMIT_TOP
 
+# The v1 map squeezed into the v2 one: each mine room is scaled about its own left edge, so a point
+# keeps the room it was in and its share of that room, and everything from the surface on is carried
+# along by the total the three rooms lost.
+func _map_x(x: float) -> float:
+	if x >= V2_SURFACE_OLD_X:
+		return V2_SURFACE_NEW_X + (x - V2_SURFACE_OLD_X)
+	var room: float = minf(V2_MINE_ROOMS, floorf(x / V2_MINE_OLD_W))
+	return room * V2_MINE_NEW_W + (x - room * V2_MINE_OLD_W) * V2_MINE_K
+
 # v2 first room without the crate row: nothing blocks the walk where v1's crate stood, the jump
 # hint still appears on the way and completes on a jump.
 func _check_crate(level: Node, player: Node) -> void:
 	for name in CRATES_GONE:
 		_check(level.get_node_or_null(name) == null, "the v2 prologue still carries '%s' — the author asked for the first room without the crate stack" % name)
 	for depth in [player.FloorTop + BAND_MARGIN, 450.0, player.FloorBottom - BAND_MARGIN]:
-		var reached: float = await _walk_right(player, Vector2(BEFORE_CRATE.x, depth))
-		_check(reached >= CRATE_CLEAR_X, "walking right at Y %.0f the hero stopped at x %.0f, expected past %.0f on foot (v2 has no crate at x %.0f)" % [depth, reached, CRATE_CLEAR_X, CRATE_X])
+		var reached: float = await _walk_right(player, Vector2(_map_x(BEFORE_CRATE.x), depth))
+		_check(reached >= _map_x(CRATE_CLEAR_X), "walking right at Y %.0f the hero stopped at x %.0f, expected past %.0f on foot (v2 has no crate at x %.0f)" % [depth, reached, _map_x(CRATE_CLEAR_X), _map_x(CRATE_X)])
 	_release_all()
 	var hint: Node = level.get("JumpPrompt")
 	_check(hint != null and hint.IsShown == true, "the jump hint never appeared on the walk through the first room")

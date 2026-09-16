@@ -3,8 +3,11 @@ extends SceneTree
 # the green button blinks, the belt moves, the current arcs; a running belt is a gate the lever
 # stops). Headless has no renderer, so this asserts the data, the motion and the mechanic:
 #   * placement — every moving piece sits on the very pixels the painted room draws it at. The test
-#     recomputes each one from the mockup coordinates through the room's own placement (Backdrop_Drift
-#     at level x 2880, SectionX 842.4, OffsetY -226.4, WorldScale 1.88, ImportScale 3): the belt's
+#     recomputes each one from the mockup coordinates through the room's own placement. Since the
+#     map was compressed to one room = one painted section, the ventilation mockup is shown whole
+#     and unfilled: Backdrop_Drift sits at level x 1280 with SectionX 0, WorldScale 1280/680 (a
+#     680 px mockup is exactly the 1280 world px of the camera window at zoom 1.5) and the derived
+#     OffsetY = 300 - 280 * WorldScale, ImportScale 3. Every number below is derived from those: the belt's
 #     chevron tile over the drawn belt surface (mockup 202,307 … 430,356), the running/stopped
 #     indicator crops at their crop origin, the lever's hinge on the switch node's origin, and the
 #     sparks overlay of Backdrop_Drift on the live cable's discharge;
@@ -29,11 +32,12 @@ const MAX_FRAMES := 900
 const LEVEL := "res://scenes/v2/levels/Level00_Prologue.tscn"
 const ART := "res://assets/art/v2/backgrounds/level0_section2_ventilation_r2_"
 const OVERLAY_SCRIPT := "res://scripts/levels/BackdropOverlay.cs"
-# Backdrop_Drift's placement (scenes/v2/levels/Backdrop_Drift.tscn and its node in the level).
-const ROOM_X := 2880.0
-const SECTION_X := 842.4
-const OFFSET_Y := -226.4          # 300 - 280 * 1.88
-const WORLD_SCALE := 1.88
+# Backdrop_Drift's placement (scenes/v2/levels/Backdrop_Drift.tscn and its node in the level):
+# one room = one painted section, so the room is the mockup's own width and nothing is filled.
+const ROOM_X := 1280.0            # the level x of Backgrounds/Backdrop_Drift = Room_Drift.Rect.x
+const SECTION_X := 0.0            # the section starts at the room's left edge
+const WORLD_SCALE := 1280.0 / 680.0    # 680 mockup px = 1280 world px = the window at zoom 1.5
+const OFFSET_Y := 300.0 - 280.0 * WORLD_SCALE   # SectionBackdrop.OffsetY: mockup y 280 on the band's top
 const IMPORT_SCALE := 3.0
 const LAYER_SCALE := WORLD_SCALE / IMPORT_SCALE
 # The drawn conveyor, in mockup px (level0_section2_ventilation_r2.svg).
@@ -53,6 +57,9 @@ const Z_FX := -19                 # just above the painted floor layer (-20)
 const MOTION_BLINK := 1
 const MOTION_FLICKER := 2
 const EPS := 0.05
+# Placements are compared with an absolute sub-pixel tolerance, not Vector2.is_equal_approx: a
+# .tscn stores positions rounded to two decimals, and is_equal_approx is a *relative* epsilon
+# (1e-5 * |value|) that is tighter than that rounding once the coordinates are level-space px.
 const SCROLL_FRAMES := 20
 const SETTLE_FRAMES := 4
 
@@ -88,6 +95,10 @@ func _step(frames: int) -> void:
 
 func _approx(a: float, b: float, eps: float = EPS) -> bool:
 	return absf(a - b) <= eps
+
+# Same, for a placement: both axes within EPS world px of the point the painting draws at.
+func _at(got: Vector2, want: Vector2, eps: float = EPS) -> bool:
+	return absf(got.x - want.x) <= eps and absf(got.y - want.y) <= eps
 
 # World point of a mockup point of the drift room's section.
 func _world(mockup: Vector2) -> Vector2:
@@ -140,7 +151,7 @@ func _run() -> void:
 	_check(belt != null, "ConveyorLine has no Belt sprite")
 	if belt != null:
 		var want: Vector2 = _world(BELT_FROM)
-		_check(belt.global_position.is_equal_approx(want), "Belt at %s, expected the drawn belt's top-left %s" % [belt.global_position, want])
+		_check(_at(belt.global_position, want), "Belt at %s, expected the drawn belt's top-left %s" % [belt.global_position, want])
 		_check(not belt.centered and belt.region_enabled, "Belt: expected centered=false, region_enabled=true")
 		_check(belt.texture_repeat == CanvasItem.TEXTURE_REPEAT_ENABLED, "Belt.texture_repeat=%s, expected ENABLED — the one-period tile would not repeat" % belt.texture_repeat)
 		_check(_approx(belt.scale.x, LAYER_SCALE, 0.001) and _approx(belt.scale.y, LAYER_SCALE, 0.001), "Belt scale=%s, expected %.4f" % [belt.scale, LAYER_SCALE])
@@ -151,7 +162,7 @@ func _run() -> void:
 			_check(belt.texture.get_size() == TILE_SIZE * IMPORT_SCALE, "the belt tile is %s, expected one chevron period %s" % [belt.texture.get_size(), TILE_SIZE * IMPORT_SCALE])
 			_check(_approx(line.Period, TILE_SIZE.x * IMPORT_SCALE), "ConveyorLine.Period=%.2f, expected the tile width %.2f" % [line.Period, TILE_SIZE.x * IMPORT_SCALE])
 		var drawn: Vector2 = belt.region_rect.size * belt.scale
-		_check(drawn.is_equal_approx(BELT_SIZE * WORLD_SCALE), "the belt region draws %s, expected the drawn belt surface %s" % [drawn, BELT_SIZE * WORLD_SCALE])
+		_check(_at(drawn, BELT_SIZE * WORLD_SCALE), "the belt region draws %s, expected the drawn belt surface %s" % [drawn, BELT_SIZE * WORLD_SCALE])
 
 	# 3. Indicators: the green crop blinks while the belt runs, the red one is hidden.
 	var green: Sprite2D = line.RunIndicators
@@ -162,7 +173,7 @@ func _run() -> void:
 		_check(node != null, "ConveyorLine has no %s sprite" % entry[0])
 		if node == null:
 			continue
-		_check(node.global_position.is_equal_approx(lights_at), "%s at %s, expected the crop's world origin %s" % [entry[0], node.global_position, lights_at])
+		_check(_at(node.global_position, lights_at), "%s at %s, expected the crop's world origin %s" % [entry[0], node.global_position, lights_at])
 		_check(not node.centered and _approx(node.scale.x, LAYER_SCALE, 0.001), "%s: expected centered=false and scale %.4f" % [entry[0], LAYER_SCALE])
 		_check(node.z_index == Z_FX, "%s z_index=%d, expected %d" % [entry[0], node.z_index, Z_FX])
 		var path: String = node.texture.resource_path if node.texture != null else ""
@@ -180,12 +191,12 @@ func _run() -> void:
 
 	# 4. The lever: its hinge on the switch's origin, upright while the belt runs.
 	var lever: Sprite2D = sw.Lever
-	_check(sw.global_position.is_equal_approx(_world(SWITCH_FOOT)), "ConveyorSwitch at %s, expected the drawn post's foot %s" % [sw.global_position, _world(SWITCH_FOOT)])
+	_check(_at(sw.global_position, _world(SWITCH_FOOT)), "ConveyorSwitch at %s, expected the drawn post's foot %s" % [sw.global_position, _world(SWITCH_FOOT)])
 	_check(sw.collision_layer == 32 and sw.collision_mask == 0 and not sw.monitoring,
 		"ConveyorSwitch is layer %d mask %d monitoring %s, expected the Interactable contract (32 / 0 / false)" % [sw.collision_layer, sw.collision_mask, sw.monitoring])
 	_check(lever != null, "ConveyorSwitch has no Lever sprite")
 	if lever != null:
-		_check(lever.global_position.is_equal_approx(_world(LEVER_HINGE)), "Lever at %s, expected the drawn hinge %s" % [lever.global_position, _world(LEVER_HINGE)])
+		_check(_at(lever.global_position, _world(LEVER_HINGE)), "Lever at %s, expected the drawn hinge %s" % [lever.global_position, _world(LEVER_HINGE)])
 		var want_offset: Vector2 = (LEVER_CROP - LEVER_HINGE) * IMPORT_SCALE
 		_check(lever.offset.is_equal_approx(want_offset), "Lever offset %s, expected (crop - hinge) * %d = %s — the handle would not turn about its hinge" % [lever.offset, IMPORT_SCALE, want_offset])
 		_check(not lever.centered and _approx(lever.scale.x, LAYER_SCALE, 0.001), "Lever: expected centered=false and scale %.4f" % LAYER_SCALE)
@@ -236,7 +247,7 @@ func _run() -> void:
 	var sparks: Sprite2D = level.get_node_or_null("Backgrounds/Backdrop_Drift/Sparks")
 	_check(sparks != null, "Backgrounds/Backdrop_Drift/Sparks is missing")
 	if sparks != null:
-		_check(sparks.global_position.is_equal_approx(_world(SPARKS_CROP)), "Sparks at %s, expected the crop's world origin %s" % [sparks.global_position, _world(SPARKS_CROP)])
+		_check(_at(sparks.global_position, _world(SPARKS_CROP)), "Sparks at %s, expected the crop's world origin %s" % [sparks.global_position, _world(SPARKS_CROP)])
 		_check(int(sparks.Motion) == MOTION_FLICKER, "Sparks.Motion=%s, expected Flicker (%d)" % [sparks.Motion, MOTION_FLICKER])
 		_check(not sparks.NeedsPower, "Sparks.NeedsPower is on — a torn live cable does not stop arcing with the lamp string")
 		var lo := 2.0

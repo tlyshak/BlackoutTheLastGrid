@@ -3,7 +3,7 @@
 ; The belt line of the v2 ventilation room (T-V2-06). The three sprites show the parts of the
 ; painted conveyor the game moves, cut out of level0_section2_ventilation_r2_floor.svg by
 ; tools/derive_section2_r2.py; their positions here are the room's own placement (backdrop at
-; level x 2880, SectionX 842.4, OffsetY -226.4, WorldScale 1.88, ImportScale 3), relative to this
+; level x 1280, SectionX 0, OffsetY -227.06, WorldScale 1280/680, ImportScale 3), relative to this
 ; node's origin at the middle of the drawn conveyor on the walk band. tests/smoke/v2_conveyor.gd
 ; recomputes every one of them from the mockup coordinates.
 [ext_resource type="Script" path="res://scripts/props/ConveyorLine.cs" id="1_line"]
@@ -13,7 +13,7 @@
 [ext_resource type="Script" path="res://scripts/levels/BackdropOverlay.cs" id="5_overlay"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_belt"]
-size = Vector2(473.76, 300)
+size = Vector2(474.35, 300)
 
 [node name="ConveyorLine" type="StaticBody2D" node_paths=PackedStringArray("BlockerShape", "Belt", "RunIndicators", "StopIndicators")]
 collision_layer = 1
@@ -30,8 +30,8 @@ shape = SubResource("RectangleShape2D_belt")
 [node name="Belt" type="Sprite2D" parent="."]
 texture_repeat = 2
 z_index = -19
-position = Vector2(-214.32, -99.24)
-scale = Vector2(0.626667, 0.626667)
+position = Vector2(-214.59, -99.18)
+scale = Vector2(0.6274509803921569, 0.6274509803921569)
 texture = ExtResource("2_belt")
 centered = false
 region_enabled = true
@@ -39,8 +39,8 @@ region_rect = Rect2(0, 0, 684, 147)
 
 [node name="RunLights" type="Sprite2D" parent="."]
 z_index = -19
-position = Vector2(-376, -165.04)
-scale = Vector2(0.626667, 0.626667)
+position = Vector2(-376.47, -165.06)
+scale = Vector2(0.6274509803921569, 0.6274509803921569)
 texture = ExtResource("3_green")
 centered = false
 script = ExtResource("5_overlay")
@@ -55,7 +55,7 @@ BlinkOffAlpha = 0.18
 [node name="StopLights" type="Sprite2D" parent="."]
 visible = false
 z_index = -19
-position = Vector2(-376, -165.04)
-scale = Vector2(0.626667, 0.626667)
+position = Vector2(-376.47, -165.06)
+scale = Vector2(0.6274509803921569, 0.6274509803921569)
 texture = ExtResource("4_red")
 centered = false

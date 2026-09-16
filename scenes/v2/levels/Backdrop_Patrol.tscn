@@ -1,19 +1,16 @@
-[gd_scene load_steps=7 format=3 uid="uid://bgngpp8wg67s7"]
+[gd_scene load_steps=5 format=3 uid="uid://bgngpp8wg67s7"]
 
 [ext_resource type="PackedScene" uid="uid://b2p2i0v3m0xeh" path="res://scenes/v2/levels/SectionBackdrop.tscn" id="1_base"]
 [ext_resource type="Texture2D" uid="uid://eycnsxywv3jf" path="res://assets/art/v2/backgrounds/level0_section1_mineface_r2_back.svg" id="2_back"]
 [ext_resource type="Texture2D" uid="uid://cxff3gxvuydx1" path="res://assets/art/v2/backgrounds/level0_section3_exit_mid.svg" id="3_mid"]
 [ext_resource type="Texture2D" uid="uid://jvmifwwwn16a" path="res://assets/art/v2/backgrounds/level0_section3_exit_floor.svg" id="4_floor"]
-[ext_resource type="Texture2D" uid="uid://brtsnguhx03xb" path="res://assets/art/v2/backgrounds/level0_section1_mineface_r2_mid_fill.svg" id="5_mid_fill"]
-[ext_resource type="Texture2D" uid="uid://k214180wok15" path="res://assets/art/v2/backgrounds/level0_section1_mineface_r2_floor_fill.svg" id="6_floor_fill"]
 
 [node name="Backdrop_Patrol" instance=ExtResource("1_base")]
 BackTexture = ExtResource("2_back")
 MidTexture = ExtResource("3_mid")
 FloorTexture = ExtResource("4_floor")
-LeftFillTexture = ExtResource("5_mid_fill")
-FloorFillTexture = ExtResource("6_floor_fill")
-LeftFillSlice = Vector2(180, 280)
-FloorFillSlice = Vector2(80, 180)
-SectionX = 1684.8
-FillFrom = -73
+WorldScale = 1.8823529411764706
+SectionX = 0.0
+RoomWidth = 1280
+FillFrom = 0.0
+FillTo = 1280

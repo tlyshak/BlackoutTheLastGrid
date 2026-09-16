@@ -14,6 +14,10 @@ extends SceneTree
 # the face exit); ends at Stage.Drift with Dan led to the timber. Dan is ahead of the hero at every
 # checkpoint. The rest of the level is tests/smoke/level_prologue_escape.gd and
 # tests/smoke/level_prologue_patrol.gd (10 560 px do not fit under the runner's 60 s timeout).
+# Every level x below is written in the v1 map and passed through _map_x()/_map() so that the same
+# steps land on the same props in a scene set whose map has been squeezed — v2 compressed its mine
+# rooms to one screen each (T-V2-07) and overrides the hook; here the hook is the identity, so the
+# v1 run is byte-for-byte the one it always was.
 # Needs physics frames.
 # Run: godot --headless --path . -s tests/smoke/level_prologue.gd
 
@@ -35,16 +39,19 @@ const STAGE_BLAST := 3
 const STAGE_DARK := 4
 const STAGE_FIGHT := 5
 const STAGE_DRIFT := 6
-# Camera limits of the rooms and the wave lock: x from the map, top from _limit_top() (0 in v1;
-# the v2 mine rooms start at -80 so the painted beam, fan and lamps are in the window), bottom 1080.
+# Camera limits of the rooms and the wave lock: x from the map through _map_x(), top from
+# _limit_top() (0 in v1; the v2 mine rooms start at -80 so the painted beam, fan and lamps are in
+# the window), bottom 1080. LevelBase and WaveSpawner round the rect to whole pixels before they
+# assign Camera2D's int limits, so the expectation is rounded the same way — a compressed map can
+# put a room edge on a fraction.
 func _room_face_limits() -> Array:
-	return [0, _limit_top(), 2880, 1080]
+	return [roundi(_map_x(0)), _limit_top(), roundi(_map_x(2880)), 1080]
 
 func _room_drift_limits() -> Array:
-	return [2880, _limit_top(), 5760, 1080]
+	return [roundi(_map_x(2880)), _limit_top(), roundi(_map_x(5760)), 1080]
 
 func _wave_lock_limits() -> Array:
-	return [960, _limit_top(), 2880, 1080]
+	return [roundi(_map_x(960)), _limit_top(), roundi(_map_x(2880)), 1080]
 const LINE_COUNTS := [7, 3, 2, 2, 8, 5]   # intro / charge / blast / guards / held / surface
 # Segment 0.
 const HERO_START := Vector2(200, 480)
@@ -88,8 +95,9 @@ const PICKUP_PROMPT := "E: Take the bank"
 const BUBBLE_CAP := 30
 const DAN_ARRIVE_CAP := 300
 const RESPAWN_MARGIN := 0.4          # seconds on top of LevelBase.RespawnDelay for the soft respawn
-const LINE_WALK_MIN := 200.0        # px of walk a route-point line gets before a prop prompt can hide its bubble (~0.9 s)
+const LINE_WALK_MIN := 200.0        # px of walk a route-point line gets before a prop prompt can hide its bubble (~0.9 s in the v1 map; _map_x() squeezes it with the map so a compressed room is judged by its own scale)
 const CP_DRIFT := Vector2(2900, 450)
+const MAP_EPS := 0.05               # the compressed map is stored in the scene rounded to two decimals, so a mapped point is compared near-equal rather than exactly
 
 # The scene set under test. A v2 script (tests/smoke/v2_level_prologue.gd) extends this one and overrides
 # these three to run the same steps against scenes/v2/ — the v1 constants stay the defaults.
@@ -105,6 +113,14 @@ func _prologue_path() -> String:
 # Top of the mine rooms' camera limits (RoomBounds.Rect.position.y); v2 overrides it.
 func _limit_top() -> int:
 	return 0
+
+# A level x of the v1 map, in the map of the scene set under test. v2 compressed its mine rooms
+# (T-V2-07), so its twin overrides this; the identity here keeps v1 byte-for-byte the same run.
+func _map_x(x: float) -> float:
+	return x
+
+func _map(p: Vector2) -> Vector2:
+	return Vector2(_map_x(p.x), p.y)
 
 var _started := false
 var _frames := 0
@@ -267,17 +283,17 @@ func _check_crate(level: Node, player: Node) -> void:
 		_check(ctop <= player.FloorTop and cbottom >= player.FloorBottom,
 			"the crate blocks Y %.0f..%.0f, expected the whole walk band" % [ctop, cbottom])
 	for crate_depth in [player.FloorTop + BAND_MARGIN, 450.0, player.FloorBottom - BAND_MARGIN]:
-		var blocked: float = await _walk_right(player, Vector2(BEFORE_CRATE.x, crate_depth))
-		_check(blocked <= CRATE_BLOCK_MAX_X, "walking right at Y %.0f the hero reached x %.0f, past the crate at x %.0f" % [crate_depth, blocked, CRATE_X])
+		var blocked: float = await _walk_right(player, Vector2(_map_x(BEFORE_CRATE.x), crate_depth))
+		_check(blocked <= _map_x(CRATE_BLOCK_MAX_X), "walking right at Y %.0f the hero reached x %.0f, past the crate at x %.0f" % [crate_depth, blocked, _map_x(CRATE_X)])
 	_release_all()
-	player.global_position = BEFORE_CRATE
+	player.global_position = _map(BEFORE_CRATE)
 	await _step(2)
 	Input.action_press("move_right")
 	await _tap("jump")
 	await _step(JUMP_CAP)
 	Input.action_release("move_right")
 	await _step(2)
-	_check(player.global_position.x >= CRATE_CLEAR_X, "jumping the crate the hero only reached x %.0f, expected past %.0f" % [player.global_position.x, CRATE_CLEAR_X])
+	_check(player.global_position.x >= _map_x(CRATE_CLEAR_X), "jumping the crate the hero only reached x %.0f, expected past %.0f" % [player.global_position.x, _map_x(CRATE_CLEAR_X)])
 	_release_all()
 
 func _run() -> void:
@@ -348,7 +364,7 @@ func _run() -> void:
 	_check(cutscene.IsPlaying == true and cutscene.CurrentLine == 0, "intro: Cutscene IsPlaying=%s CurrentLine=%s, expected true / 0" % [cutscene.IsPlaying, cutscene.CurrentLine])
 	_check(player.process_mode == Node.PROCESS_MODE_DISABLED, "intro: the hero is not frozen during the cutscene")
 	_check(hud.PromptText == "", "intro: HUD prompt '%s' during the cutscene, expected hidden" % hud.PromptText)
-	_check(player.position == HERO_START, "hero at %s at boot, expected %s" % [player.position, HERO_START])
+	_check(player.position.distance_to(_map(HERO_START)) <= MAP_EPS, "hero at %s at boot, expected %s" % [player.position, _map(HERO_START)])
 	_check(_limits(camera) == _room_face_limits(), "camera limits %s at boot, expected %s (Room_Face)" % [_limits(camera), _room_face_limits()])
 	_check(is_equal_approx(player.FloorTop, 300.0) and is_equal_approx(player.FloorBottom, 600.0),
 		"the hero's floor band is %s..%s, expected 300..600" % [player.FloorTop, player.FloorBottom])
@@ -357,8 +373,8 @@ func _run() -> void:
 	_check(level.WorkLamps != null and level.WorkLamps.visible == true, "the station lighting is not on at boot")
 	_check(dan.collision_layer == 0, "Dan's collision_layer is %d, expected 0" % dan.collision_layer)
 	_check(dan.get_node_or_null("Hurtbox") == null, "Dan has a Hurtbox; he must never be hittable")
-	_check(dan.global_position.distance_to(DAN_START) <= 2.0 and dan.global_position.x > CRATE_X,
-		"Dan is at %s during the intro, expected %s — past the crate he cannot jump" % [dan.global_position, DAN_START])
+	_check(dan.global_position.distance_to(_map(DAN_START)) <= 2.0 and dan.global_position.x > _map_x(CRATE_X),
+		"Dan is at %s during the intro, expected %s — past the crate he cannot jump" % [dan.global_position, _map(DAN_START)])
 	_check(dan.CurrentStateName == "Wait", "Dan is in '%s' during the intro, expected 'Wait'" % dan.CurrentStateName)
 	_check(blast.monitoring == false, "CaveIn_Blast is monitoring; the blast must be scripted only")
 	_check(blast.IsTriggered == false and blast.HasCollapsed == false, "the blast fired at boot")
@@ -414,7 +430,7 @@ func _run() -> void:
 
 	# 4. Segment 0: the hints, the crate at three depths, the jump.
 	var hint: Node = level.get("MovePrompt")
-	await _place(player, Vector2(420, 450))
+	await _place(player, _map(Vector2(420, 450)))
 	_check(hint != null and hint.IsShown == true, "the move hint never appeared where the hero walks")
 	await _wait_until(func(): return lines.has(level.DanMoveLine), BUBBLE_CAP)
 	_check(lines.has(level.DanMoveLine), "Dan did not say the move line (%s)" % [lines])
@@ -422,12 +438,12 @@ func _run() -> void:
 
 	# 5. The jam blocks the drift at every depth before the blast; the charge panel is reachable.
 	for depth in [player.FloorTop + BAND_MARGIN, 450.0, player.FloorBottom - BAND_MARGIN]:
-		var reached: float = await _walk_right(player, Vector2(JAM_APPROACH.x, depth))
-		_check(reached <= JAM_X - BLOCK_MARGIN, "walking right at Y %.0f the hero reached x %.0f, past the jam at x %.0f — the drift is open before the blast" % [depth, reached, JAM_X])
+		var reached: float = await _walk_right(player, Vector2(_map_x(JAM_APPROACH.x), depth))
+		_check(reached <= _map_x(JAM_X) - BLOCK_MARGIN, "walking right at Y %.0f the hero reached x %.0f, past the jam at x %.0f — the drift is open before the blast" % [depth, reached, _map_x(JAM_X)])
 	_release_all()
 	_check(blast.IsTriggered == false and level.CurrentStage == STAGE_FACE, "walking up to the jam set the blast off (stage %s)" % level.CurrentStage)
 	await _wait_until(func(): return dan.IsAtLeadTarget, DAN_ARRIVE_CAP)
-	await _place(player, NEAR_CHARGE)
+	await _place(player, _map(NEAR_CHARGE))
 	_check(hud.PromptText == "E: " + charge.PromptText, "at the motor the HUD reads '%s', expected 'E: %s'" % [hud.PromptText, charge.PromptText])
 	await _wait_until(func(): return lines.has(level.DanChargeLine), BUBBLE_CAP)
 	_check(lines.has(level.DanChargeLine), "Dan did not say the motor line when the hero reached him (%s)" % [lines])
@@ -462,9 +478,9 @@ func _run() -> void:
 	if collapse_sample.size() == 1:
 		_check(collapse_sample[0][0] == Node.PROCESS_MODE_DISABLED, "the roof came down on a hero who was not frozen")
 		var left_edge: float = collapse_sample[0][1] - HERO_HALF_W
-		_check(left_edge > SEAL_BLOCKER_END and collapse_sample[0][1] + HERO_HALF_W < JAM_BLOCKER_START,
+		_check(left_edge > _map_x(SEAL_BLOCKER_END) and collapse_sample[0][1] + HERO_HALF_W < _map_x(JAM_BLOCKER_START),
 			"at the collapse the hero stood at x %.0f (left edge %.0f); expected clear of the seal (ends %.0f) and short of the jam (%.0f)"
-			% [collapse_sample[0][1], left_edge, SEAL_BLOCKER_END, JAM_BLOCKER_START])
+			% [collapse_sample[0][1], left_edge, _map_x(SEAL_BLOCKER_END), _map_x(JAM_BLOCKER_START)])
 	_check(blast.IsTriggered == true and blast.monitoring == false, "the blast ran through a walk trigger (monitoring %s)" % blast.monitoring)
 	_check(trigger.monitoring == false, "the props trigger is still armed after the blast")
 	_check(level.CurrentStage == STAGE_BLAST, "after the blast the stage is %s, expected Blast (%d)" % [level.CurrentStage, STAGE_BLAST])
@@ -486,24 +502,24 @@ func _run() -> void:
 	_check(dan.global_position.x > player.global_position.x, "Dan (x %.0f) is behind the hero (x %.0f) after the blast" % [dan.global_position.x, player.global_position.x])
 	# The seal is solid at every depth; the jam is open.
 	for depth in [player.FloorTop + BAND_MARGIN, 450.0, player.FloorBottom - BAND_MARGIN]:
-		player.global_position = Vector2(1450, depth)
+		player.global_position = Vector2(_map_x(1450), depth)
 		await _step(2)
 		Input.action_press("move_left")
 		await _step(WALK_FRAMES)
 		Input.action_release("move_left")
 		await _step(2)
-		_check(player.global_position.x - HERO_HALF_W >= SEAL_BLOCKER_END - 1.0,
-			"walking left at Y %.0f the hero got to x %.0f, into the sealed roof (blocker ends at %.0f)" % [depth, player.global_position.x, SEAL_BLOCKER_END])
+		_check(player.global_position.x - HERO_HALF_W >= _map_x(SEAL_BLOCKER_END) - 1.0,
+			"walking left at Y %.0f the hero got to x %.0f, into the sealed roof (blocker ends at %.0f)" % [depth, player.global_position.x, _map_x(SEAL_BLOCKER_END)])
 	for depth in [player.FloorTop + BAND_MARGIN, player.FloorBottom - BAND_MARGIN]:
-		var open: float = await _walk_right_frames(player, Vector2(JAM_OPEN_FROM.x, depth), JAM_OPEN_FRAMES)
-		_check(open >= JAM_PASS_X, "with the jam cleared the hero only reached x %.0f at Y %.0f, expected past %.0f" % [open, depth, JAM_PASS_X])
+		var open: float = await _walk_right_frames(player, Vector2(_map_x(JAM_OPEN_FROM.x), depth), JAM_OPEN_FRAMES)
+		_check(open >= _map_x(JAM_PASS_X), "with the jam cleared the hero only reached x %.0f at Y %.0f, expected past %.0f" % [open, depth, _map_x(JAM_PASS_X)])
 	_release_all()
 
 	# 8. Segment 1: the dark checkpoint, the head lamp, the first outlet.
-	await _place(player, CP_DARK)
+	await _place(player, _map(CP_DARK))
 	_check(level.ArmedCheckpoint != null and level.ArmedCheckpoint.Label == "dark", "the checkpoint past the jam is %s, expected 'dark'" % level.ArmedCheckpoint)
 	_check(level.CurrentStage == STAGE_DARK, "at Checkpoint_Dark the stage is %s, expected Dark (%d)" % [level.CurrentStage, STAGE_DARK])
-	await _place(player, FLASH_HINT)
+	await _place(player, _map(FLASH_HINT))
 	var flash_hint: Node = level.get("FlashlightPrompt")
 	_check(flash_hint != null and flash_hint.IsShown == true, "the head-lamp hint never appeared")
 	await _wait_until(func(): return lines.has(level.DanLampLine), BUBBLE_CAP)
@@ -515,7 +531,7 @@ func _run() -> void:
 	lamp.SetOn(false)
 	gs.Energy = OUTLET_ENERGY
 	var outlet: Node = level.get_node("Outlet_1")
-	await _place(player, OUTLET_REACH)
+	await _place(player, _map(OUTLET_REACH))
 	outlet.Begin(player)
 	await _step(4)
 	_check(is_equal_approx(gs.Energy, OUTLET_ENERGY + OUTLET_AMOUNT), "the outlet left the energy at %s, expected %s" % [gs.Energy, OUTLET_ENERGY + OUTLET_AMOUNT])
@@ -524,12 +540,12 @@ func _run() -> void:
 	# 9. The wave: two guards behind the Guards cutscene, lit by their own hand lamp.
 	var started: Array = []
 	spawner.WaveStarted.connect(func(): started.append(true))
-	player.global_position = BEFORE_WAVE
+	player.global_position = _map(BEFORE_WAVE)
 	await _step(2)
 	Input.action_press("move_right")
 	var hit_wave: int = await _wait_until(func(): return started.size() > 0, WAVE_CAP)
 	Input.action_release("move_right")
-	_check(hit_wave >= 0, "walking right from x %.0f never started the wave" % BEFORE_WAVE.x)
+	_check(hit_wave >= 0, "walking right from x %.0f never started the wave" % _map_x(BEFORE_WAVE.x))
 	await _step(3)
 	_check(level.CurrentStage == STAGE_FIGHT, "when the wave starts the stage is %s, expected Fight (%d)" % [level.CurrentStage, STAGE_FIGHT])
 	_check(cutscene.IsPlaying == true and cutscene.LineCount == LINE_COUNTS[3], "the Guards cutscene is not playing")
@@ -572,7 +588,9 @@ func _run() -> void:
 		_check(not lines.slice(said_before_ko).has(call), "Dan called '%s' at the player mid-fight after the respawn (%s)" % [call, lines.slice(said_before_ko)])
 	var charge_prompt_x: float = charge.global_position.x + charge.get_node("CollisionShape2D").position.x - charge.get_node("CollisionShape2D").shape.radius - player.get("InteractionArea").get_node("CollisionShape2D").shape.radius
 	var charge_line_x: float = route.get_node("WP_charge").global_position.x - dan.HeroCloseDistance
-	_check(charge_prompt_x - charge_line_x >= LINE_WALK_MIN, "the motor line fires at x %.0f and the charge panel's prompt at x %.0f: %.0f px of walk for the bubble, expected >= %.0f (the prompt would hide it the moment it is said)" % [charge_line_x, charge_prompt_x, charge_prompt_x - charge_line_x, LINE_WALK_MIN])
+	# The gap between the two is a distance along x, so the bar it has to clear travels with the map.
+	var line_walk_min: float = _map_x(LINE_WALK_MIN)
+	_check(charge_prompt_x - charge_line_x >= line_walk_min, "the motor line fires at x %.0f and the charge panel's prompt at x %.0f: %.0f px of walk for the bubble, expected >= %.0f (the prompt would hide it the moment it is said)" % [charge_line_x, charge_prompt_x, charge_prompt_x - charge_line_x, line_walk_min])
 
 	guards[0].TakeDamage(5.0, 0.0, false, 0)
 	await _step(3)
@@ -622,7 +640,7 @@ func _run() -> void:
 
 	# 11. On into the drift: Dan is led at least to the timber.
 	await _wait_until(func(): return dan.IsAtLeadTarget, DAN_ARRIVE_CAP)
-	await _place(player, CP_DRIFT)
+	await _place(player, _map(CP_DRIFT))
 	_check(level.CurrentStage == STAGE_DRIFT, "at Checkpoint_Drift the stage is %s, expected Drift (%d)" % [level.CurrentStage, STAGE_DRIFT])
 	_check(_limits(camera) == _room_drift_limits(), "camera limits %s in Room_Drift, expected %s" % [_limits(camera), _room_drift_limits()])
 	_check(dan.LeadTarget == route.get_node("WP_timber").global_position, "in the drift Dan's point is %s, expected WP_timber" % dan.LeadTarget)
