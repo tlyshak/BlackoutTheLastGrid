@@ -248,7 +248,7 @@ Look hardest where the change meets everything else. These cut across the checkl
   `GD.PushError` at runtime, no compile error). Check every `GetNode` string and every
   `TransitionTo` argument against the actual node tree.
 - **Signal wiring done in one scene but not others.** `EnergyChanged` connected in
-  `TestRoom.tscn`, not in the level scenes; a prop's `Activated` signal wired to lights in one
+  `Level00_Sections.tscn`, not in the level scenes; a prop's `Activated` signal wired to lights in one
   room only; a spawner listening for `Guard` KO in one instance.
 - **Timing across `_Process` / `_PhysicsProcess`.** A value written in `_Process` and read in
   `_PhysicsProcess` the same frame (or vice versa) — one-frame lag on flip, animation, or hit

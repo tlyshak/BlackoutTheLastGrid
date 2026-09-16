@@ -63,7 +63,7 @@ same fixed pipeline `/orchestrator` runs
     - **Зроблено:** <1–2 lines: files/scenes/scripts, what works, how it was verified>
     - **Не зроблено:** <what was deferred and why, or "—">
     - **Рев'ю:** Round 1 — Ship: <yes|no>, закрито <n> Blockers / <n> Should-fix, відкрито: <…|—>
-    - **Плейтест:** 1) відкрити scenes/levels/TestRoom.tscn як головну (F6) … 2) …
+    - **Плейтест:** 1) відкрити scenes/levels/Level00_Sections.tscn як головну (F6) … 2) …
     ```
 7. **One commit** — the fix pass is part of this same task commit: never commit before steps
     8–11 have run. Stage the task's files only (`git add -A`, then read `git status` and
@@ -117,7 +117,7 @@ The review and the fix pass inside `/orchestrator` run **exactly once**. A secon
 - Never create or modify anything under `assets/`. Missing art means a `PH_*` placeholder and a
   line in "Не зроблено".
 - Never add addons or NuGet packages. If a task seems to need one, stop and ask.
-- If the task references a scene that does not exist yet (`TestRoom.tscn` in T-02), creating it
+- If the task references a scene that does not exist yet (`Level00_Sections.tscn` in T-02), creating it
   is part of the task — placeholders only, listed in the plan or the done-note.
 - If `GAME_DESIGN.md` and the task disagree, the document wins; if it is ambiguous, ask before
   implementing — do not invent mechanics.

@@ -1,12 +1,16 @@
 extends SceneTree
-# Smoke: Player belt-scroll movement (T-02) — InputMap, physics layer names, TestRoom Y-sort,
-# Idle/Move/Jump transitions, walk speed, facing flip, floor depth clamp, diagonal input, jump
-# height axis (shadow stays on the floor, visual lifts), jump while moving, and (review #1 S2,
-# T-03r) Idle forced while airborne resumes the fall — Jump is re-entered exactly once without a
-# second launch and the peak is never exceeded. Needs physics frames.
+# Smoke: Player belt-scroll movement (T-02) — InputMap, physics layer names, the Y-sort of
+# Level00_Sections and the belt-scroll placement of its actors (hero, Dan, guard all on the floor
+# band), the hero's authored start on the mine face, Idle/Move/Jump transitions, walk speed, facing
+# flip, floor depth clamp, diagonal input, jump height axis (shadow stays on the floor, visual
+# lifts), jump while moving, and (review #1 S2, T-03r) Idle forced while airborne resumes the fall —
+# Jump is re-entered exactly once without a second launch and the peak is never exceeded.
+# Needs physics frames.
 # Run: godot --headless --path . -s tests/smoke/player_movement.gd
 
 const NAME := "player_movement"   # must equal the file basename
+const LEVEL_PATH := "res://scenes/levels/Level00_Sections.tscn"
+const START_POS := Vector2(88.89, 480.0)   # the hero's authored start on the mine face
 # Safety net: quit(1) instead of hanging into the runner timeout. Counts _process calls; headless
 # runs ~2-3 process frames per physics tick, and a green run uses ~700 of them for ~260 ticks.
 const MAX_FRAMES := 6000
@@ -125,18 +129,18 @@ func _run() -> void:
 	_check(ProjectSettings.get_setting("layer_names/2d_physics/layer_2") == "Player",
 		"2d_physics layer_2 is '%s', expected 'Player'" % ProjectSettings.get_setting("layer_names/2d_physics/layer_2"))
 
-	# 3. TestRoom loads, is Y-sorted and holds props at distinct depths on the floor band.
-	var scene: PackedScene = load("res://scenes/levels/TestRoom.tscn")
-	_check(scene != null, "res://scenes/levels/TestRoom.tscn failed to load")
+	# 3. The level loads and is Y-sorted (belt-scroll depth = Y).
+	var scene: PackedScene = load(LEVEL_PATH)
+	_check(scene != null, "%s failed to load" % LEVEL_PATH)
 	if scene == null:
 		_finish()
 		return
 	var room: Node = scene.instantiate()
 	root.add_child(room)
-	_check(room.get("y_sort_enabled") == true, "TestRoom root lacks y_sort_enabled")
+	_check(room.get("y_sort_enabled") == true, "Level00_Sections root lacks y_sort_enabled")
 
 	var player: Node = room.get_node_or_null("Player")
-	_check(player != null, "TestRoom has no 'Player' child")
+	_check(player != null, "Level00_Sections has no 'Player' child")
 	if player == null:
 		room.queue_free()
 		_finish()
@@ -151,16 +155,14 @@ func _run() -> void:
 	_check(is_equal_approx(player.MoveSpeed, 220.0), "MoveSpeed default is %s, expected 220" % player.MoveSpeed)
 	_check(player.FloorTop < player.FloorBottom, "FloorTop (%s) must be below FloorBottom (%s)" % [player.FloorTop, player.FloorBottom])
 
-	var crate: Node2D = room.get_node_or_null("PH_Crate")
-	var post: Node2D = room.get_node_or_null("PH_Post")
-	_check(crate != null, "TestRoom has no 'PH_Crate'")
-	_check(post != null, "TestRoom has no 'PH_Post'")
-	if crate != null and post != null:
-		_check(not is_equal_approx(crate.position.y, post.position.y),
-			"PH_Crate and PH_Post share Y=%.1f; need distinct depths" % crate.position.y)
-		for prop in [crate, post]:
-			_check(prop.position.y >= player.FloorTop and prop.position.y <= player.FloorBottom,
-				"%s Y=%.1f outside floor band [%.1f, %.1f]" % [prop.name, prop.position.y, player.FloorTop, player.FloorBottom])
+	# Belt-scroll placement: every actor of the level stands on the walk band the hero is clamped to,
+	# so depth sorting and the depth-tolerance damage checks have something to sort by.
+	for actor_name in ["Player", "Dan", "Guard"]:
+		var actor: Node2D = room.get_node_or_null(actor_name)
+		_check(actor != null, "Level00_Sections has no '%s'" % actor_name)
+		if actor != null:
+			_check(actor.position.y >= player.FloorTop and actor.position.y <= player.FloorBottom,
+				"%s Y=%.1f outside the floor band [%.1f, %.1f]" % [actor_name, actor.position.y, player.FloorTop, player.FloorBottom])
 
 	var sm: Node = player.get_node_or_null("StateMachine")
 	_check(sm != null, "Player has no StateMachine child")
@@ -176,9 +178,11 @@ func _run() -> void:
 		_finish()
 		return
 
-	# 4. Initial state.
+	# 4. Initial state: the hero stands where the level puts him, idle, grounded, facing right.
 	_release_all()
 	await _step(2)
+	_check(player.position.is_equal_approx(START_POS),
+		"hero starts at %s, expected the level's %s" % [player.position, START_POS])
 	_check(player.CurrentStateName == "Idle", "initial state is '%s', expected 'Idle'" % player.CurrentStateName)
 	_check(is_equal_approx(player.Height, 0.0), "initial Height=%s, expected 0" % player.Height)
 	_check(player.IsAirborne == false, "initially airborne")

@@ -152,10 +152,7 @@ public partial class Companion : CharacterBody2D
     /// </summary>
     [Export] public Node2D Visual { get; set; } = null!;
 
-    /// <summary>Procedural silhouette (Dan: <c>Slim</c> build, <c>DanSuit</c> colour); hidden once painted art is wired into <see cref="Sprite"/>.</summary>
-    [Export] public CharacterRig? Rig { get; set; }
-
-    /// <summary>Empty slot for future painted art; with frames assigned it replaces <see cref="Rig"/>.</summary>
+    /// <summary>Painted frames for Dan.</summary>
     [Export] public AnimatedSprite2D? Sprite { get; set; }
 
     /// <summary>idle / walk / RESET; no combat animations — he never fights.</summary>
@@ -271,11 +268,6 @@ public partial class Companion : CharacterBody2D
     /// <inheritdoc/>
     public override void _Ready()
     {
-        if (Rig is not null && Sprite is { SpriteFrames: not null })
-        {
-            Rig.Visible = false;
-        }
-
         if (Bubble is not null)
         {
             Bubble.Text = string.Empty;

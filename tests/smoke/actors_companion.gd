@@ -1,21 +1,20 @@
 extends SceneTree
-# Smoke: Dan, the escort companion (T-07s-a) — Companion.tscn contract and export defaults, and the
-# behaviour that makes him company instead of a puzzle, driven on TestMine: he is on
-# collision_layer 0 / mask 1, so the hero walks straight through him and no Checkpoint, CaveIn or
-# GasZone (all masking the Player layer) ever sees him; his Follow state closes a 340 px gap and
-# then stands still playing `idle`; the three anti-stuck failsafes work — a warp when the follow
+# Smoke: Dan, the escort companion — Companion.tscn's contract and export defaults, and the
+# behaviour that makes him company instead of a puzzle, driven on the one surviving level,
+# Level00_Sections: he is on collision_layer 0 / mask 1, so the hero walks straight through him and
+# no Checkpoint (which masks the Player layer) ever sees him; his Follow state closes a 340 px gap
+# and then stands still playing `idle`; the three anti-stuck failsafes work — a warp when the follow
 # point is past WarpDistance, a warp after StuckSeconds of "wants to walk, is not moving" (wedged
-# behind a wall) and the explicit relocation hook a level calls on a room change; HoldAt walks him
-# to a scripted spot, emits Arrived once and keeps him there while the hero leaves, and Resume()
-# puts him back on the hero; the failsafes cover the Wait state too — a hold is a world position,
-# so the level's relocation hook leaves a holding Dan on his spot (T-07s-e: it no longer drags the
-# hold behind the hero) and a hold past WarpDistance is a teleport; Say() shows a line for
+# behind the level's left wall) and the explicit relocation hook a level calls on a room change;
+# HoldAt walks him to a scripted spot, emits Arrived once and keeps him there while the hero leaves,
+# and Resume() puts him back on the hero; the failsafes cover the Wait state too — a hold is a world
+# position, so the level's relocation hook leaves a holding Dan on his spot (T-07s-e: it no longer
+# drags the hold behind the hero) and a hold past WarpDistance is a teleport; Say() shows a line for
 # BubbleSeconds, a HUD prompt suppresses the bubble without losing the line, and a paused tree
-# freezes the countdown. Also checks the level wiring: a gas warning makes TestMine put its GasLine
-# in Dan's bubble and switches his headlamp off first. The Lead state (the guide, T-07s-e) has its
-# own script, tests/smoke/actors_guide.gd; here only its scene contract is checked (the Lead node,
-# the new export defaults, PH_DanLight and the render bit his body and bubble carry). Needs
-# physics frames.
+# freezes the countdown. His art is the painted AnimatedSprite2D under Visual/Sprite (the procedural
+# rig is gone), and Companion._Ready copies the headlamp's render bit onto it. Of the Lead state
+# (the guide, T-07s-e) only the scene contract is checked here — the Lead node, the export
+# defaults, PH_DanLight and the render bit his body and bubble carry. Needs physics frames.
 # Run: godot --headless --path . -s tests/smoke/actors_companion.gd
 #
 # Nothing is hit here, so Engine.time_scale stays 1 and movement is counted in physics frames; the
@@ -26,30 +25,32 @@ const NAME := "actors_companion"   # must equal the file basename
 # Safety net: quit(1) instead of hanging into the runner timeout. Counts _process calls.
 const MAX_FRAMES := 12000
 const ACTIONS := ["move_left", "move_right", "move_up", "move_down", "jump", "attack", "heavy_attack", "special", "interact", "flashlight"]
+const LEVEL_PATH := "res://scenes/levels/Level00_Sections.tscn"
 const SETTLE_CAP := 10         # idle frames allowed for the post-load physics catch-up to end
 const SETTLE_DELTA := 0.05     # process delta (s) below which the loop is back to normal pacing
 const WORLD_LAYER := 1         # physics layer 1 "World"
 const OVERLAP_FRAMES := 4      # physics frames for Area2D overlaps to refresh after a teleport
 const ARRIVE_CAP := 200        # physics frames allowed to walk to a held position
 const CATCH_UP_FRAMES := 120   # frames given to close the starting gap (340 px at 300 px/s = 68)
-const HERO_RIGHT := Vector2(1300, 450)   # clear stretch 760..1470: no blocker, and no trigger Dan could reach
-const DAN_BEHIND := Vector2(904, 460)    # 340 px behind the hero's follow point (1244)
-const HOLD_PATH := Vector2(1350, 450)    # a held spot right in the hero's path
+# Room_Face runs x 0..1280 with the floor band y 300..600; the only blockers are WallLeft
+# (x -2..38) and, far away in the drift, the conveyor (x 1638..2112) and the guard (x 2400).
+const HERO_RIGHT := Vector2(1100, 450)   # clear stretch: no blocker, and no trigger Dan could reach
+const DAN_BEHIND := Vector2(704, 460)    # 340 px behind the hero's follow point (1044)
+const HOLD_PATH := Vector2(1150, 450)    # a held spot right in the hero's path, short of Checkpoint_Drift (x 1258..1338)
 const WALK_FRAMES := 20        # frames of move_right measured for the walk-through comparison
 const WALK_EPS := 2.0          # px the two walks may differ by
 const STILL_FRAMES := 10       # frames the hero stands on top of Dan without moving
-const WARP_FROM := Vector2(200, 460)     # > WarpDistance (900) from the hero's follow point at HERO_RIGHT
+const WARP_FROM := Vector2(100, 460)     # > WarpDistance (900) from the hero's follow point at HERO_RIGHT
 const HERO_LEFT := Vector2(300, 450)     # hero for the stuck test; his follow point is at x 244
-const WEDGE_POS := Vector2(0, 460)       # behind PH_WallLeft (x 20..60, y 250..650): no way around
+const WEDGE_POS := Vector2(-30, 460)     # behind WallLeft (x -2..38, y 250..650): no way around
 const STUCK_CAP := 400         # frames the stuck watchdog is given before the test gives up
 const STUCK_EARLY := 6         # frames of slack below StuckSeconds (frame alignment)
 const STUCK_LATE := 90         # frames of slack above StuckSeconds (the walk before he wedges)
-const HOLD_FAR := Vector2(1700, 460)     # a scripted beat on the far side of the level (> WarpDistance from HERO_LEFT)
+const HOLD_FAR := Vector2(1500, 460)     # a scripted beat in the second section (> WarpDistance from HOLD_NEAR)
 const WAIT_WARP_CAP := 10      # physics frames the Wait state's warp failsafe is given
-const HOLD_NEAR := Vector2(380, 460)     # a held spot clear of the timber pile's blocker (412..468)
+const HOLD_NEAR := Vector2(380, 460)     # a held spot in the clear stretch of the first section
 const HOLD_KEEP_FRAMES := 40   # frames the hero is away while Dan must stay on the held spot
 const HERO_AWAY := Vector2(600, 450)     # where the hero goes while Dan holds
-const GAS_POS := Vector2(920, 450)       # centre of the rehearsal pocket
 const BUBBLE_SECONDS := 0.3    # BubbleSeconds shortened so the countdown is cheap to observe
 const BUBBLE_WAIT := 0.5       # real seconds > BUBBLE_SECONDS
 const LINE := "Stay close."
@@ -212,7 +213,13 @@ func _run() -> void:
 		for a in ["idle", "walk", "RESET"]:
 			_check(panim.has_animation(a), "Companion AnimationPlayer lacks the '%s' animation" % a)
 		_check(not panim.has_animation("attack"), "Companion has an 'attack' animation — he never fights")
-	_check(proto.get_node_or_null("Visual/Rig") != null, "Companion.tscn has no Visual/Rig CharacterRig")
+	# The painted art: an AnimatedSprite2D with frames, and nothing left of the deleted rig.
+	var psprite: Node = proto.get_node_or_null("Visual/Sprite")
+	_check(psprite is AnimatedSprite2D and psprite.sprite_frames != null,
+		"Companion.tscn has no Visual/Sprite AnimatedSprite2D with SpriteFrames — Dan would draw nothing")
+	if psprite is AnimatedSprite2D:
+		_check(proto.get("Sprite") == psprite, "Companion.Sprite export does not point at Visual/Sprite")
+	_check(proto.get_node_or_null("Visual/Rig") == null, "Companion.tscn still has a Visual/Rig (CharacterRig was deleted)")
 	# His own headlamp (T-07s-e): a light that reaches only the items carrying LAMP_BIT — his body
 	# and his bubble — so he reads in the dark a third of a screen ahead without lighting the floor.
 	var plamp: Node = proto.get_node_or_null("Visual/PH_DanLight")
@@ -235,9 +242,9 @@ func _run() -> void:
 		_finish()
 		return
 
-	# 2. TestMine: Dan wired to the hero and following from the first frame.
-	var scene: PackedScene = load("res://scenes/levels/TestMine.tscn")
-	_check(scene != null, "res://scenes/levels/TestMine.tscn failed to load")
+	# 2. Level00_Sections: Dan wired to the hero and following from the first frame.
+	var scene: PackedScene = load(LEVEL_PATH)
+	_check(scene != null, "%s failed to load" % LEVEL_PATH)
 	if scene == null:
 		_finish()
 		return
@@ -245,35 +252,31 @@ func _run() -> void:
 	root.add_child(room)
 	await _settle()
 
-	var dan: Node = room.get_node_or_null("Companion")
+	var dan: Node = room.get_node_or_null("Dan")
 	var player: Node = room.get_node_or_null("Player")
-	var cp_start: Node = room.get_node_or_null("Checkpoints/Checkpoint_Start")
-	var cavein: Node = room.get_node_or_null("CaveIn_Mid")
-	var gas: Node = room.get_node_or_null("GasZone_Rehearsal")
-	for pair in [[dan, "Companion"], [player, "Player"], [cp_start, "Checkpoints/Checkpoint_Start"],
-			[cavein, "CaveIn_Mid"], [gas, "GasZone_Rehearsal"]]:
-		_check(pair[0] != null, "TestMine has no '%s' child" % pair[1])
-	if dan == null or player == null or cp_start == null or cavein == null or gas == null:
+	var cp: Node = room.get_node_or_null("Checkpoints/Checkpoint_Drift")   # still armed: the hero spawns on Checkpoint_Face and never reaches this one here
+	for pair in [[dan, "Dan"], [player, "Player"], [cp, "Checkpoints/Checkpoint_Drift"]]:
+		_check(pair[0] != null, "Level00_Sections has no '%s' child" % pair[1])
+	if dan == null or player == null or cp == null:
 		room.queue_free()
 		_finish()
 		return
-	if dan.get("FollowDistance") == null or cp_start.get("Label") == null:
-		_check(false, "Companion/Checkpoint exports missing in TestMine — aborting")
+	if dan.get("FollowDistance") == null or cp.get("Label") == null:
+		_check(false, "Companion/Checkpoint exports missing in Level00_Sections — aborting")
 		room.queue_free()
 		_finish()
 		return
-	_check(dan.Target == player, "TestMine's Companion.Target is %s, expected the Player" % dan.Target)
-	_check(dan.HasTarget == true, "Companion.HasTarget=%s in TestMine, expected true" % dan.HasTarget)
-	_check(room.get("Companion") == dan, "TestMine (LevelBase).Companion export does not point at the Companion")
+	_check(dan.Target == player, "Level00_Sections' Companion.Target is %s, expected the Player" % dan.Target)
+	_check(dan.HasTarget == true, "Companion.HasTarget=%s in Level00_Sections, expected true" % dan.HasTarget)
+	_check(room.get("Companion") == dan, "Level00_Sections (LevelBase).Companion export does not point at Dan")
 	_check(dan.CurrentStateName == "Follow", "Companion starts in '%s', expected 'Follow'" % dan.CurrentStateName)
 	_check(dan.IsWaiting == false, "Companion.IsWaiting=%s at start, expected false" % dan.IsWaiting)
 	_check(dan.IsLeading == false, "Companion.IsLeading=%s at start, expected false" % dan.IsLeading)
-	_check(room.DanLeads == false, "TestMine.DanLeads is %s in the scene, expected false (the Follow fixture must not drift)" % room.DanLeads)
 	_check(dan.IsLampOn == true, "Companion.IsLampOn=%s at start, expected true" % dan.IsLampOn)
-	# Godot does not inherit light_mask, so Companion copies Visual's mask onto the rig's polygons on ready.
-	var torso: Node = dan.get_node_or_null("Visual/Rig/Torso")
-	_check(torso is CanvasItem and (torso.light_mask & LAMP_BIT) != 0,
-		"Visual/Rig/Torso light_mask lacks bit %d after ready — the lamp's render bit did not reach the drawn polygons" % LAMP_BIT)
+	# Godot does not inherit light_mask, so Companion copies Visual's mask onto the drawn children.
+	var dsprite: Node = dan.get_node_or_null("Visual/Sprite")
+	_check(dsprite is CanvasItem and (dsprite.light_mask & LAMP_BIT) != 0,
+		"Visual/Sprite light_mask lacks bit %d after ready — the lamp's render bit did not reach the painted sprite" % LAMP_BIT)
 	dan.BubbleSeconds = BUBBLE_SECONDS
 
 	var warps: Array = []
@@ -317,18 +320,11 @@ func _run() -> void:
 		"the hero covered %.1f px walking into Dan and %.1f px with the way clear, expected within %s px" % [through_walk, free_walk, WALK_EPS])
 
 	var reached: Array = []
-	cp_start.Reached.connect(func(c): reached.append(c))
-	await _pin(dan, cp_start.global_position)
-	_check(not cp_start.get_overlapping_bodies().has(dan), "Checkpoint_Start sees Dan as a body — he is on the wrong collision layer")
-	_check(cp_start.IsReached == false, "Checkpoint_Start was armed by Dan standing on it")
+	cp.Reached.connect(func(c): reached.append(c))
+	await _pin(dan, cp.global_position)
+	_check(not cp.get_overlapping_bodies().has(dan), "Checkpoint_Drift sees Dan as a body — he is on the wrong collision layer")
+	_check(cp.IsReached == false, "Checkpoint_Drift was armed by Dan standing on it")
 	_check(reached.is_empty(), "Checkpoint.Reached fired %d times for Dan" % reached.size())
-	await _pin(dan, cavein.global_position)
-	_check(not cavein.get_overlapping_bodies().has(dan), "CaveIn_Mid sees Dan as a body")
-	_check(cavein.IsTriggered == false, "the cave-in was triggered by Dan walking over it")
-	_check(cavein.HasCollapsed == false, "the drift came down because of Dan")
-	await _pin(dan, gas.global_position)
-	_check(not gas.get_overlapping_bodies().has(dan), "GasZone_Rehearsal sees Dan as a body")
-	_check(gas.IsWarning == false, "the gas started counting down because of Dan")
 
 	# 5. Failsafe 1 — too far behind: he appears at the follow point at once (acceptance 19).
 	await _place(player, HERO_RIGHT)
@@ -382,23 +378,9 @@ func _run() -> void:
 	_check(dan.CurrentStateName == "Follow", "Companion is in '%s' after Resume(), expected 'Follow'" % dan.CurrentStateName)
 	_check(dan.IsWaiting == false, "Companion.IsWaiting=%s after Resume(), expected false" % dan.IsWaiting)
 
-	# 8. The level makes him speak: a gas warning puts TestMine's GasLine in his bubble.
-	var lamp: Node = player.Flashlight
-	lines.clear()
-	await _place(player, GAS_POS)
-	lamp.SetOn(true)
-	await _step(2)
-	_check(gas.IsWarning == true, "the rehearsal pocket did not start counting down with the lamp on")
-	_check(lines.has(room.GasLine), "Dan's lines after the gas warning are %s, expected TestMine.GasLine '%s'" % [lines, room.GasLine])
-	_check(dan.IsLampOn == false, "Dan's headlamp stayed on through the gas warning — he must go dark before he shouts")
-	lamp.SetOn(false)
-	await _step(2)
-	_check(gas.IsWarning == false, "the window kept running after the lamp went off")
-	_check(dan.IsLampOn == true, "Dan's headlamp did not come back on once the gas warning stopped")
-
-	# 9. The bubble: shown for BubbleSeconds, hidden by a HUD prompt, frozen by the pause.
+	# 8. The bubble: shown for BubbleSeconds, hidden by a HUD prompt, frozen by the pause.
 	var bubble: Label = dan.Bubble
-	_check(bubble != null, "Companion.Bubble export is null in TestMine")
+	_check(bubble != null, "Companion.Bubble export is null in Level00_Sections")
 	if bubble == null:
 		room.queue_free()
 		_finish()
@@ -429,7 +411,7 @@ func _run() -> void:
 	await _real_wait(BUBBLE_WAIT)
 	_check(dan.IsSpeaking == false, "the bubble countdown did not resume after the pause was lifted")
 
-	# 10. Failsafe 3 — the level's relocation hook on a room change (a door hop, a respawn). A
+	# 9. Failsafe 3 — the level's relocation hook on a room change (a door hop, a respawn). A
 	# follower has no place of his own, so it warps him behind the hero, as it always did.
 	await _place(player, HERO_RIGHT)
 	dan.WarpTo(WARP_FROM)
@@ -440,7 +422,7 @@ func _run() -> void:
 	_check(dan.global_position.distance_to(dan.FollowPoint) <= dan.FollowDistance,
 		"after the room change Dan is %.0f px from his follow point" % dan.global_position.distance_to(dan.FollowPoint))
 
-	# 11. The same failsafes while he holds a scripted spot — rewritten for T-07s-e. A hold is a
+	# 10. The same failsafes while he holds a scripted spot — rewritten for T-07s-e. A hold is a
 	# world position: the level's relocation hook leaves a holding Dan on his spot whether the hero
 	# came back near him or half a level away (before T-07s-e it dragged the hold behind the hero,
 	# which would have marched the guide back to the hero he is supposed to lead); a level that

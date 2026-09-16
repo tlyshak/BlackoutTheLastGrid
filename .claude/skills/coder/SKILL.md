@@ -43,7 +43,7 @@ tells you how to apply it while writing code. The design source of truth is
    godot --headless --path . --quit
    powershell -ExecutionPolicy Bypass -File tools/smoke.ps1
    ```
-   To load one scene for a frame: `godot --headless --path . res://scenes/levels/TestRoom.tscn --quit`.
+   To load one scene for a frame: `godot --headless --path . res://scenes/levels/Level00_Sections.tscn --quit`.
    - Fix every new warning you introduced. Treat `CS86xx` nullable warnings as errors. Do not
      chase pre-existing warnings.
    - Any `/verify` verdict other than `verified` means the task is not done.

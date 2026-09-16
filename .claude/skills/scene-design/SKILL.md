@@ -126,7 +126,7 @@ Signals: none required for T-02 — `StateMachine.StateChanged(from, to)` alread
 for tests and debug labels. Future (T-02b): `Hurt(float damage)`, `KnockedOut()`.
 Transitions: `Idle → Move` when `Input.GetVector(move_left, move_right, move_up, move_down)`
 is non-zero; `Move → Idle` when it is zero; `Idle/Move → Jump` on `jump` pressed;
-`Jump → Idle|Move` on landing. Owner scene: `TestRoom.tscn` instantiates `Player` and two `PH_`
+`Jump → Idle|Move` on landing. Owner scene: `Level00_Sections.tscn` instantiates `Player` and two `PH_`
 props at different Y so overlap order is visible.
 
 ## Worked example — `scenes/props/Outlet.tscn` (T-05)

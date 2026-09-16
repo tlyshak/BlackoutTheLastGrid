@@ -4,11 +4,10 @@ extends SceneTree
 # «Resume»), it cancels a hit-stop in flight so the menu can never sit over a frozen
 # Engine.time_scale, the settings overlay above it eats the first Escape and leaves the game
 # paused, «Quit to Main Menu» only emits QuitToMenuRequested (the menu never changes the scene
-# itself), and a menu freed while open unpauses the tree. Plus the two invariants around it: a
-# paused Cutscene advances no line however often `interact` is pressed, and LevelBase.GoToMainMenu
-# — reached through the level's own wiring in TestRoom — lands on the main menu unpaused, at
-# time_scale 1 and with a full reserve. All three level scenes carry a PauseMenu instance.
-# ConfigPath is redirected first: closing the settings screen saves (risk 4 in the plan).
+# itself), and a menu freed while open unpauses the tree. Plus the invariant around it:
+# LevelBase.GoToMainMenu — reached through the level's own wiring in Level00_Sections — lands on the
+# main menu unpaused, at time_scale 1 and with a full reserve. The level scene carries a PauseMenu
+# instance. ConfigPath is redirected first: closing the settings screen saves (risk 4 in the plan).
 # Run: godot --headless --path . -s tests/smoke/ui_pause.gd
 
 const NAME := "ui_pause"   # must equal the file basename
@@ -16,20 +15,18 @@ const NAME := "ui_pause"   # must equal the file basename
 const MAX_FRAMES := 4000
 const PAUSE_PATH := "res://scenes/ui/PauseMenu.tscn"
 const SETTINGS_PATH := "res://scenes/ui/SettingsMenu.tscn"
-const CUTSCENE_PATH := "res://scenes/ui/Cutscene.tscn"
-const ROOM_PATH := "res://scenes/levels/TestRoom.tscn"
+const ROOM_PATH := "res://scenes/levels/Level00_Sections.tscn"
 const MENU_PATH := "res://scenes/ui/MainMenu.tscn"
-const LEVEL_SCENES := ["res://scenes/levels/Level00_Prologue.tscn", "res://scenes/levels/Level01_District.tscn", "res://scenes/levels/TestRoom.tscn"]
+const LEVEL_SCENES := [ROOM_PATH]
 const PROBE_PATH := "user://settings_pause_smoke.cfg"
 const REAL_PATH := "user://settings.cfg"
-const PAUSE_LAYER := 25         # above the HUD (10) and the Cutscene overlay (20)
+const PAUSE_LAYER := 25         # above the HUD (10)
 const SETTINGS_LAYER := 30      # above the pause menu
 const PROCESS_MODE_ALWAYS := 3  # Node.PROCESS_MODE_ALWAYS
 const SETTLE_CAP := 20
 const SETTLE_DELTA := 0.05
 const SCENE_CHANGE_CAP_MS := 4000
-const PAUSED_TAPS := 10         # `interact` + `attack` tap pairs a paused cutscene must ignore
-const ACTIONS := ["interact", "attack", "pause"]
+const ACTIONS := ["interact", "pause"]
 
 var _started := false
 var _frames := 0
@@ -77,13 +74,6 @@ func _send_action(action: String) -> void:
 	Input.parse_input_event(ev)
 	await process_frame
 	await _step(1)
-
-# Presses `action` for exactly one physics frame (seen as just-pressed by that frame's callbacks).
-func _tap(action: String) -> void:
-	Input.action_press(action)
-	await physics_frame
-	Input.action_release(action)
-	await physics_frame
 
 func _release_all() -> void:
 	for a in ACTIONS:
@@ -135,7 +125,7 @@ func _run() -> void:
 	var real_before: int = _stamp()
 	gset.ConfigPath = PROBE_PATH
 
-	# 0. Every level scene carries a PauseMenu instance (checked on the packed state, no load cost).
+	# 0. The level scene carries a PauseMenu instance (checked on the packed state, no load cost).
 	for path in LEVEL_SCENES:
 		_check(_has_child_named(path, "PauseMenu"), "%s has no PauseMenu node" % path)
 
@@ -222,30 +212,7 @@ func _run() -> void:
 	_check(not is_instance_valid(pm), "the pause menu is still valid one frame after queue_free()")
 	_check(paused == false, "the tree stayed paused after an open pause menu was freed")
 
-	# 7. A paused cutscene ignores `interact` and advances no line (the guard in Cutscene.cs).
-	var cs_scene: PackedScene = load(CUTSCENE_PATH)
-	_check(cs_scene != null, "%s failed to load" % CUTSCENE_PATH)
-	if cs_scene != null:
-		var cut: Node = cs_scene.instantiate()
-		root.add_child(cut)
-		await _step(1)
-		cut.Play(PackedStringArray(["first line", "second line"]))
-		await _step(1)
-		_check(cut.IsPlaying == true and cut.CurrentLine == 0, "the cutscene is at line %d, expected 0" % cut.CurrentLine)
-		paused = true
-		for i in PAUSED_TAPS:
-			await _tap("interact")
-			await _tap("attack")   # both halves of the same `if` in Cutscene._PhysicsProcess
-		_check(cut.CurrentLine == 0, "the paused cutscene advanced to line %d after %d interact+attack taps, expected 0" % [cut.CurrentLine, PAUSED_TAPS])
-		_check(cut.IsPlaying == true, "the paused cutscene finished on its own")
-		paused = false
-		await _step(1)
-		await _tap("interact")
-		_check(cut.CurrentLine == 1, "the resumed cutscene is at line %d after one tap, expected 1" % cut.CurrentLine)
-		cut.queue_free()
-		await _step(1)
-
-	# 8. LevelBase: the level's own pause menu is wired, and «Quit to Main Menu» lands on the
+	# 7. LevelBase: the level's own pause menu is wired, and «Quit to Main Menu» lands on the
 	#    main menu unpaused, at time_scale 1 and with a full reserve (acceptance criteria 7 and 13).
 	var room_scene: PackedScene = load(ROOM_PATH)
 	_check(room_scene != null, "%s failed to load" % ROOM_PATH)
@@ -257,12 +224,12 @@ func _run() -> void:
 	current_scene = room
 	await _settle()
 	var room_pm: Node = room.get("Pause")
-	_check(room_pm != null, "TestRoom.Pause is null — the PauseMenu export is not wired in the scene")
+	_check(room_pm != null, "Level00_Sections.Pause is null — the PauseMenu export is not wired in the scene")
 	if room_pm == null:
 		room.queue_free()
 		_finish()
 		return
-	_check(room_pm == room.get_node_or_null("PauseMenu"), "TestRoom.Pause does not point at the scene's own PauseMenu")
+	_check(room_pm == room.get_node_or_null("PauseMenu"), "Level00_Sections.Pause does not point at the scene's own PauseMenu")
 	gs.Energy = 15.0
 	room_pm.Open()
 	Engine.time_scale = 0.0   # a hit-stop that started before the quit must not survive it
@@ -281,9 +248,9 @@ func _run() -> void:
 		_check(paused == false, "the game is still paused on the main menu — it would come up frozen")
 		_check(is_equal_approx(Engine.time_scale, 1.0), "Engine.time_scale=%s on the main menu, expected 1" % Engine.time_scale)
 		_check(is_equal_approx(gs.Energy, gs.MaxEnergy), "Energy=%s after quitting to the menu, expected MaxEnergy (ResetRun)" % gs.Energy)
-		_check(not is_instance_valid(room), "TestRoom is still alive after the scene change")
+		_check(not is_instance_valid(room), "Level00_Sections is still alive after the scene change")
 
-	# 9. Teardown.
+	# 8. Teardown.
 	var cs_end: Node = current_scene
 	current_scene = null
 	if cs_end != null and is_instance_valid(cs_end):

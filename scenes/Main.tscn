@@ -1,8 +1,8 @@
 [gd_scene load_steps=3 format=3 uid="uid://daxl3pdeadvpe"]
 
 [ext_resource type="Script" path="res://scripts/Main.cs" id="1_main"]
-[ext_resource type="PackedScene" uid="uid://d3d1177b7jpkm" path="res://scenes/levels/Level00_Prologue.tscn" id="2_prologue"]
+[ext_resource type="PackedScene" path="res://scenes/levels/Level00_Sections.tscn" id="2_level"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
-StartLevel = ExtResource("2_prologue")
+StartLevel = ExtResource("2_level")

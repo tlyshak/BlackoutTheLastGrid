@@ -1,7 +1,7 @@
 extends SceneTree
 # tools/build_spriteframes.gd — headless generator of the v2 SpriteFrames (T-V2-01 01b).
 #
-# Reads scenes/v2/actors/sprite_animations.json (animation -> pose sequence, one entry per actor)
+# Reads scenes/actors/sprite_animations.json (animation -> pose sequence, one entry per actor)
 # and every referenced <sheet>.frames.json (pose regions in viewBox px, feet line, per-pose margin
 # to the sheet's uniform cell), loads the imported sheet textures and writes one SpriteFrames
 # resource per actor to the table's `output` path. Every frame is an AtlasTexture whose region is
@@ -16,7 +16,7 @@ extends SceneTree
 # exits 1 with a message when a pose referenced by the table is missing from the map, a region
 # leaves the texture or a padded frame does not equal the cell.
 
-const TABLE_PATH := "res://scenes/v2/actors/sprite_animations.json"
+const TABLE_PATH := "res://scenes/actors/sprite_animations.json"
 const SPRITE_SCALE := 0.5        # AnimatedSprite2D.scale in the v2 actor scenes (2x import -> 1:1 viewBox px)
 const SPRITE_FEET_OFFSET := 36.0 # Player/Guard/Companion.SpriteFeetOffset: Visual sits 36 px above the feet
 

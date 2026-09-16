@@ -102,7 +102,7 @@ dependency and is forbidden here. The `.sln` is never edited by an agent.
   found by grepping the quoted string across `scripts/` and `tests/`, and without a smoke check
   for the new name.
 - Changing `run/main_scene` for convenience during a task; run another scene with
-  `godot --headless --path . res://scenes/levels/TestRoom.tscn --quit` or F6 instead.
+  `godot --headless --path . res://scenes/levels/Level00_Sections.tscn --quit` or F6 instead.
 - Editing `project.godot` through the editor UI as part of an agent run.
 
 ## Constraints specific to this repo
