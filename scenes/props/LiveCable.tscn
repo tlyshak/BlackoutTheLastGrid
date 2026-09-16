@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3 uid="uid://cnjqk7v1yl3xm"]
+
+; The torn feed cable of the v2 ventilation room. The area covers the discharge the room paints at
+; mockup x 190…250, y 256…304 (world x 1637.65…1750.65 with the drift backdrop at level x 1280,
+; WorldScale 1280/680, OffsetY -227.06) and reaches down through the far half of the belt's band, so
+; the conveyor is crossed along its near half (world y 300…386 of the 300…600 band). tests/smoke/props_live_cable.gd recomputes all of it
+; from the mockup coordinates.
+[ext_resource type="Script" path="res://scripts/props/LiveCable.cs" id="1_cable"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_arc"]
+size = Vector2(113, 86)
+
+[node name="LiveCable" type="Area2D"]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_cable")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_arc")

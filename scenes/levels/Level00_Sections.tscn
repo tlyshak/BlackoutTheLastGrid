@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://scripts/levels/Level00_Sections.cs" id="1_level"]
 [ext_resource type="Script" path="res://scripts/levels/RoomBounds.cs" id="2_room"]
@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" uid="uid://cpbrpcvs6w23v" path="res://scenes/levels/Checkpoint.tscn" id="6_checkpoint"]
 [ext_resource type="PackedScene" uid="uid://bqv2w5ynl3rk8" path="res://scenes/props/ConveyorLine.tscn" id="7_belt"]
 [ext_resource type="PackedScene" uid="uid://c0xb1ltdqf8vr" path="res://scenes/props/ConveyorSwitch.tscn" id="8_belt_switch"]
+[ext_resource type="PackedScene" uid="uid://cnjqk7v1yl3xm" path="res://scenes/props/LiveCable.tscn" id="16_cable"]
 [ext_resource type="PackedScene" uid="uid://b7wdrbbe2dkvc" path="res://scenes/actors/Player.tscn" id="9_player"]
 [ext_resource type="PackedScene" uid="uid://cvdh77q312f8w" path="res://scenes/actors/Companion.tscn" id="10_companion"]
 [ext_resource type="PackedScene" uid="uid://km6wmiwvgplt" path="res://scenes/actors/Guard.tscn" id="11_guard"]
@@ -92,6 +93,10 @@ PassThrough = [NodePath("../Dan")]
 position = Vector2(1527.06, 363.06)
 SaveId = "belt_switch"
 Line = NodePath("../ConveyorLine")
+
+[node name="LiveCable" parent="." node_paths=PackedStringArray("Arc") instance=ExtResource("16_cable")]
+position = Vector2(1694.12, 343)
+Arc = NodePath("../Backgrounds/Backdrop_Drift/Sparks")
 
 [node name="Player" parent="." instance=ExtResource("9_player")]
 position = Vector2(88.89, 480)
