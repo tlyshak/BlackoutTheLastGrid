@@ -38,7 +38,7 @@ extends SceneTree
 #   * stage the capture with Sprite2Ds: HeldGuards/Overseer|PH_Guard_A|PH_Guard_B show the guard
 #     sheet's `stance` region (assets/art/v2/keyframes/guard_keyframes.frames.json x svg/scale 2) at
 #     scale 0.5 with the feet on the node origin and the region's four corner texels transparent
-#     (no card behind the figure), PH_Gun keeps its world size, PH_HeldLamp stays, and the group is
+#     (no card behind the figure), the placeholder gun is gone, PH_HeldLamp stays, and the group is
 #     exported as HeldGuards and hidden until the Held stage.
 # The v1/v2 parity of everything else is v2_level_skeleton.gd; the play-through is v2_level_prologue*.gd.
 # Run: godot --headless --path . -s tests/smoke/v2_prologue_integration.gd
@@ -388,8 +388,10 @@ func _run() -> void:
 			_check(feet_local.length() <= FEET_TOL, "HeldGuards/%s: the feet sit %s texture px from the node origin (offset %s)" % [figure, feet_local, s.offset])
 			var ink_bottom: float = (s.offset.y + s.region_rect.size.y / 2.0) * s.scale.y
 			_check(ink_bottom >= 0.0 and ink_bottom <= INK_BELOW_FEET_MAX, "HeldGuards/%s: the sprite ends %.1f px below the node origin, expected 0…%.0f (shadow only)" % [figure, ink_bottom, INK_BELOW_FEET_MAX])
-		var gun: Line2D = held.get_node_or_null("Overseer/PH_Gun")
-		_check(gun != null and gun.global_scale.is_equal_approx(Vector2.ONE), "Overseer/PH_Gun missing or drawn at world scale %s, expected 1" % (gun.global_scale if gun else null))
+		# T-V2-07: the overseer's placeholder gun is gone — the author's rule for the painted rooms is
+		# that nothing is drawn that is not in his SVG, and the guard sheet already draws the figure.
+		_check(held.get_node_or_null("Overseer/PH_Gun") == null,
+			"Overseer/PH_Gun is back: the capture staging must show the drawn guard alone")
 		_check(held.get_node_or_null("PH_HeldLamp") is PointLight2D, "HeldGuards/PH_HeldLamp is gone")
 
 	level.queue_free()

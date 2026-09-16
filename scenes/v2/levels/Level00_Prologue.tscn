@@ -622,21 +622,6 @@ position = Vector2(782.22, 450)
 HeavyHitsToClear = 0
 SaveId = "jam"
 
-[node name="PH_RockFar" parent="DebrisPile_Jam/PH_Rubble" index="0"]
-color = Color(0.301961, 0.345098, 0.4, 1)
-
-[node name="PH_RockNear" parent="DebrisPile_Jam/PH_Rubble" index="1"]
-color = Color(0.301961, 0.345098, 0.4, 1)
-
-[node name="PH_Rock" parent="DebrisPile_Jam/PH_Rubble" index="2"]
-color = Color(0.4, 0.42, 0.46, 1)
-
-[node name="PH_TimberA" parent="DebrisPile_Jam/PH_Rubble" index="3"]
-color = Color(0.541176, 0.309804, 0.156863, 1)
-
-[node name="PH_TimberB" parent="DebrisPile_Jam/PH_Rubble" index="4"]
-color = Color(0.541176, 0.309804, 0.156863, 1)
-
 [node name="PH_JamCarts" type="Node2D" parent="."]
 position = Vector2(782.22, 450)
 
@@ -811,12 +796,6 @@ texture = ExtResource("14_guardsheet")
 offset = Vector2(-31, -121)
 region_enabled = true
 region_rect = Rect2(46, 66, 218, 278)
-
-[node name="PH_Gun" type="Line2D" parent="HeldGuards/Overseer"]
-points = PackedVector2Array(6, -8, 40, -14)
-width = 4.0
-default_color = Color(0.301961, 0.345098, 0.4, 1.0)
-scale = Vector2(2, 2)
 
 [node name="PH_Guard_A" type="Sprite2D" parent="HeldGuards"]
 position = Vector2(3613.33, 394)
@@ -1420,5 +1399,69 @@ ImpactFxScene = ExtResource("18_impactfx")
 
 [node name="Vignette" parent="." instance=ExtResource("15_vignette")]
 
+[node name="PH_Mark" parent="Checkpoints/Checkpoint_Face" index="1"]
+visible = false
+
+[node name="PH_Mark" parent="Checkpoints/Checkpoint_Dark" index="1"]
+visible = false
+
+[node name="PH_Mark" parent="Checkpoints/Checkpoint_Drift" index="1"]
+visible = false
+
+[node name="PH_Mark" parent="Checkpoints/Checkpoint_GasNear" index="1"]
+visible = false
+
+[node name="PH_Mark" parent="Checkpoints/Checkpoint_PastGas" index="1"]
+visible = false
+
+[node name="PH_Mark" parent="Checkpoints/Checkpoint_Patrol" index="1"]
+visible = false
+
+[node name="PH_Mark" parent="Checkpoints/Checkpoint_Cage" index="1"]
+visible = false
+
+[node name="PH_Mark" parent="Checkpoints/Checkpoint_Surface" index="1"]
+visible = false
+
+[node name="PH_Body" parent="Outlet_1" index="0"]
+visible = false
+
+[node name="PH_Indicator" parent="Outlet_1" index="1"]
+visible = false
+
+[node name="PH_Body" parent="Outlet_2" index="0"]
+visible = false
+
+[node name="PH_Indicator" parent="Outlet_2" index="1"]
+visible = false
+
+[node name="PH_Body" parent="Outlet_3" index="0"]
+visible = false
+
+[node name="PH_Indicator" parent="Outlet_3" index="1"]
+visible = false
+
+[node name="PH_Body" parent="Charge" index="0"]
+visible = false
+
+[node name="PH_Screen" parent="Charge" index="1"]
+visible = false
+
+[node name="PH_Rubble" parent="DebrisPile_Jam" index="2"]
+modulate = Color(1, 1, 1, 0)
+
 [editable path="GuardWave"]
 [editable path="Hoist"]
+[editable path="Charge"]
+[editable path="Checkpoints/Checkpoint_Cage"]
+[editable path="Checkpoints/Checkpoint_Dark"]
+[editable path="Checkpoints/Checkpoint_Drift"]
+[editable path="Checkpoints/Checkpoint_Face"]
+[editable path="Checkpoints/Checkpoint_GasNear"]
+[editable path="Checkpoints/Checkpoint_PastGas"]
+[editable path="Checkpoints/Checkpoint_Patrol"]
+[editable path="Checkpoints/Checkpoint_Surface"]
+[editable path="DebrisPile_Jam"]
+[editable path="Outlet_1"]
+[editable path="Outlet_2"]
+[editable path="Outlet_3"]
