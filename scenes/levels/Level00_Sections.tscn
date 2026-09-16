@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=22 format=3]
 
 [ext_resource type="Script" path="res://scripts/levels/Level00_Sections.cs" id="1_level"]
 [ext_resource type="Script" path="res://scripts/levels/RoomBounds.cs" id="2_room"]
@@ -9,6 +9,10 @@
 [ext_resource type="PackedScene" uid="uid://bqv2w5ynl3rk8" path="res://scenes/props/ConveyorLine.tscn" id="7_belt"]
 [ext_resource type="PackedScene" uid="uid://c0xb1ltdqf8vr" path="res://scenes/props/ConveyorSwitch.tscn" id="8_belt_switch"]
 [ext_resource type="PackedScene" uid="uid://cnjqk7v1yl3xm" path="res://scenes/props/LiveCable.tscn" id="16_cable"]
+[ext_resource type="PackedScene" uid="uid://h866cwl04mwh" path="res://scenes/levels/Backdrop_Exit.tscn" id="17_bd_exit"]
+[ext_resource type="PackedScene" path="res://scenes/props/SectionGate.tscn" id="18_gate"]
+[ext_resource type="PackedScene" path="res://scenes/props/GuardCage.tscn" id="19_cage"]
+[ext_resource type="Script" path="res://scripts/levels/BoardText.cs" id="20_board"]
 [ext_resource type="PackedScene" uid="uid://b7wdrbbe2dkvc" path="res://scenes/actors/Player.tscn" id="9_player"]
 [ext_resource type="PackedScene" uid="uid://cvdh77q312f8w" path="res://scenes/actors/Companion.tscn" id="10_companion"]
 [ext_resource type="PackedScene" uid="uid://km6wmiwvgplt" path="res://scenes/actors/Guard.tscn" id="11_guard"]
@@ -20,12 +24,13 @@
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
 size = Vector2(40, 400)
 
-[node name="Level00_Sections" type="Node2D" node_paths=PackedStringArray("StartRoom", "Director", "StandingGuard", "Player", "Camera", "Pause", "Hud", "Companion", "Checkpoints")]
+[node name="Level00_Sections" type="Node2D" node_paths=PackedStringArray("StartRoom", "Director", "StandingGuard", "Gates", "Player", "Camera", "Pause", "Hud", "Companion", "Checkpoints")]
 y_sort_enabled = true
 script = ExtResource("1_level")
 StartRoom = NodePath("Rooms/Room_Mine")
 Director = NodePath("EnemyDirector")
 StandingGuard = NodePath("Guard")
+Gates = [NodePath("Gate_Drift"), NodePath("Gate_Exit")]
 Player = NodePath("Player")
 Camera = NodePath("Camera2D")
 Pause = NodePath("PauseMenu")
@@ -43,6 +48,10 @@ Powered = true
 position = Vector2(1280, 0)
 Powered = true
 
+[node name="Backdrop_Exit" parent="Backgrounds" instance=ExtResource("17_bd_exit")]
+position = Vector2(2560, 0)
+Powered = true
+
 [node name="Darkness" type="CanvasModulate" parent="."]
 color = Color(0.560784, 0.592157, 0.639216, 1)
 
@@ -50,7 +59,7 @@ color = Color(0.560784, 0.592157, 0.639216, 1)
 
 [node name="Room_Mine" type="Node2D" parent="Rooms"]
 script = ExtResource("2_room")
-Rect = Rect2(0, -120, 2560, 1200)
+Rect = Rect2(0, -120, 3840, 1200)
 FloorTop = 300.0
 FloorBottom = 600.0
 
@@ -63,7 +72,7 @@ collision_mask = 0
 shape = SubResource("RectangleShape2D_wall")
 
 [node name="WallRight" type="StaticBody2D" parent="."]
-position = Vector2(2542.22, 450)
+position = Vector2(3822.22, 450)
 collision_layer = 1
 collision_mask = 0
 
@@ -85,6 +94,11 @@ position = Vector2(1297.78, 450)
 Room = NodePath("../../Rooms/Room_Mine")
 Label = "drift"
 
+[node name="Checkpoint_Exit" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("6_checkpoint")]
+position = Vector2(2577.78, 450)
+Room = NodePath("../../Rooms/Room_Mine")
+Label = "exit"
+
 [node name="ConveyorLine" parent="." node_paths=PackedStringArray("PassThrough") instance=ExtResource("7_belt")]
 position = Vector2(1874.82, 450)
 PassThrough = [NodePath("../Dan")]
@@ -97,6 +111,74 @@ Line = NodePath("../ConveyorLine")
 [node name="LiveCable" parent="." node_paths=PackedStringArray("Arc") instance=ExtResource("16_cable")]
 position = Vector2(1694.12, 343)
 Arc = NodePath("../Backgrounds/Backdrop_Drift/Sparks")
+
+[node name="Gate_Drift" parent="." node_paths=PackedStringArray("BlockerShape", "Enemies") instance=ExtResource("18_gate")]
+position = Vector2(2540, 450)
+BlockerShape = NodePath("CollisionShape2D")
+Enemies = [NodePath("../Guard")]
+
+[node name="CageGuardA" parent="." instance=ExtResource("11_guard")]
+position = Vector2(3399.53, 315.06)
+Facing = -1
+
+[node name="CageGuardB" parent="." instance=ExtResource("11_guard")]
+position = Vector2(3584, 315.06)
+Facing = -1
+
+[node name="GuardCage" parent="." node_paths=PackedStringArray("Caged", "Player", "Director", "Gate", "Exits") instance=ExtResource("19_cage")]
+position = Vector2(3240, 450)
+Caged = [NodePath("../CageGuardA"), NodePath("../CageGuardB")]
+Player = NodePath("../Player")
+Director = NodePath("../EnemyDirector")
+Gate = NodePath("../Backgrounds/Backdrop_Exit/CageGate")
+Exits = [NodePath("ExitA"), NodePath("ExitB")]
+
+[node name="ExitA" type="Marker2D" parent="GuardCage"]
+position = Vector2(140, -30)
+
+[node name="ExitB" type="Marker2D" parent="GuardCage"]
+position = Vector2(320, 30)
+
+[node name="Gate_Exit" parent="." node_paths=PackedStringArray("BlockerShape", "Enemies") instance=ExtResource("18_gate")]
+position = Vector2(3800, 450)
+BlockerShape = NodePath("CollisionShape2D")
+Enemies = [NodePath("../CageGuardA"), NodePath("../CageGuardB")]
+
+[node name="Board" type="Node2D" parent="."]
+z_index = -70
+
+[node name="Shift" type="Label" parent="Board"]
+offset_left = 2772.71
+offset_top = 111.0
+offset_right = 2990.0
+offset_bottom = 133.0
+theme_override_colors/font_color = Color(0.788235, 0.25098, 0.227451, 0.85)
+theme_override_font_sizes/font_size = 16
+text = "SHIFT  3"
+script = ExtResource("20_board")
+
+[node name="Quota" type="Label" parent="Board"]
+offset_left = 2772.71
+offset_top = 143.0
+offset_right = 2990.0
+offset_bottom = 165.0
+theme_override_colors/font_color = Color(0.909804, 0.698039, 0.227451, 0.8)
+theme_override_font_sizes/font_size = 16
+text = "QUOTA 0.3 kWh"
+script = ExtResource("20_board")
+BlinkPeriod = 1.4
+BlinkOnFraction = 0.6
+BlinkOffAlpha = 0.16
+
+[node name="Issued" type="Label" parent="Board"]
+offset_left = 2772.71
+offset_top = 175.0
+offset_right = 2990.0
+offset_bottom = 197.0
+theme_override_colors/font_color = Color(0.788235, 0.25098, 0.227451, 0.85)
+theme_override_font_sizes/font_size = 16
+text = "ISSUED 0"
+script = ExtResource("20_board")
 
 [node name="Player" parent="." instance=ExtResource("9_player")]
 position = Vector2(88.89, 480)
@@ -114,7 +196,7 @@ position = Vector2(640, 241.18)
 zoom = Vector2(1.5, 1.5)
 limit_left = 0
 limit_top = -120
-limit_right = 2560
+limit_right = 3840
 limit_bottom = 1080
 limit_smoothed = true
 position_smoothing_enabled = true
@@ -135,5 +217,9 @@ visible = false
 [node name="PH_Mark" parent="Checkpoints/Checkpoint_Drift" index="1"]
 visible = false
 
+[node name="PH_Mark" parent="Checkpoints/Checkpoint_Exit" index="1"]
+visible = false
+
 [editable path="Checkpoints/Checkpoint_Face"]
 [editable path="Checkpoints/Checkpoint_Drift"]
+[editable path="Checkpoints/Checkpoint_Exit"]

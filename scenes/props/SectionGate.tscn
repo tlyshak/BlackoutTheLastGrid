@@ -1,0 +1,26 @@
+[gd_scene load_steps=3 format=3 uid="uid://b8sqgxk2vn7dq"]
+
+; The section gate (T-V3-04): the wall that shuts the way into the next section until every enemy
+; of this one is down — the author's rule, «як на 2 секції, так і на цій Go (перехід на наступну
+; секцію), тільки якщо всі вороги переможені».
+; The root is a StaticBody2D, not an Area2D: it exists to stop bodies, not to watch for them, so it
+; sits on layer 1 (World — the layer every actor's body masks) with mask 0 (it looks for nothing).
+; Its origin is the middle of the gate on the walk band; the level puts it on the section's seam.
+; The rectangle is 40 px of wall along X — thick enough that nothing tunnels through it at walking
+; speed (the hero covers ~3.7 px per physics frame at 220 px/s) and thin enough to hide behind a
+; painted door frame — by 300 px of depth, which is the whole walk band of the mine rooms
+; (RoomBounds.FloorTop 300 … FloorBottom 600). SectionGate.BlockerDepth re-stretches that Y on a
+; copy of the shape at _Ready, so a room with a different band needs one export, not a new scene.
+[ext_resource type="Script" path="res://scripts/props/SectionGate.cs" id="1_gate"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_gate"]
+size = Vector2(40, 300)
+
+[node name="SectionGate" type="StaticBody2D" node_paths=PackedStringArray("BlockerShape")]
+collision_layer = 1
+collision_mask = 0
+script = ExtResource("1_gate")
+BlockerShape = NodePath("CollisionShape2D")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_gate")

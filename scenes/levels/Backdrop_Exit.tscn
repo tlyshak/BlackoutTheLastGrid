@@ -1,0 +1,118 @@
+[gd_scene load_steps=13 format=3 uid="uid://h866cwl04mwh"]
+
+[ext_resource type="PackedScene" uid="uid://b2p2i0v3m0xeh" path="res://scenes/levels/SectionBackdrop.tscn" id="1_base"]
+[ext_resource type="Texture2D" uid="uid://eycnsxywv3jf" path="res://assets/art/v2/backgrounds/level0_section1_mineface_r2_back.svg" id="2_back"]
+[ext_resource type="Texture2D" uid="uid://dyabr4kt62yd2" path="res://assets/art/v2/backgrounds/level0_section3_exit_r2_mid.svg" id="3_mid"]
+[ext_resource type="Texture2D" uid="uid://daa5t07qf2lnp" path="res://assets/art/v2/backgrounds/level0_section3_exit_r2_floor.svg" id="4_floor"]
+[ext_resource type="Script" path="res://scripts/levels/BackdropOverlay.cs" id="7_overlay"]
+[ext_resource type="Texture2D" uid="uid://ddedcph42tcw" path="res://assets/art/v2/backgrounds/level0_section3_exit_r2_camera_lamp.svg" id="8_camera"]
+[ext_resource type="Texture2D" uid="uid://oprymtai0qc8" path="res://assets/art/v2/backgrounds/level0_section3_exit_r2_cell_a.svg" id="9_cell_a"]
+[ext_resource type="Texture2D" uid="uid://2nbbvqdg8chi" path="res://assets/art/v2/backgrounds/level0_section3_exit_r2_cell_b.svg" id="10_cell_b"]
+[ext_resource type="Texture2D" uid="uid://d4f6fo24pduds" path="res://assets/art/v2/backgrounds/level0_section3_exit_r2_cell_c.svg" id="11_cell_c"]
+[ext_resource type="Texture2D" uid="uid://0je43yboxiw1" path="res://assets/art/v2/backgrounds/level0_section3_exit_r2_bank_a.svg" id="12_bank_a"]
+[ext_resource type="Texture2D" uid="uid://b0ertns5lm2sm" path="res://assets/art/v2/backgrounds/level0_section3_exit_r2_bank_b.svg" id="13_bank_b"]
+[ext_resource type="Texture2D" uid="uid://cvpndt4hvtf5e" path="res://assets/art/v2/backgrounds/level0_section3_exit_r2_cage_gate.svg" id="14_cage"]
+
+[node name="Backdrop_Exit" instance=ExtResource("1_base")]
+BackTexture = ExtResource("2_back")
+MidTexture = ExtResource("3_mid")
+FloorTexture = ExtResource("4_floor")
+WorldScale = 1.8823529411764706
+SectionX = 0.0
+RoomWidth = 1280
+FillFrom = 0.0
+FillTo = 1280
+
+[node name="CameraLamp" type="Sprite2D" parent="."]
+z_index = -39
+texture = ExtResource("8_camera")
+centered = false
+script = ExtResource("7_overlay")
+CropOrigin = Vector2(82, 148)
+Pivot = Vector2(82, 148)
+Motion = 1
+NeedsPower = false
+BlinkPeriod = 3.4
+BlinkOnFraction = 0.12
+BlinkOffAlpha = 0.2
+Seed = 31
+
+[node name="CellA" type="Sprite2D" parent="."]
+z_index = -39
+texture = ExtResource("9_cell_a")
+centered = false
+script = ExtResource("7_overlay")
+CropOrigin = Vector2(301, 221)
+Pivot = Vector2(301, 221)
+Motion = 1
+NeedsPower = false
+BlinkPeriod = 1.7
+BlinkOnFraction = 0.35
+BlinkOffAlpha = 0.15
+Seed = 41
+
+[node name="CellB" type="Sprite2D" parent="."]
+z_index = -39
+texture = ExtResource("10_cell_b")
+centered = false
+script = ExtResource("7_overlay")
+CropOrigin = Vector2(325, 253)
+Pivot = Vector2(325, 253)
+Motion = 1
+NeedsPower = false
+BlinkPeriod = 2.3
+BlinkOnFraction = 0.5
+BlinkOffAlpha = 0.15
+Seed = 43
+
+[node name="CellC" type="Sprite2D" parent="."]
+z_index = -39
+texture = ExtResource("11_cell_c")
+centered = false
+script = ExtResource("7_overlay")
+CropOrigin = Vector2(313, 237)
+Pivot = Vector2(313, 237)
+Motion = 1
+NeedsPower = false
+BlinkPeriod = 1.1
+BlinkOnFraction = 0.25
+BlinkOffAlpha = 0.2
+Seed = 47
+
+[node name="BankA" type="Sprite2D" parent="."]
+z_index = -19
+texture = ExtResource("12_bank_a")
+centered = false
+script = ExtResource("7_overlay")
+CropOrigin = Vector2(80, 316)
+Pivot = Vector2(80, 316)
+Motion = 1
+NeedsPower = false
+BlinkPeriod = 0.9
+BlinkOnFraction = 0.6
+BlinkOffAlpha = 0.2
+Seed = 53
+
+[node name="BankB" type="Sprite2D" parent="."]
+z_index = -19
+texture = ExtResource("13_bank_b")
+centered = false
+script = ExtResource("7_overlay")
+CropOrigin = Vector2(551, 367)
+Pivot = Vector2(551, 367)
+Motion = 1
+NeedsPower = false
+BlinkPeriod = 2.9
+BlinkOnFraction = 0.3
+BlinkOffAlpha = 0.25
+Seed = 59
+
+[node name="CageGate" type="Sprite2D" parent="."]
+z_index = -39
+texture = ExtResource("14_cage")
+centered = false
+script = ExtResource("7_overlay")
+CropOrigin = Vector2(380, 98)
+Pivot = Vector2(380, 98)
+Motion = 0
+NeedsPower = false

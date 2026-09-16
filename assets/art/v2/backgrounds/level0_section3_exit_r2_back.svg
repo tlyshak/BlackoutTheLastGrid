@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="440" viewBox="0 0 680 440"><title>section 3 r2 — back</title><rect width="690" height="450" fill="#06080d" />
+<path d="M0 0 L680 0 L680 96 L640 84 L610 98 L560 72 L520 100 L470 66 L430 92 L380 62 L340 90 L290 68 L240 96 L190 70 L150 94 L100 72 L60 98 L20 84 L0 92 Z" fill="#0e121a" />
+<g id="upper-ceiling">
+<path d="M0 0 L680 0 L680 96 L640 84 L610 98 L560 72 L520 100 L470 66 L430 92 L380 62 L340 90 L290 68 L240 96 L190 70 L150 94 L100 72 L60 98 L20 84 L0 92 Z" fill="#0f1420" opacity="0.5" fill-opacity="0.12" />
+<g fill="#10151f"><path d="M0 40 Q80 46 160 38 T340 44 T520 36 T680 42 L680 60 Q600 54 520 60 T340 52 T160 58 T0 54 Z" /></g>
+<g fill="#0c1018"><path d="M0 66 Q90 72 180 64 T360 70 T540 62 T680 68 L680 80 Q600 76 540 80 T360 74 T180 80 T0 76 Z" /></g>
+<g fill="none" stroke="#161c2a" stroke-width="1"><path d="M0 34 Q100 40 200 32 T400 38 T600 30 T680 34" /><path d="M0 84 Q120 90 240 82 T480 88 T680 82" /></g>
+<g fill="none" stroke="#080b12" stroke-width="1.2"><path d="M0 58 Q90 62 180 56 T360 62 T540 54 T680 60" /><path d="M96 44 L104 58 L100 70 M312 38 L318 52 L314 66 M528 42 L534 56 L530 70" /></g>
+<g fill="#0a0e18" opacity="0.8"><path d="M70 60 L78 62 L74 70 Z" /><path d="M250 44 L258 46 L254 54 Z" /><path d="M470 48 L478 50 L474 58 Z" /><path d="M650 56 L658 58 L654 66 Z" /></g>
+<g fill="#6a7a9a" opacity="0.18"><circle cx="128" cy="52" r="1" /><circle cx="296" cy="40" r="0.9" /><circle cx="452" cy="58" r="1" /><circle cx="588" cy="46" r="0.8" /></g>
+<g fill="#000000" opacity="0.18"><rect x="0" y="26" width="680" height="24" /></g>
+</g>
+<g id="far-gallery">
+<g fill="none" stroke="#1f2638" stroke-width="2"><path d="M0 80 L680 80" /></g>
+<g fill="#1f2638"><rect x="120" y="70" width="4" height="14" /><rect x="260" y="66" width="4" height="16" /><rect x="400" y="64" width="4" height="16" /><rect x="540" y="68" width="4" height="14" /></g>
+<g fill="#6b5a2a" opacity="0.7"><circle cx="122" cy="86" r="1.5" /><circle cx="262" cy="84" r="1.5" /><circle cx="402" cy="82" r="1.5" /><circle cx="542" cy="86" r="1.5" /></g>
+<g fill="#6b5a2a" opacity="0.12"><circle cx="122" cy="88" r="10" /><circle cx="262" cy="86" r="10" /><circle cx="402" cy="84" r="10" /><circle cx="542" cy="88" r="10" /></g>
+</g>
+<path d="M0 92 L20 84 L60 98 L100 72 L150 94 L190 70 L240 96 L290 68 L340 90 L380 62 L430 92 L470 66 L520 100 L560 72 L610 98 L640 84 L680 96 L680 160 L0 160 Z" fill="#131826" />
+<path d="M0 92 L20 84 L60 98 L100 72 L150 94 L190 70 L240 96 L290 68 L340 90 L380 62 L430 92 L470 66 L520 100 L560 72 L610 98 L640 84 L680 96 L680 160 L0 160 Z" fill="#000000" fill-opacity="0.06" />
+<g id="ceiling-detail">
+<path d="M0 92 L20 84 L60 98 L100 72 L150 94 L190 70 L240 96 L290 68 L340 90 L380 62 L430 92 L470 66 L520 100 L560 72 L610 98 L640 84 L680 96 L680 160 L0 160 Z" fill="#0f1420" opacity="0.7" fill-opacity="0.12" />
+<g fill="none" stroke="#1d2540" stroke-width="1.2" opacity="0.8"><path d="M0 93 L20 85 L60 99 L100 73 L150 95 L190 71 L240 97 L290 69 L340 91 L380 63 L430 93 L470 67 L520 101 L560 73 L610 99 L640 85 L680 97" /></g>
+<g fill="none" stroke="#080b12" stroke-width="2"><path d="M0 99 L20 91 L60 105 L100 79 L150 101 L190 77 L240 103 L290 75 L340 97 L380 69 L430 99 L470 73 L520 107 L560 79 L610 105 L640 91 L680 103" /></g>
+<g fill="#0e121a" stroke="#080b12" stroke-width="1"><path d="M96 74 L104 74 L102 88 Z" /><path d="M286 70 L294 70 L291 86 Z" /><path d="M376 64 L384 64 L381 82 Z" /><path d="M556 74 L564 74 L561 90 Z" /><path d="M466 68 L474 68 L471 84 Z" /></g>
+<g fill="#0e121a"><path d="M30 110 L52 118 L44 140 L24 132 Z" /><path d="M560 112 L586 118 L580 142 L556 136 Z" /></g>
+<g fill="none" stroke="#2a3148" stroke-width="2"><path d="M0 118 Q120 132 240 120 T480 124 T680 120" /><path d="M0 128 Q140 142 260 130 T500 134 T680 132" /></g>
+<g fill="none" stroke="#0a0e18" stroke-width="1"><path d="M40 138 Q70 146 110 136 T200 142 T300 134 T400 144 T500 136 T600 144 T680 136" /><path d="M0 150 Q60 156 120 148 T260 154 T400 146 T540 154 T680 148" /></g>
+<g fill="#0a0e18" opacity="0.7"><path d="M120 116 L128 118 L124 126 Z" /><path d="M470 122 L478 124 L474 132 Z" /><path d="M620 112 L628 114 L624 122 Z" /></g>
+<g fill="none" stroke="#3a5a3a" stroke-width="1.5" opacity="0.3"><path d="M212 100 Q214 120 210 140" /><path d="M548 106 Q546 126 550 146" /></g>
+</g>
+</svg>

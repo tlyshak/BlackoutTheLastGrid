@@ -3,12 +3,13 @@
 [ext_resource type="Script" path="res://scripts/ui/HUD.cs" id="1_hud"]
 [ext_resource type="Theme" uid="uid://4i2jy3f0qvhf" path="res://scenes/ui/HudTheme.tres" id="2_theme"]
 
-[node name="HUD" type="CanvasLayer" node_paths=PackedStringArray("EnergyBar", "EnergyLabel", "Prompt")]
+[node name="HUD" type="CanvasLayer" node_paths=PackedStringArray("EnergyBar", "EnergyLabel", "Prompt", "Go")]
 layer = 10
 script = ExtResource("1_hud")
 EnergyBar = NodePath("Root/EnergyPanel/VBox/EnergyBar")
 EnergyLabel = NodePath("Root/EnergyPanel/VBox/EnergyLabel")
 Prompt = NodePath("Root/Prompt")
+Go = NodePath("Root/Go")
 
 [node name="Root" type="Control" parent="."]
 layout_mode = 3
@@ -63,3 +64,43 @@ grow_vertical = 0
 theme_override_font_sizes/font_size = 24
 horizontal_alignment = 1
 vertical_alignment = 1
+
+; The arcade "GO ▶" prompt, shown by SectionGate once the section's last enemy is down. Word and
+; arrow live under one Control so HUD's blink fades both with a single Modulate; the arrow is a
+; Polygon2D rather than a glyph because the HUD theme uses Godot's default font, which carries no
+; U+25B6. Anchored to the right edge at mid height — where the player is looking when he is told to
+; move on, and clear of the energy panel (top left) and the interaction prompt (bottom centre).
+[node name="Go" type="Control" parent="Root"]
+visible = false
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -280.0
+offset_top = -56.0
+offset_right = -40.0
+offset_bottom = 56.0
+grow_horizontal = 0
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="Root/Go"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -76.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.949, 0.694, 0.204, 1)
+theme_override_font_sizes/font_size = 64
+text = "GO"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="Arrow" type="Polygon2D" parent="Root/Go"]
+position = Vector2(176, 56)
+color = Color(0.949, 0.694, 0.204, 1)
+polygon = PackedVector2Array(0, -26, 44, 0, 0, 26)
