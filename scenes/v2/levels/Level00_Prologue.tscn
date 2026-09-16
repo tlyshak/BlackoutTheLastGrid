@@ -317,6 +317,7 @@ polygon = PackedVector2Array(2911.11, 300, 3097.78, 300, 3097.78, 371, 2911.11, 
 color = Color(0.039216, 0.05098, 0.078431, 0.45)
 
 [node name="PH_HitStrip_Timber" type="Polygon2D" parent="PH_Decals"]
+visible = false
 position = Vector2(1466.67, 450)
 color = Color(0.941176, 0.639216, 0.14902, 0.4)
 polygon = PackedVector2Array(-48, -12, 48, -12, 48, 12, -48, 12)
@@ -687,27 +688,16 @@ position = Vector2(1527.06, 363.06)
 SaveId = "belt_switch"
 Line = NodePath("../ConveyorLine")
 
-[node name="PH_RockFar" parent="DebrisPile_Timber/PH_Rubble" index="0"]
-color = Color(0.301961, 0.345098, 0.4, 1)
-
-[node name="PH_RockNear" parent="DebrisPile_Timber/PH_Rubble" index="1"]
-color = Color(0.301961, 0.345098, 0.4, 1)
-
-[node name="PH_Rock" parent="DebrisPile_Timber/PH_Rubble" index="2"]
-color = Color(0.4, 0.42, 0.46, 1)
-
-[node name="PH_TimberA" parent="DebrisPile_Timber/PH_Rubble" index="3"]
-color = Color(0.541176, 0.309804, 0.156863, 1)
-
-[node name="PH_TimberB" parent="DebrisPile_Timber/PH_Rubble" index="4"]
-color = Color(0.541176, 0.309804, 0.156863, 1)
-
 [node name="GasZone_Pocket_A" parent="." node_paths=PackedStringArray("Room") instance=ExtResource("22_gas")]
+HazeColor = Color(1, 1, 1, 0)
+HazeWarningColor = Color(1, 1, 1, 0)
 position = Vector2(2000, 450)
 WarningSeconds = 1.2
 Room = NodePath("../Rooms/Room_Drift")
 
 [node name="GasZone_Pocket_B" parent="." node_paths=PackedStringArray("Room") instance=ExtResource("22_gas")]
+HazeColor = Color(1, 1, 1, 0)
+HazeWarningColor = Color(1, 1, 1, 0)
 position = Vector2(2080, 450)
 WarningSeconds = 1.2
 Room = NodePath("../Rooms/Room_Drift")
@@ -1450,6 +1440,9 @@ visible = false
 [node name="PH_Rubble" parent="DebrisPile_Jam" index="2"]
 modulate = Color(1, 1, 1, 0)
 
+[node name="PH_Rubble" parent="DebrisPile_Timber" index="2"]
+modulate = Color(1, 1, 1, 0)
+
 [editable path="GuardWave"]
 [editable path="Hoist"]
 [editable path="Charge"]
@@ -1465,3 +1458,4 @@ modulate = Color(1, 1, 1, 0)
 [editable path="Outlet_1"]
 [editable path="Outlet_2"]
 [editable path="Outlet_3"]
+[editable path="DebrisPile_Timber"]

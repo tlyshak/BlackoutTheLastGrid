@@ -79,8 +79,7 @@ const DECAL_COUNT := 7                   # three pools, three dark stripes, the 
 const TIMBER_PILE := "DebrisPile_Timber"
 const TIMBER_RUBBLE := ["PH_RockFar", "PH_RockNear", "PH_Rock", "PH_TimberA", "PH_TimberB"]
 const HIT_STRIP := "PH_Decals/PH_HitStrip_Timber"
-const RUBBLE_CONTRAST_MIN := 0.15        # luminance every pile polygon must sit above the drawn floor under it
-const HIT_STRIP_CONTRAST_MIN := 0.15     # luminance the strip, blended at its alpha, must add over that floor
+const GAS_HAZE_OFF := ["GasZone_Pocket_A", "GasZone_Pocket_B"]   # their haze colours are transparent
 const GONE_ROOT := ["PH_Ceiling", "PH_Floor_Face", "PH_Floor_Drift", "PH_Floor_Patrol", "PH_FloorEdge",
 	"PH_Conveyor", "PH_ConveyorEdge", "PH_Coal_1", "PH_Coal_2", "PH_Coal_3", "PH_CageShaft", "PH_CageCable",
 	"PH_Wall_Face", "PH_Wall_Drift", "PH_Wall_Patrol", "PH_Sky_Surface",
@@ -256,29 +255,26 @@ func _run() -> void:
 		_check(decals.z_index == DECALS_Z, "PH_Decals z_index=%d, expected %d" % [decals.z_index, DECALS_Z])
 		_check(decals.get_index() > backgrounds.get_index(), "PH_Decals precedes Backgrounds in the tree; the light pools would draw under the floor")
 		_check(decals.get_child_count() == DECAL_COUNT, "PH_Decals has %d children, expected %d" % [decals.get_child_count(), DECAL_COUNT])
-	# The timber gate reads on the painted floor (author's playtest 2026-09-12 #2).
+	# Nothing is drawn in a painted room that is not in the author's SVG (his instruction of
+	# 2026-09-16, which replaces the readability rule of 2026-09-12: back then the fix was to
+	# recolour the pile so it reads on the painted floor, now it draws nothing at all). The props
+	# still work — the gate holds and the heavy hit still clears it — so the assertion is that
+	# their placeholder art is switched off, not that it is absent.
 	var pile: Node2D = level.get_node_or_null(TIMBER_PILE)
-	var drift_bd: Node2D = level.get_node_or_null("Backgrounds/Backdrop_Drift")
-	if pile != null and drift_bd != null:
-		var floor_c: Color = _floor_color(drift_bd, pile.global_position.x, pile.global_position.y)
-		_check(floor_c.r >= 0.0, "no drawn floor texel under %s at %s" % [TIMBER_PILE, pile.global_position])
-		var floor_lum: float = _lum(floor_c)
+	if pile != null:
+		var rubble: CanvasItem = pile.get_node_or_null("PH_Rubble")
+		_check(rubble != null and is_zero_approx(rubble.modulate.a),
+			"%s/PH_Rubble draws at alpha %s, expected 0 — DebrisPile turns Visible back on from _Ready, so transparency is what switches it off" % [TIMBER_PILE, rubble.modulate.a if rubble else null])
 		for name in TIMBER_RUBBLE:
-			var poly: Polygon2D = pile.get_node_or_null("PH_Rubble/" + name)
-			if poly == null:
-				_check(false, "%s/PH_Rubble/%s is missing" % [TIMBER_PILE, name])
-				continue
-			_check(_lum(poly.color) - floor_lum >= RUBBLE_CONTRAST_MIN,
-				"%s/PH_Rubble/%s (luminance %.2f) sits %.2f above the drawn floor under the pile (%.2f), expected >= %.2f — the pile vanishes on the painted floor" % [TIMBER_PILE, name, _lum(poly.color), _lum(poly.color) - floor_lum, floor_lum, RUBBLE_CONTRAST_MIN])
-		var strip: Polygon2D = level.get_node_or_null(HIT_STRIP)
-		if strip != null:
-			var blended: Color = floor_c.lerp(Color(strip.color, 1.0), strip.color.a)
-			_check(_lum(blended) - floor_lum >= HIT_STRIP_CONTRAST_MIN,
-				"%s blended at alpha %.2f adds %.2f luminance over the drawn floor (%.2f), expected >= %.2f — the strip the heavy hit is thrown from is invisible" % [HIT_STRIP, strip.color.a, _lum(blended) - floor_lum, floor_lum, HIT_STRIP_CONTRAST_MIN])
-		else:
-			_check(false, "%s is missing" % HIT_STRIP)
+			_check(pile.get_node_or_null("PH_Rubble/" + name) != null, "%s/PH_Rubble/%s is missing" % [TIMBER_PILE, name])
 	else:
-		_check(false, "%s or Backgrounds/Backdrop_Drift is missing" % TIMBER_PILE)
+		_check(false, "%s is missing" % TIMBER_PILE)
+	var strip: CanvasItem = level.get_node_or_null(HIT_STRIP)
+	_check(strip != null and not strip.visible, "%s is drawn; the painted room shows only the author's art" % HIT_STRIP)
+	for pocket_name in GAS_HAZE_OFF:
+		var pocket: Node = level.get_node_or_null(pocket_name)
+		_check(pocket != null and is_zero_approx(pocket.HazeColor.a) and is_zero_approx(pocket.HazeWarningColor.a),
+			"%s still tints its haze; the painted room shows only the author's art" % pocket_name)
 	# The v1 rock parallax is back for the surface, strictly under every painted far layer.
 	var rock: Node2D = level.get_node_or_null("Parallax")
 	var patrol_back: Node = level.get_node_or_null("Backgrounds/Backdrop_Patrol/Back")
