@@ -27,7 +27,7 @@ extends SceneTree
 #     below it — the hero never stands on the wall and never sees floor he cannot reach;
 #   * switch every painted far layer off while the camera is limited to Room_Surface and keep the
 #     patrol room's on while it is limited to Room_Patrol (LevelBase.ApplyRoomBounds drives it);
-#   * run the camera at zoom 1.5 from y 450: a 1280x720 world window (90…810) inside the limits,
+#   * run the camera at zoom 1.5 from y 280: a 1280x720 world window (-80…640) inside the limits,
 #     the walk band 300…600 inside it with wall showing above the band's top;
 #   * stage the capture with Sprite2Ds: HeldGuards/Overseer|PH_Guard_A|PH_Guard_B show the guard
 #     sheet's `stance` region (assets/art/v2/keyframes/guard_keyframes.frames.json x svg/scale 2) at
@@ -58,7 +58,7 @@ const LAYERS := ["Back", "Mid", "Floor"]
 const ROCK_LAYERS := ["PxRockFar", "PxRockMid", "PxStruct"]   # the v1 rock parallax kept for the surface
 const SURFACE_X := 8640.0
 const CAMERA_ZOOM := Vector2(1.5, 1.5)
-const CAMERA_Y := 450.0
+const CAMERA_Y := 280.0   # T-V2-05: the window -80…640 shows the painted beam, fan and lamps; the mine rooms start at -80
 const BAND_TOP := 300.0
 const BAND_BOTTOM := 600.0
 const WALL_ABOVE_BAND_MIN := 80.0        # world px of wall the window must show above the band's top

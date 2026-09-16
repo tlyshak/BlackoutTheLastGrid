@@ -21,6 +21,12 @@ namespace BlackoutLastGrid.Levels;
 /// follow the camera into the surface room, and no base-space clip can express that. No collision,
 /// no signals; the node's own position is the room's left edge (world x of the room rect).
 /// </para>
+/// <para>
+/// Animated pieces of the picture (an alarm, a lamp's glow, a fan) are <see cref="BackdropOverlay"/>
+/// children of the room scene, placed here on their mockup pixels after the layers are built and
+/// fed the station's <see cref="Powered"/> state, which follows the visibility of
+/// <see cref="PowerFrom"/> (the level's lamp string) when the owner scene wires it.
+/// </para>
 /// </summary>
 public partial class SectionBackdrop : Node2D
 {
@@ -135,6 +141,35 @@ public partial class SectionBackdrop : Node2D
     /// <summary>z_index of the floor layer (visual brief: floor and decals −20).</summary>
     [Export] public int FloorZ { get; set; } = -20;
 
+    // ---- power ------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Node whose visibility is the station power: the level's lamp string (<c>WorkLamps</c>), which
+    /// the prologue hides at the blast and never shows again. Followed through its
+    /// <c>visibility_changed</c> signal, so the shared level script needs no knowledge of the
+    /// painted rooms; empty leaves <see cref="Powered"/> as authored.
+    /// </summary>
+    [Export] public CanvasItem? PowerFrom { get; set; }
+
+    /// <summary>
+    /// Station power of the room's animated dressing (the <see cref="BackdropOverlay"/> children:
+    /// lamps glow and flicker, the fan turns). <c>false</c> is the blackout — lamps go dark, the fan
+    /// spins down, an alarm on its own battery keeps blinking. Follows <see cref="PowerFrom"/> when set.
+    /// </summary>
+    [Export]
+    public bool Powered
+    {
+        get => _powered;
+        set
+        {
+            _powered = value;
+            if (IsInsideTree())
+            {
+                PropagatePower();
+            }
+        }
+    }
+
     /// <summary>Node scale applied to every sprite: world px per texture px.</summary>
     public float LayerScale => WorldScale / ImportScale;
 
@@ -142,6 +177,7 @@ public partial class SectionBackdrop : Node2D
     public float OffsetY => FloorFarEdgeY - DrawnFloorTop * WorldScale;
 
     private Parallax2D? _back;
+    private bool _powered = true;
 
     public override void _Ready()
     {
@@ -156,6 +192,52 @@ public partial class SectionBackdrop : Node2D
         BuildBack(back);
         BuildLayer(mid, MidTexture, LeftFillTexture ?? MidTexture, LeftFillSlice, RightFillTexture ?? MidTexture, RightFillSlice);
         BuildLayer(floor, FloorTexture, FloorFillTexture ?? FloorTexture, FloorFillSlice, FloorFillTexture ?? FloorTexture, FloorFillSlice);
+        if (PowerFrom is not null)
+        {
+            PowerFrom.VisibilityChanged += OnPowerSourceVisibilityChanged;
+            _powered = PowerFrom.Visible;
+        }
+        PlaceOverlays();
+    }
+
+    public override void _ExitTree()
+    {
+        if (PowerFrom is not null)
+        {
+            PowerFrom.VisibilityChanged -= OnPowerSourceVisibilityChanged;
+        }
+    }
+
+    private void OnPowerSourceVisibilityChanged()
+    {
+        if (PowerFrom is not null)
+        {
+            Powered = PowerFrom.Visible;
+        }
+    }
+
+    /// <summary>Every <see cref="BackdropOverlay"/> child onto its mockup pixels, with the current power.</summary>
+    private void PlaceOverlays()
+    {
+        foreach (Node child in GetChildren())
+        {
+            if (child is BackdropOverlay overlay)
+            {
+                overlay.Place(SectionX, OffsetY, WorldScale, ImportScale);
+                overlay.Powered = _powered;
+            }
+        }
+    }
+
+    private void PropagatePower()
+    {
+        foreach (Node child in GetChildren())
+        {
+            if (child is BackdropOverlay overlay)
+            {
+                overlay.Powered = _powered;
+            }
+        }
     }
 
     /// <summary>

@@ -1,14 +1,67 @@
-[gd_scene load_steps=5 format=3 uid="uid://dj2civlpl88b2"]
+[gd_scene load_steps=12 format=3 uid="uid://dj2civlpl88b2"]
 
 [ext_resource type="PackedScene" uid="uid://b2p2i0v3m0xeh" path="res://scenes/v2/levels/SectionBackdrop.tscn" id="1_base"]
-[ext_resource type="Texture2D" uid="uid://bby1cl2v4v8ku" path="res://assets/art/v2/backgrounds/level0_section1_mineface_back.svg" id="2_back"]
-[ext_resource type="Texture2D" uid="uid://puex54shemd1" path="res://assets/art/v2/backgrounds/level0_section1_mineface_mid.svg" id="3_mid"]
-[ext_resource type="Texture2D" uid="uid://dhkl3ooaabfc0" path="res://assets/art/v2/backgrounds/level0_section1_mineface_floor.svg" id="4_floor"]
+[ext_resource type="Texture2D" uid="uid://eycnsxywv3jf" path="res://assets/art/v2/backgrounds/level0_section1_mineface_r2_back.svg" id="2_back"]
+[ext_resource type="Texture2D" uid="uid://7y2krbsyovr" path="res://assets/art/v2/backgrounds/level0_section1_mineface_r2_mid.svg" id="3_mid"]
+[ext_resource type="Texture2D" uid="uid://b17vcwgllnh4m" path="res://assets/art/v2/backgrounds/level0_section1_mineface_r2_floor.svg" id="4_floor"]
+[ext_resource type="Texture2D" uid="uid://brtsnguhx03xb" path="res://assets/art/v2/backgrounds/level0_section1_mineface_r2_mid_fill.svg" id="5_mid_fill"]
+[ext_resource type="Texture2D" uid="uid://k214180wok15" path="res://assets/art/v2/backgrounds/level0_section1_mineface_r2_floor_fill.svg" id="6_floor_fill"]
+[ext_resource type="Script" path="res://scripts/levels/BackdropOverlay.cs" id="7_overlay"]
+[ext_resource type="Texture2D" uid="uid://7v14ysmmannf" path="res://assets/art/v2/backgrounds/level0_section1_mineface_r2_alarm.svg" id="8_alarm"]
+[ext_resource type="Texture2D" uid="uid://bwymg5pc6ugh0" path="res://assets/art/v2/backgrounds/level0_section1_mineface_r2_worklamp_wall.svg" id="9_lamp_wall"]
+[ext_resource type="Texture2D" uid="uid://br2qqj3flx6jm" path="res://assets/art/v2/backgrounds/level0_section1_mineface_r2_worklamp_floor.svg" id="10_lamp_floor"]
+[ext_resource type="Texture2D" uid="uid://d05fb8e5tbeup" path="res://assets/art/v2/backgrounds/level0_section1_mineface_r2_fan_blades.svg" id="11_fan"]
 
 [node name="Backdrop_Face" instance=ExtResource("1_base")]
 BackTexture = ExtResource("2_back")
 MidTexture = ExtResource("3_mid")
 FloorTexture = ExtResource("4_floor")
-RightFillSlice = Vector2(370, 470)
+RightFillTexture = ExtResource("5_mid_fill")
+FloorFillTexture = ExtResource("6_floor_fill")
+RightFillSlice = Vector2(180, 280)
+FloorFillSlice = Vector2(80, 180)
 SectionX = 0.0
 FillTo = 2716.6
+
+[node name="Alarm" type="Sprite2D" parent="."]
+z_index = -39
+texture = ExtResource("8_alarm")
+centered = false
+script = ExtResource("7_overlay")
+CropOrigin = Vector2(0, 154)
+Pivot = Vector2(0, 154)
+Motion = 1
+NeedsPower = false
+BlinkPeriod = 1.2
+BlinkOnFraction = 0.4
+BlinkOffAlpha = 0.25
+
+[node name="WorkLampWall" type="Sprite2D" parent="."]
+z_index = -39
+texture = ExtResource("9_lamp_wall")
+centered = false
+script = ExtResource("7_overlay")
+CropOrigin = Vector2(0, 92)
+Pivot = Vector2(0, 92)
+Motion = 2
+Seed = 7
+
+[node name="WorkLampFloor" type="Sprite2D" parent="."]
+z_index = -19
+texture = ExtResource("10_lamp_floor")
+centered = false
+script = ExtResource("7_overlay")
+CropOrigin = Vector2(30, 296)
+Pivot = Vector2(30, 296)
+Motion = 2
+Seed = 7
+
+[node name="FanBlades" type="Sprite2D" parent="."]
+z_index = -39
+texture = ExtResource("11_fan")
+centered = false
+script = ExtResource("7_overlay")
+CropOrigin = Vector2(296, 106)
+Pivot = Vector2(330, 140)
+Motion = 3
+TurnsPerSecond = 0.6

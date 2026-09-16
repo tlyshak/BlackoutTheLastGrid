@@ -55,7 +55,9 @@ const STAGE_CAGE := 9
 const STAGE_HELD := 10
 const STAGE_SURFACE := 11
 const STAGE_DONE := 12
-const ROOM_PATROL_LIMITS := [5760, 0, 8640, 1080]
+# Camera limits of the patrol room: top from _limit_top() (0 in v1, -80 in v2 — the painted beam and fan in the window).
+func _room_patrol_limits() -> Array:
+	return [5760, _limit_top(), 8640, 1080]
 const ROOM_SURFACE_LIMITS := [8640, 0, 10560, 1080]
 # Positions.
 const CP_DRIFT := Vector2(2900, 450)
@@ -88,6 +90,10 @@ func _name() -> String:
 
 func _prologue_path() -> String:
 	return PROLOGUE_PATH
+
+# Top of the mine rooms' camera limits; v2 overrides it. The surface room keeps 0 in both.
+func _limit_top() -> int:
+	return 0
 
 var _started := false
 var _frames := 0
@@ -375,7 +381,7 @@ func _run() -> void:
 	# 4. Segment 4: the lights hold the bus, the cage refuses, the lights go off, the cage runs.
 	await _place(player, CP_CAGE)
 	_check(level.CurrentStage == STAGE_CAGE, "at Checkpoint_Cage the stage is %s, expected Cage" % level.CurrentStage)
-	_check(_limits(camera) == ROOM_PATROL_LIMITS, "camera limits %s at the cage, expected %s" % [_limits(camera), ROOM_PATROL_LIMITS])
+	_check(_limits(camera) == _room_patrol_limits(), "camera limits %s at the cage, expected %s" % [_limits(camera), _room_patrol_limits()])
 	_check(dan.LeadTarget == _wp(level, "cage"), "at the cage checkpoint Dan's point is %s, expected WP_cage" % dan.LeadTarget)
 	_check(lights.StartsPowered == true and lights.IsPowered == true and lights.IsActivated == true, "the work lights do not hold the bus at the cage")
 	_check(absf(cage.global_position.x - lights.global_position.x) <= 1120.0,

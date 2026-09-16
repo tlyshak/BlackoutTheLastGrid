@@ -8,9 +8,13 @@ extends "res://tests/smoke/level_prologue_escape.gd"
 
 const V2_NAME := "v2_level_prologue_escape"   # must equal the file basename
 const V2_PROLOGUE_PATH := "res://scenes/v2/levels/Level00_Prologue.tscn"
+const V2_LIMIT_TOP := -80   # the v2 mine rooms start 80 px above v1's (T-V2-05); the surface stays at 0
 
 func _name() -> String:
 	return V2_NAME
 
 func _prologue_path() -> String:
 	return V2_PROLOGUE_PATH
+
+func _limit_top() -> int:
+	return V2_LIMIT_TOP

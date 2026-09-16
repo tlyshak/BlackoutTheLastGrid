@@ -15,6 +15,7 @@ const V2_NAME := "v2_level_prologue"   # must equal the file basename
 const V2_MAIN_PATH := "res://scenes/v2/Main.tscn"
 const V2_PROLOGUE_PATH := "res://scenes/v2/levels/Level00_Prologue.tscn"
 const CRATES_GONE := ["Crate", "PH_Crate_Stack"]   # v2 deliberately without (author's playtest 2026-09-12)
+const V2_LIMIT_TOP := -80   # the v2 mine rooms start 80 px above v1's: the painted beam, fan and lamps sit in the window (T-V2-05)
 
 func _name() -> String:
 	return V2_NAME
@@ -24,6 +25,9 @@ func _main_path() -> String:
 
 func _prologue_path() -> String:
 	return V2_PROLOGUE_PATH
+
+func _limit_top() -> int:
+	return V2_LIMIT_TOP
 
 # v2 first room without the crate row: nothing blocks the walk where v1's crate stood, the jump
 # hint still appears on the way and completes on a jump.

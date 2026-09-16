@@ -36,6 +36,10 @@ const ART_NODES := ["Rig", "Sprite"]    # under an actor's Visual
 const ACTOR_LAMP := "Flashlight"        # under an actor's root: compared by class and balance, its offset is art
 const LAMP_BALANCE := ["DrainPerSecond", "EnabledAtStart"]   # Flashlight exports that are balance, not art
 const V2_OMITTED := ["Crate", "Crate/CollisionShape2D"]   # v2 deliberately without: the crate row (author's playtest 2026-09-12)
+# Deliberate v2-only differences, listed with both values so a stale entry fails instead of hiding
+# a drift (T-V2-05, the author's r2 concept of the first room, 2026-09-16): the mine rooms' camera
+# limits start 80 px higher so the painted beam, fan and lamps sit in the window.
+const V2_ACCEPTED_TREE := {"Camera2D": ["Camera2D | limits 0 0 2880 1080", "Camera2D | limits 0 -80 2880 1080"]}
 const MAX_REPORTED := 8                 # differences listed before the message is cut
 const POS_DECIMALS := 2
 
@@ -161,6 +165,16 @@ func _snapshot(scene: PackedScene) -> Dictionary:
 	await _step(2)
 	return snap
 
+# Keys of `accepted` (key → [v1 value, v2 value]) verified on both snapshots and returned for _diff to skip.
+func _accept(label: String, a: Dictionary, b: Dictionary, accepted: Dictionary) -> Array:
+	var keys: Array = []
+	for key in accepted:
+		var pair: Array = accepted[key]
+		_check(a.get(key) == pair[0], "%s: v1 %s is %s, expected %s — the accepted v2 difference is stale" % [label, key, a.get(key), pair[0]])
+		_check(b.get(key) == pair[1], "%s: v2 %s is %s, expected the deliberate %s" % [label, key, b.get(key), pair[1]])
+		keys.append(key)
+	return keys
+
 func _diff(label: String, a: Dictionary, b: Dictionary, omitted: Array = []) -> void:
 	var diffs: PackedStringArray = []
 	for key in a:
@@ -218,6 +232,6 @@ func _run() -> void:
 	for path in V2_OMITTED:
 		_check(s1.tree.has(path), "v1 has no gameplay node '%s' — the V2_OMITTED exception is stale" % path)
 		_check(not s2.tree.has(path), "v2 still carries '%s', listed in V2_OMITTED as deliberately absent" % path)
-	_diff("gameplay tree", s1.tree, s2.tree, V2_OMITTED)
+	_diff("gameplay tree", s1.tree, s2.tree, V2_OMITTED + _accept("gameplay tree", s1.tree, s2.tree, V2_ACCEPTED_TREE))
 	print("v2_level_skeleton: %d exports and %d gameplay nodes compared" % [s2.exports.size(), s2.tree.size()])
 	_finish()
