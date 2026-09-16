@@ -7,7 +7,7 @@ namespace BlackoutLastGrid.Props;
 /// The lever beside the belt line (T-V2-06): one <c>interact</c> throws it, the
 /// <see cref="ConveyorLine"/> it is wired to stops, the red indicator lights and the drawn handle
 /// swings to its other position. No sequence and no power cost — the belt is a door with a handle,
-/// not a repair (<see cref="PowerPanel"/> is the prop for those).
+/// not a repair.
 /// </summary>
 /// <remarks>
 /// <para>

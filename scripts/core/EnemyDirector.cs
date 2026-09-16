@@ -9,7 +9,7 @@ namespace BlackoutLastGrid.Core;
 /// <see cref="TryAcquireAttackSlot"/> before entering its Attack state, holds the slot while it
 /// attacks and gives it back with <see cref="ReleaseAttackSlot"/>. Enemies without a slot keep
 /// their distance. Slots of freed nodes are dropped automatically. Owned by the level (one per
-/// scene) and injected into enemies by the level or the <see cref="WaveSpawner"/>.
+/// scene) and injected into enemies by the level.
 /// </summary>
 public partial class EnemyDirector : Node
 {

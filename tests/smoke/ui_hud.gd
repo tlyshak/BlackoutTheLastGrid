@@ -8,9 +8,9 @@ extends SceneTree
 # _ExitTree/_EnterTree re-binding when the HUD is removed from and re-added to the tree (S2),
 # no dangling EnergyChanged listener after the HUD is freed (an Energy change after the free must
 # not throw — the runner fails on ERROR lines; C# `+=` subscribers are invisible to
-# get_signal_connection_list, so this behavioural guard is the only one), the HUD instance in
-# TestRoom (debug label moved to y=76) and the bar following the flashlight drain over 60 physics
-# frames. Needs physics frames.
+# get_signal_connection_list, so this behavioural guard is the only one), the HUD instance carried by
+# Level00_Sections (wired to the level's Hud export) and the bar following the flashlight drain over
+# 60 physics frames. Needs physics frames.
 # Run: godot --headless --path . -s tests/smoke/ui_hud.gd
 
 const NAME := "ui_hud"   # must equal the file basename
@@ -19,7 +19,7 @@ const NAME := "ui_hud"   # must equal the file basename
 const MAX_FRAMES := 3000
 const HUD_LAYER := 10
 const MOUSE_FILTER_IGNORE := 2   # Control.MOUSE_FILTER_IGNORE
-const DEBUG_LABEL_TOP := 76.0
+const LEVEL_PATH := "res://scenes/levels/Level00_Sections.tscn"
 const DRAIN_FRAMES := 60
 const DRAIN_TOL := 0.05
 
@@ -223,41 +223,37 @@ func _run() -> void:
 	gs.ResetRun()
 	await _step(1)
 
-	# 6. TestRoom: the HUD instance, debug label at y=76, the bar shows the drain.
-	var room_scene: PackedScene = load("res://scenes/levels/TestRoom.tscn")
-	_check(room_scene != null, "res://scenes/levels/TestRoom.tscn failed to load")
+	# 6. The level: its own HUD instance, wired to the level's Hud export, showing the drain.
+	var room_scene: PackedScene = load(LEVEL_PATH)
+	_check(room_scene != null, "%s failed to load" % LEVEL_PATH)
 	if room_scene == null:
 		_finish()
 		return
 	var room: Node = room_scene.instantiate()
 	root.add_child(room)
 	var room_hud: Node = room.get_node_or_null("HUD")
-	_check(room_hud != null, "TestRoom has no 'HUD' child")
+	_check(room_hud != null, "Level00_Sections has no 'HUD' child")
 	if room_hud == null or room_hud.get("EnergyBar") == null:
-		_check(false, "TestRoom/HUD has no HUD.cs / EnergyBar — aborting")
+		_check(false, "Level00_Sections/HUD has no HUD.cs / EnergyBar — aborting")
 		room.queue_free()
 		_finish()
 		return
 	_check(room_hud.get_script() != null and str(room_hud.get_script().resource_path).ends_with("HUD.cs"),
-		"TestRoom/HUD is not the HUD scene (script %s)" % (room_hud.get_script().resource_path if room_hud.get_script() != null else "null"))
+		"Level00_Sections/HUD is not the HUD scene (script %s)" % (room_hud.get_script().resource_path if room_hud.get_script() != null else "null"))
+	_check(room.get("Hud") == room_hud, "Level00_Sections.Hud does not point at the scene's own HUD (prompts would go nowhere)")
 	var room_bar_v = room_hud.get("EnergyBar")
 	if not (room_bar_v is ProgressBar):
-		_check(false, "TestRoom/HUD.EnergyBar is not a ProgressBar — aborting")
+		_check(false, "Level00_Sections/HUD.EnergyBar is not a ProgressBar — aborting")
 		room.queue_free()
 		_finish()
 		return
 	var room_bar: ProgressBar = room_bar_v
 	await _step(1)
-	_check(is_equal_approx(room_bar.value, gs.Energy), "TestRoom/HUD bar=%s, expected Energy=%s" % [room_bar.value, gs.Energy])
-	_check(_label_text(room_hud) == "ENERGY 100", "TestRoom/HUD label='%s', expected 'ENERGY 100'" % _label_text(room_hud))
-	var dbg: Node = room.get_node_or_null("UI/DebugLabel")
-	_check(dbg != null and dbg is Label, "TestRoom has no 'UI/DebugLabel' Label")
-	if dbg != null and dbg is Label:
-		_check(is_equal_approx(dbg.offset_top, DEBUG_LABEL_TOP),
-			"UI/DebugLabel.offset_top=%s, expected %s (below the energy panel)" % [dbg.offset_top, DEBUG_LABEL_TOP])
+	_check(is_equal_approx(room_bar.value, gs.Energy), "Level00_Sections/HUD bar=%s, expected Energy=%s" % [room_bar.value, gs.Energy])
+	_check(_label_text(room_hud) == "ENERGY 100", "Level00_Sections/HUD label='%s', expected 'ENERGY 100'" % _label_text(room_hud))
 
 	var lamp: Node = room.get_node_or_null("Player/Flashlight")
-	_check(lamp != null and lamp.get("DrainPerSecond") != null, "TestRoom has no 'Player/Flashlight' with Flashlight.cs")
+	_check(lamp != null and lamp.get("DrainPerSecond") != null, "Level00_Sections has no 'Player/Flashlight' with Flashlight.cs")
 	if lamp != null and lamp.get("DrainPerSecond") != null:
 		var ticks: float = float(Engine.physics_ticks_per_second)
 		lamp.SetOn(true)
@@ -285,7 +281,7 @@ func _run() -> void:
 	gs.ResetRun()
 	room.queue_free()
 	await _step(1)
-	_check(not is_instance_valid(room_hud), "TestRoom/HUD still valid one frame after freeing the room")
+	_check(not is_instance_valid(room_hud), "Level00_Sections/HUD still valid one frame after freeing the level")
 	gs.Energy = 55.0
 	gs.ResetRun()
 	_finish()

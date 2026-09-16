@@ -82,10 +82,10 @@ meaningless); otherwise run everything and report all of it.
 
 5. **Task scene (optional, when the task names one)**
    ```
-   godot --headless --path . res://scenes/levels/TestRoom.tscn --quit
+   godot --headless --path . res://scenes/levels/Level00_Sections.tscn --quit
    ```
    - Same pass/fail rules as step 3. Use it when the change touches a scene that the main scene
-     does not instantiate yet (`TestRoom`, a level, a prop scene), so it still gets loaded once.
+     does not instantiate yet (a level, a prop scene), so it still gets loaded once.
 
 6. Write the report block below. The verdict is `verified` only when Build, Import (when it was
    needed) and Headless passed and Smoke ran with no failures. When any step could not run, the

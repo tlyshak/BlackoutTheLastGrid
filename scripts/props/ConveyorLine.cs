@@ -14,7 +14,7 @@ namespace BlackoutLastGrid.Props;
 /// <para>
 /// Scene contract: root <c>StaticBody2D</c> on layer 1 (World) with mask 0, the blocking
 /// <see cref="BlockerShape"/> (a <c>RectangleShape2D</c> stretched to <see cref="BlockerDepth"/>
-/// across the band, as in <see cref="DebrisPile"/>), the <see cref="Belt"/> sprite that tiles the
+/// across the band), the <see cref="Belt"/> sprite that tiles the
 /// one-period chevron crop of the mockup, and the two indicator sprites. The sprites are placed by
 /// the owning level on the very pixels the painted room draws them at — the smoke test recomputes
 /// those from the mockup coordinates and fails on a drift.
@@ -141,7 +141,7 @@ public partial class ConveyorLine : StaticBody2D
 
     /// <summary>
     /// Stretches <see cref="BlockerShape"/> to <see cref="BlockerDepth"/> across the walk band, on
-    /// a copy of the shape so a shared resource is never edited (as in <see cref="DebrisPile"/>).
+    /// a copy of the shape so a shared resource is never edited.
     /// </summary>
     private void ApplyBlockerDepth()
     {

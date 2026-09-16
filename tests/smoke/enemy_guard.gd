@@ -1,7 +1,9 @@
 extends SceneTree
-# Smoke: the Guard enemy (T-06) — Guard.tscn wiring (script, layers, states, export defaults),
-# TestRoom wiring (EnemyDirector, Camera2D, standing Guard with the hero as target, LitZone on the
-# LightDark layer, hero LightSensor + Hurtbox under Visual), then in a fresh TestRoom per section:
+# Smoke: the Guard enemy (T-06) — Guard.tscn wiring (script, layers, painted sprite, states, export
+# defaults), Level00_Sections wiring (EnemyDirector, Camera2D limited to the starting room, the
+# guard standing at the end of the drift with the hero as target, hero LightSensor + Hurtbox under
+# Visual), then in a fresh level per section, with the guard moved onto the open floor of the mine
+# face and the hero placed around it:
 # (1) a lit hero at 250 px is noticed within 5 frames, approached and punched: Hurt(8), Energy -8,
 #     hit-stop, one attack slot held while in Attack;
 # (2) an unlit hero 280 px in front (> 420 * 0.5) is ignored for 120 frames, at 180 px noticed;
@@ -13,27 +15,26 @@ extends SceneTree
 # (5b) S1 regression: a knockdown on the first Attack frame keeps Visual.rotation at PI/2 through
 #     two idle frames and 30 physics frames of Down (the interrupted attack's RESET must not
 #     re-apply the upright pose), then the guard stands up;
-# (6) LitZone: the hero inside the zone is IsLit with the lamp off — a guard within 420 px notices
-#     it, one at 540 px does not; outside the zone IsLit is false again;
-# (7) Energy 5 -> one punch KOs the hero and LevelBase reloads the current scene ~1 s later with
+# (6) Energy 5 -> one punch KOs the hero and LevelBase reloads the current scene ~1 s later with
 #     Energy == MaxEnergy and Engine.time_scale == 1.
-# T-07i-b: the guard carries a Visual/Rig CharacterRig instead of PH_Body/PH_Fist, its
-# AnimationPlayer gained looping idle/walk that never key Visual:modulate/rotation, RESET covers
-# every property anything else writes, and a guard floored while walking stops animating for the
-# whole DownDuration (5b) and picks its gait back up after getting up.
+# The guard's AnimationPlayer carries looping idle/walk that never key Visual:modulate/rotation,
+# RESET covers every property anything else writes, and a guard floored while walking stops
+# animating for the whole DownDuration (5b) and picks its gait back up after getting up.
 # Run: godot --headless --path . -s tests/smoke/enemy_guard.gd
 #
 # Hit-stop sets Engine.time_scale = 0, so hits are observed on idle frames (`process_frame`) under
 # a wall-clock cap and the restore is awaited in real time; everything else is counted in physics
-# frames. The room takes ~130 ms to instance and Godot catches up with several physics steps in
-# ONE iteration afterwards, so every fresh room gets two idle frames before the first physics step.
+# frames. The level takes ~130 ms to instance and Godot catches up with several physics steps in
+# ONE iteration afterwards, so every fresh level gets two idle frames before the first physics step.
+# The hero is parked at HERO_START *before* the level enters the tree, so he never crosses
+# Checkpoint_Face — a KO in section 6 must reload the level, not cost a soft respawn.
 
 const NAME := "enemy_guard"   # must equal the file basename
 # Safety net: quit(1) instead of hanging into the runner timeout (60 s). Counts _process calls;
 # headless runs ~150 idle frames per second, so this is about the runner's own limit.
 const MAX_FRAMES := 9000
 const ACTIONS := ["move_left", "move_right", "move_up", "move_down", "jump", "attack", "heavy_attack", "flashlight"]
-const ROOM_PATH := "res://scenes/levels/TestRoom.tscn"
+const ROOM_PATH := "res://scenes/levels/Level00_Sections.tscn"
 const HIT_CAP_MS := 800          # wall-clock cap while waiting for one hit to land
 const NO_HIT_WINDOW_MS := 450    # longer than the hero's light animation (0.30 s) — a miss must stay a miss
 const RESTORE_CAP_MS := 1000     # wall-clock cap while waiting for hit-stop to lift
@@ -46,17 +47,21 @@ const GETUP_CAP := 75            # frames allowed for Down -> up (DownDuration 1
 const KO_CAP_MS := 2000          # wall-clock cap for SetAware -> Attack -> punch -> KnockedOut
 const RELOAD_CAP_MS := 2500      # RestartDelay 1 s + 0.5 s (plan) + margin for the ~130 ms room load
 const RELOAD_MIN_MS := 900       # the reload must not come before RestartDelay
-const GUARD_START := Vector2(1300, 450)   # standing guard, Facing -1 (looks left)
-const LIT_POS := Vector2(1050, 450)       # 250 px in front: inside the lit range (420), knockback keeps the body off the wave trigger (x <= 1000)
-const DARK_FAR := Vector2(1020, 450)      # 280 px in front: outside the dark range (420 * 0.5 = 210)
-const DARK_NEAR := Vector2(1120, 450)     # 180 px in front: inside the dark range
-const BEHIND_FAR := Vector2(1560, 450)    # 260 px behind: inside the dark range but behind -> unseen
-const BEHIND_NEAR := Vector2(1340, 450)   # 40 px behind: the hero's flipped hitbox reaches the guard
-const ZONE_POS := Vector2(760, 520)       # centre of the LitZone (r = 160)
-const ZONE_GUARD_POS := Vector2(1100, 520)   # 340 px from ZONE_POS: lit range only
-const OUT_POS := Vector2(300, 450)        # dark floor, no zone
-const KO_POS := Vector2(1258, 450)        # 42 px in front: inside AttackRange from the first tick
+const GUARD_START := Vector2(2400, 470)   # where the level stands the guard: end of the drift, Facing -1 (looks left)
+const HERO_START := Vector2(200, 470)     # the hero's parking spot for a fresh level: clear of Checkpoint_Face (x 49..129)
+const RELOADED_POS := Vector2(88.89, 480) # the hero's authored start, restored by a level reload
+# The behaviour sections move the guard onto the open floor of the mine face, where there is room
+# on both sides of it (walls at x 18 / 2542, the conveyor gate from x ~1638) and no checkpoint.
+const GUARD_POS := Vector2(900, 470)
+const LIT_POS := Vector2(650, 470)        # 250 px in front: inside the lit range (420)
+const DARK_FAR := Vector2(620, 470)       # 280 px in front: outside the dark range (420 * 0.5 = 210)
+const DARK_NEAR := Vector2(720, 470)      # 180 px in front: inside the dark range
+const BEHIND_FAR := Vector2(1160, 470)    # 260 px behind: inside the dark range but behind -> unseen
+const BEHIND_NEAR := Vector2(940, 470)    # 40 px behind: the hero's flipped hitbox reaches the guard
+const KO_POS := Vector2(858, 470)         # 42 px in front: inside AttackRange from the first tick
 const DOWN_HOLD_FRAMES := 30              # frames the Down pose must survive after a knockdown out of Attack (DownDuration 1 s = 60)
+const DOWN_ANIM := &"down"                # the painted guard's floored frame (Guard.SetDown plays the 'down' animation)
+const GAIT_ANIMS := ["walk", "idle"]      # what must never run while the guard is floored
 # Geometric dodge threshold, derived from the scene shapes (and re-derived at runtime in section 4):
 # the hero Hurtbox is 32x64 centred on Visual at (0, -36 - z), so it spans y -68-z .. -4-z relative
 # to the feet; the guard Hitbox is 36x40 at Visual (30, 0) with Visual at (0, -36), so it spans
@@ -168,12 +173,16 @@ func _wait_event(events: Array, cap: int) -> int:
 			return i + 1
 	return -1
 
-# A fresh TestRoom with the run reset, the lamp off and the guard settled in Idle. Returns
+# A fresh level with the run reset, the hero parked at HERO_START (set before the level enters the
+# tree, so no checkpoint is ever armed), the lamp off and the guard settled in Idle. Returns
 # {room, player, guard, director, lamp, gsm} or an empty dictionary (failure already recorded).
 func _open_room(scene: PackedScene, gs: Node, label: String) -> Dictionary:
 	gs.ResetRun()
 	_release_all()
 	var room: Node = scene.instantiate()
+	var hero: Node2D = room.get_node_or_null("Player")
+	if hero != null:
+		hero.position = HERO_START
 	root.add_child(room)
 	await process_frame   # consume the load catch-up iteration (see the header)
 	await process_frame
@@ -181,7 +190,7 @@ func _open_room(scene: PackedScene, gs: Node, label: String) -> Dictionary:
 	var guard: Node = room.get_node_or_null("Guard")
 	var director: Node = room.get_node_or_null("EnemyDirector")
 	if player == null or guard == null or director == null or guard.get("MaxHp") == null:
-		_check(false, "%s: TestRoom lacks Player/Guard/EnemyDirector or Guard.cs is not attached" % label)
+		_check(false, "%s: Level00_Sections lacks Player/Guard/EnemyDirector or Guard.cs is not attached" % label)
 		room.queue_free()
 		return {}
 	var lamp: Node = player.get_node_or_null("Flashlight")
@@ -192,7 +201,7 @@ func _open_room(scene: PackedScene, gs: Node, label: String) -> Dictionary:
 		return {}
 	lamp.SetOn(false)
 	await _step(2)
-	_check(guard.CurrentStateName == "Idle" and not guard.IsAware, "%s: fresh guard state '%s' IsAware=%s, expected Idle/unaware (hero at %s, 900 px away)" % [label, guard.CurrentStateName, guard.IsAware, player.position])
+	_check(guard.CurrentStateName == "Idle" and not guard.IsAware, "%s: fresh guard state '%s' IsAware=%s, expected Idle/unaware (hero at %s, %.0f px away)" % [label, guard.CurrentStateName, guard.IsAware, player.position, player.position.distance_to(guard.position)])
 	_check(player.CurrentStateName == "Idle", "%s: fresh hero state '%s', expected 'Idle'" % [label, player.CurrentStateName])
 	_check(Engine.time_scale == 1.0, "%s: Engine.time_scale=%s in a fresh room, expected 1" % [label, Engine.time_scale])
 	return {"room": room, "player": player, "guard": guard, "director": director, "lamp": lamp, "gsm": gsm}
@@ -223,8 +232,8 @@ func _run() -> void:
 
 	# 0a. Guard.tscn standalone: script, collision scheme, state machine, export defaults, idle
 	#     without a target.
-	var guard_scene: PackedScene = load("res://scenes/enemies/Guard.tscn")
-	_check(guard_scene != null, "res://scenes/enemies/Guard.tscn failed to load")
+	var guard_scene: PackedScene = load("res://scenes/actors/Guard.tscn")
+	_check(guard_scene != null, "res://scenes/actors/Guard.tscn failed to load")
 	if guard_scene != null:
 		var g: Node = guard_scene.instantiate()
 		root.add_child(g)
@@ -238,9 +247,10 @@ func _run() -> void:
 		_check(g is CharacterBody2D, "Guard root is %s, expected CharacterBody2D" % g.get_class())
 		_check(g.collision_layer == 4 and g.collision_mask == 1, "Guard body layer/mask = %d/%d, expected 4/1 (Enemy / World)" % [g.collision_layer, g.collision_mask])
 		_check(g.motion_mode == 1, "Guard motion_mode=%d, expected 1 (Floating)" % g.motion_mode)
-		var rig: Node = g.get_node_or_null("Visual/Rig")
-		_check(rig != null and str(rig.get_script().resource_path).ends_with("CharacterRig.cs"), "Guard has no 'Visual/Rig' CharacterRig (T-07i-b)")
-		_check(g.get_node_or_null("Visual/PH_Body") == null and g.get_node_or_null("Visual/PH_Fist") == null, "Guard still carries the old PH_Body / PH_Fist rectangles")
+		var sprite: Node = g.get_node_or_null("Visual/Sprite")
+		_check(sprite is AnimatedSprite2D, "Guard has no 'Visual/Sprite' AnimatedSprite2D (the painted guard)")
+		if sprite is AnimatedSprite2D:
+			_check(sprite.sprite_frames != null, "Guard Visual/Sprite has no SpriteFrames")
 		var hurt: Node = g.get_node_or_null("Visual/Hurtbox")
 		var hit: Node = g.get_node_or_null("Visual/Hitbox")
 		_check(hurt != null and hurt is Area2D, "Guard has no 'Visual/Hurtbox' Area2D (under Visual so it rises/rotates with it)")
@@ -304,8 +314,8 @@ func _run() -> void:
 		g.queue_free()
 		await _step(1)
 
-	# 0b. TestRoom wiring: LevelBase exports, director, camera, standing guard targeting the hero,
-	#     lit zone on the LightDark layer, hero sensor + hurtbox under Visual.
+	# 0b. Level wiring: LevelBase exports, director, camera limited to the starting room, the guard
+	#     standing at the end of the drift targeting the hero, hero sensor + hurtbox under Visual.
 	var scene: PackedScene = load(ROOM_PATH)
 	_check(scene != null, "%s failed to load" % ROOM_PATH)
 	if scene == null:
@@ -320,28 +330,26 @@ func _run() -> void:
 	var guard: Node = r["guard"]
 	var director: Node = r["director"]
 	var lamp: Node = r["lamp"]
-	_check(room.get_script() != null and str(room.get_script().resource_path).ends_with("TestRoom.cs"), "TestRoom has no TestRoom.cs attached")
-	_check(room.get("RestartDelay") != null and is_equal_approx(room.RestartDelay, 1.0), "TestRoom.RestartDelay=%s, expected 1 (LevelBase export)" % room.get("RestartDelay"))
-	_check(room.get("IsRestartPending") == false, "TestRoom.IsRestartPending=%s at start, expected false" % room.get("IsRestartPending"))
+	_check(room.get_script() != null and str(room.get_script().resource_path).ends_with("Level00_Sections.cs"), "Level00_Sections has no Level00_Sections.cs attached")
+	_check(room.get("RestartDelay") != null and is_equal_approx(room.RestartDelay, 1.0), "Level00_Sections.RestartDelay=%s, expected 1 (LevelBase export)" % room.get("RestartDelay"))
+	_check(room.get("IsRestartPending") == false, "Level00_Sections.IsRestartPending=%s at start, expected false" % room.get("IsRestartPending"))
 	_check(director.get_script() != null and str(director.get_script().resource_path).ends_with("EnemyDirector.cs"), "EnemyDirector has no EnemyDirector.cs")
 	_check(director.get("MaxAttackers") == 2, "EnemyDirector.MaxAttackers=%s, expected 2" % director.get("MaxAttackers"))
 	_check(director.get("ActiveAttackers") == 0, "EnemyDirector.ActiveAttackers=%s at start, expected 0" % director.get("ActiveAttackers"))
+	# The starting room's bounds are applied on ready: the camera cannot leave the mine face.
+	var start_room: Node = room.get("StartRoom")
 	var camera: Camera2D = room.get_node_or_null("Camera2D")
-	_check(camera != null, "TestRoom has no Camera2D")
-	if camera != null:
-		_check(camera.limit_left == 0 and camera.limit_top == 0 and camera.limit_right == 1920 and camera.limit_bottom == 1080,
-			"Camera2D limits %d/%d/%d/%d, expected 0/0/1920/1080" % [camera.limit_left, camera.limit_top, camera.limit_right, camera.limit_bottom])
+	_check(start_room != null, "Level00_Sections.StartRoom is not wired")
+	_check(camera != null, "Level00_Sections has no Camera2D")
+	if camera != null and start_room != null:
+		var rect: Rect2 = start_room.Rect
+		_check(camera.limit_left == roundi(rect.position.x) and camera.limit_top == roundi(rect.position.y)
+			and camera.limit_right == roundi(rect.end.x) and camera.limit_bottom == roundi(rect.end.y),
+			"Camera2D limits %d/%d/%d/%d, expected the start room's %s" % [camera.limit_left, camera.limit_top, camera.limit_right, camera.limit_bottom, rect])
 	_check(guard.position == GUARD_START, "Guard at %s, expected %s" % [guard.position, GUARD_START])
-	_check(guard.Facing == -1, "Guard.Facing=%s in TestRoom, expected -1 (looks left, towards the hero)" % guard.Facing)
-	_check(guard.Target == player, "Guard.Target is not the room's Player (TestRoom.SetTarget missing?)")
-	_check(guard.Director == director, "Guard.Director is not the room's EnemyDirector")
-	var zone: Node = room.get_node_or_null("LitZone")
-	_check(zone != null and zone is Area2D, "TestRoom has no 'LitZone' Area2D")
-	if zone != null:
-		_check(zone.get_script() != null and str(zone.get_script().resource_path).ends_with("LitZone.cs"), "LitZone has no LitZone.cs")
-		_check(zone.collision_layer == 64, "LitZone.collision_layer=%d, expected 64 (LightDark)" % zone.collision_layer)
-		_check(zone.position == ZONE_POS, "LitZone at %s, expected %s" % [zone.position, ZONE_POS])
-		_check(zone.get_node_or_null("PH_ZoneLamp") is PointLight2D, "LitZone has no PH_ZoneLamp PointLight2D")
+	_check(guard.Facing == -1, "Guard.Facing=%s in the level, expected -1 (looks left, back down the drift)" % guard.Facing)
+	_check(guard.Target == player, "Guard.Target is not the level's Player (Level00_Sections.SetTarget missing?)")
+	_check(guard.Director == director, "Guard.Director is not the level's EnemyDirector")
 	var sensor: Node = player.get_node_or_null("LightSensor")
 	_check(sensor != null and sensor is Area2D, "Player has no 'LightSensor' Area2D")
 	if sensor != null:
@@ -350,7 +358,6 @@ func _run() -> void:
 	_check(phurt != null and phurt is Area2D, "Player has no 'Visual/Hurtbox' (must live under Visual so a jump lifts it)")
 	if phurt != null:
 		_check(phurt.collision_layer == 2, "Player Hurtbox layer=%d, expected 2 (Player)" % phurt.collision_layer)
-	_check(room.get_node_or_null("WaveSpawner") != null, "TestRoom has no WaveSpawner")
 	_check(player.IsLit == false, "Player.IsLit=%s at start (lamp off, dark floor), expected false" % player.IsLit)
 	_check(lamp.IsOn == false, "Flashlight.IsOn=%s at start, expected false" % lamp.IsOn)
 	if _failures.size() > 0:
@@ -378,11 +385,12 @@ func _run() -> void:
 	guard.Noticed.connect(func(): noticed.append(true))
 	r["gsm"].StateChanged.connect(func(_from: String, to: String): gstates.append(to))
 	player.Hurt.connect(func(d: float): hurt_events.append(d))
+	guard.position = GUARD_POS
 	player.position = LIT_POS
 	lamp.SetOn(true)
 	_check(lamp.IsOn and player.IsLit, "lit: Flashlight.IsOn=%s Player.IsLit=%s after SetOn(true), expected true/true" % [lamp.IsOn, player.IsLit])
 	var notice_after: int = await _wait_event(noticed, NOTICE_CAP)
-	_check(notice_after >= 0, "lit: Noticed not emitted within %d frames (hero lit at %.0f px, PerceptionRange %s; state '%s')" % [NOTICE_CAP, GUARD_START.x - LIT_POS.x, guard.PerceptionRange, guard.CurrentStateName])
+	_check(notice_after >= 0, "lit: Noticed not emitted within %d frames (hero lit at %.0f px, PerceptionRange %s; state '%s')" % [NOTICE_CAP, GUARD_POS.x - LIT_POS.x, guard.PerceptionRange, guard.CurrentStateName])
 	_check(guard.IsAware, "lit: Guard.IsAware=%s after the notice, expected true" % guard.IsAware)
 	_check(guard.CurrentStateName == "Approach", "lit: guard state '%s' after the notice, expected 'Approach'" % guard.CurrentStateName)
 	lamp.SetOn(false)
@@ -423,6 +431,7 @@ func _run() -> void:
 	guard = r["guard"]
 	noticed = []
 	guard.Noticed.connect(func(): noticed.append(true))
+	guard.position = GUARD_POS
 	player.position = DARK_FAR
 	var dark_states: Array = []
 	for i in DARK_IGNORE_FRAMES:
@@ -430,12 +439,12 @@ func _run() -> void:
 		if guard.CurrentStateName != "Idle" and not dark_states.has(guard.CurrentStateName):
 			dark_states.append(guard.CurrentStateName)
 	_check(player.IsLit == false, "dark: Player.IsLit=%s at %s with the lamp off, expected false" % [player.IsLit, DARK_FAR])
-	_check(noticed.is_empty() and not guard.IsAware, "dark: unlit hero at %.0f px in front noticed (%d Noticed, IsAware=%s), expected unseen beyond %.0f px" % [GUARD_START.x - DARK_FAR.x, noticed.size(), guard.IsAware, guard.PerceptionRange * guard.DarkPerceptionFactor])
+	_check(noticed.is_empty() and not guard.IsAware, "dark: unlit hero at %.0f px in front noticed (%d Noticed, IsAware=%s), expected unseen beyond %.0f px" % [GUARD_POS.x - DARK_FAR.x, noticed.size(), guard.IsAware, guard.PerceptionRange * guard.DarkPerceptionFactor])
 	_check(dark_states.is_empty(), "dark: guard left Idle (%s) while the unlit hero stood at 280 px" % [dark_states])
-	_check(guard.position == GUARD_START, "dark: guard moved to %s while unaware, expected %s" % [guard.position, GUARD_START])
+	_check(guard.position == GUARD_POS, "dark: guard moved to %s while unaware, expected %s" % [guard.position, GUARD_POS])
 	player.position = DARK_NEAR
 	var dark_notice: int = await _wait_event(noticed, NOTICE_CAP)
-	_check(dark_notice >= 0, "dark: unlit hero at %.0f px in front not noticed within %d frames (state '%s')" % [GUARD_START.x - DARK_NEAR.x, NOTICE_CAP, guard.CurrentStateName])
+	_check(dark_notice >= 0, "dark: unlit hero at %.0f px in front not noticed within %d frames (state '%s')" % [GUARD_POS.x - DARK_NEAR.x, NOTICE_CAP, guard.CurrentStateName])
 	_check(guard.CurrentStateName == "Approach", "dark: guard state '%s' after noticing at 180 px, expected 'Approach'" % guard.CurrentStateName)
 	print("enemy_guard: dark — ignored at 280 px for %d frames, noticed at 180 px after %d frames" % [DARK_IGNORE_FRAMES, dark_notice])
 	await _close_room(r, gs)
@@ -453,9 +462,10 @@ func _run() -> void:
 	var damaged: Array = []
 	guard.Noticed.connect(func(): noticed.append(true))
 	guard.Damaged.connect(func(hp: float): damaged.append(hp))
+	guard.position = GUARD_POS
 	player.position = BEHIND_FAR
 	await _step(BEHIND_IGNORE_FRAMES)
-	_check(noticed.is_empty() and guard.CurrentStateName == "Idle", "behind: unlit hero %.0f px behind the guard noticed (%d Noticed, state '%s'), expected unseen" % [BEHIND_FAR.x - GUARD_START.x, noticed.size(), guard.CurrentStateName])
+	_check(noticed.is_empty() and guard.CurrentStateName == "Idle", "behind: unlit hero %.0f px behind the guard noticed (%d Noticed, state '%s'), expected unseen" % [BEHIND_FAR.x - GUARD_POS.x, noticed.size(), guard.CurrentStateName])
 	player.position = BEHIND_NEAR
 	Input.action_press("move_left")
 	await _step(2)
@@ -503,6 +513,7 @@ func _run() -> void:
 	guard = r["guard"]
 	hurt_events = []
 	player.Hurt.connect(func(d: float): hurt_events.append(d))
+	guard.position = GUARD_POS
 	var ghitbox: Node = guard.get_node("Visual/Hitbox")
 	# Re-derive the dodge threshold from the live shapes so a resized hurtbox/hitbox or a moved
 	# Visual pivot shows up here instead of silently invalidating MIN_DODGE_HEIGHT.
@@ -559,7 +570,8 @@ func _run() -> void:
 	guard.Noticed.connect(func(): noticed.append(true))
 	var phitbox: Node = player.get_node("Visual/Hitbox")
 	var ghurtbox: Area2D = guard.get_node("Visual/Hurtbox")
-	var gvisual: Node2D = guard.get_node("Visual")
+	var gsprite: AnimatedSprite2D = guard.get_node("Visual/Sprite")
+	guard.position = GUARD_POS
 	player.position = BEHIND_NEAR
 	Input.action_press("move_left")
 	await _step(2)
@@ -580,7 +592,7 @@ func _run() -> void:
 	_check(r5 >= 0, "down: Engine.time_scale not restored within %d ms" % RESTORE_CAP_MS)
 	if heavy["ok"]:
 		await _step(3)
-		_check(is_equal_approx(gvisual.rotation, PI / 2.0), "down: Guard Visual.rotation=%.3f while Down, expected PI/2" % gvisual.rotation)
+		_check(gsprite.animation == DOWN_ANIM, "down: Guard sprite shows '%s' while Down, expected the floored '%s'" % [gsprite.animation, DOWN_ANIM])
 		var api_hit: bool = guard.TakeDamage(5.0, 0.0, false, 0)
 		_check(api_hit == false, "T-B01: Guard.TakeDamage while Down returned %s, expected false" % api_hit)
 		_check(is_equal_approx(guard.Hp, 6.0), "T-B01: Guard.Hp=%s after TakeDamage while Down, expected 6" % guard.Hp)
@@ -608,17 +620,17 @@ func _run() -> void:
 			await physics_frame
 		_check(up_after >= 0, "T-B01: guard still '%s' %d frames after the ignored hit, expected to get up (DownDuration 1 s)" % [guard.CurrentStateName, GETUP_CAP])
 		_check(guard.CurrentStateName in ["Approach", "Attack", "Idle"], "T-B01: guard state '%s' after getting up, expected Approach/Attack/Idle" % guard.CurrentStateName)
-		_check(is_equal_approx(gvisual.rotation, 0.0), "T-B01: Guard Visual.rotation=%.3f after getting up, expected 0" % gvisual.rotation)
+		_check(gsprite.animation != DOWN_ANIM, "T-B01: Guard sprite still on the floored '%s' frame after getting up" % DOWN_ANIM)
 		_check(is_equal_approx(guard.Hp, 6.0), "T-B01: Guard.Hp=%s after getting up, expected 6" % guard.Hp)
 		print("enemy_guard: T-B01 — heavy from the dark Hp 30 -> %s, light hit while Down ignored (overlap %s), up %d frames after the no-hit window in '%s'" % [guard.Hp, overlapped, up_after, guard.CurrentStateName])
 	await _close_room(r, gs)
 
 	# 5b. Down out of Attack (S1 regression): the guard notices the unlit hero at 180 px, walks in
 	#     and starts its punch; on the first physics frame it is seen in 'Attack' a knockdown hit
-	#     floors it (Attack.Exit resets the interrupted pose, Down.Enter rotates the visual). The
-	#     rotation must be PI/2 after two idle frames (a still-playing RESET used to snap it back
-	#     upright) and still PI/2 30 physics frames later while Down; the hitbox never opens, the
-	#     slot is released, and the guard stands up (rotation 0) on its own.
+	#     floors it (Attack.Exit resets the interrupted pose, Down.Enter plays the floored frame).
+	#     The sprite must still show 'down' after two idle frames (a still-playing RESET used to snap
+	#     it back upright) and 30 physics frames later while Down, with no gait animation stepping
+	#     over it; the hitbox never opens, the slot is released, and the guard stands up on its own.
 	r = await _open_room(scene, gs, "down-mid-attack")
 	if r.is_empty():
 		_finish()
@@ -629,8 +641,9 @@ func _run() -> void:
 	hurt_events = []
 	player.Hurt.connect(func(d: float): hurt_events.append(d))
 	var ghitbox5: Node = guard.get_node("Visual/Hitbox")
-	var gvisual5: Node2D = guard.get_node("Visual")
+	var gsprite5: AnimatedSprite2D = guard.get_node("Visual/Sprite")
 	var gap5: AnimationPlayer = guard.get_node("AnimationPlayer")
+	guard.position = GUARD_POS
 	player.position = DARK_NEAR
 	var mid_attack: int = await _wait_state(guard, "Attack", ATTACK_CAP + NOTICE_CAP)
 	_check(mid_attack >= 0, "down-mid-attack: guard state '%s' after %d frames, expected 'Attack'" % [guard.CurrentStateName, ATTACK_CAP + NOTICE_CAP])
@@ -642,26 +655,27 @@ func _run() -> void:
 		_check(floored == true, "down-mid-attack: TakeDamage(12, 200, knockdown) during the telegraph returned %s, expected true" % floored)
 		_check(guard.CurrentStateName == "Down", "down-mid-attack: guard state '%s' right after the knockdown, expected 'Down'" % guard.CurrentStateName)
 		_check(is_equal_approx(guard.Hp, hp_before - 12.0), "down-mid-attack: Guard.Hp=%s after the knockdown, expected %s (aware: plain 12)" % [guard.Hp, hp_before - 12.0])
-		_check(is_equal_approx(gvisual5.rotation, PI / 2.0), "down-mid-attack: Visual.rotation=%.3f the moment Down was entered, expected PI/2" % gvisual5.rotation)
+		_check(gsprite5.animation == DOWN_ANIM, "down-mid-attack: sprite shows '%s' the moment Down was entered, expected the floored '%s'" % [gsprite5.animation, DOWN_ANIM])
 		_check(ghitbox5.IsActive == false, "down-mid-attack: guard Hitbox still active after the knockdown, expected closed by Attack.Exit")
 		_check(director.ActiveAttackers == 0 and guard.HasAttackSlot == false, "down-mid-attack: ActiveAttackers=%s HasAttackSlot=%s after the knockdown, expected 0 / false" % [director.ActiveAttackers, guard.HasAttackSlot])
-		_check(not gap5.is_playing(), "down-mid-attack: AnimationPlayer still playing '%s' after ResetPose, expected stopped (a running RESET would re-apply rotation 0)" % gap5.current_animation)
+		_check(gap5.current_animation == DOWN_ANIM, "down-mid-attack: AnimationPlayer on '%s' after the knockdown, expected the floored '%s' (the interrupted attack's RESET must not win)" % [gap5.current_animation, DOWN_ANIM])
 		await process_frame
 		await process_frame
 		_check(guard.CurrentStateName == "Down", "down-mid-attack: guard state '%s' two idle frames after the knockdown, expected 'Down'" % guard.CurrentStateName)
-		var rot_idle: float = gvisual5.rotation
-		_check(is_equal_approx(rot_idle, PI / 2.0), "S1: Visual.rotation=%.3f two idle frames after a knockdown out of Attack, expected PI/2 (RESET clobbered the Down pose)" % rot_idle)
-		var rot_min: float = rot_idle
-		var played_while_down := false
+		var pose_idle: StringName = gsprite5.animation
+		_check(pose_idle == DOWN_ANIM, "S1: sprite shows '%s' two idle frames after a knockdown out of Attack, expected '%s' (RESET clobbered the Down pose)" % [pose_idle, DOWN_ANIM])
+		var gait_while_down := ""
+		var pose_lost := ""
 		for i in DOWN_HOLD_FRAMES:
 			await physics_frame
-			rot_min = minf(rot_min, gvisual5.rotation)
-			if gap5.is_playing():
-				played_while_down = true
-		_check(not played_while_down, "S1: the AnimationPlayer ran during Down; a looping walk/idle must be stopped by GuardDown.Enter or the floored guard keeps stepping")
+			if gsprite5.animation != DOWN_ANIM and pose_lost == "":
+				pose_lost = "frame %d: '%s'" % [i, gsprite5.animation]
+			if gap5.is_playing() and gap5.current_animation in GAIT_ANIMS and gait_while_down == "":
+				gait_while_down = "frame %d: '%s'" % [i, gap5.current_animation]
+		_check(gait_while_down == "", "S1: the AnimationPlayer ran a gait during Down (%s); walk/idle must be stopped by GuardDown.Enter or the floored guard keeps stepping" % gait_while_down)
 		_check(guard.CurrentStateName == "Down", "down-mid-attack: guard state '%s' %d physics frames after the knockdown, expected still 'Down' (DownDuration %s s)" % [guard.CurrentStateName, DOWN_HOLD_FRAMES, guard.DownDuration])
-		_check(is_equal_approx(gvisual5.rotation, PI / 2.0), "S1: Visual.rotation=%.3f %d physics frames after the knockdown while still Down, expected PI/2" % [gvisual5.rotation, DOWN_HOLD_FRAMES])
-		_check(is_equal_approx(rot_min, PI / 2.0), "S1: Visual.rotation dipped to %.3f during %d Down frames, expected PI/2 throughout" % [rot_min, DOWN_HOLD_FRAMES])
+		_check(gsprite5.animation == DOWN_ANIM, "S1: sprite shows '%s' %d physics frames after the knockdown while still Down, expected '%s'" % [gsprite5.animation, DOWN_HOLD_FRAMES, DOWN_ANIM])
+		_check(pose_lost == "", "S1: the floored pose was lost during %d Down frames (%s), expected '%s' throughout" % [DOWN_HOLD_FRAMES, pose_lost, DOWN_ANIM])
 		_check(hurt_events.is_empty(), "down-mid-attack: hero Hurt fired %s although the punch was interrupted in its telegraph, expected none" % [hurt_events])
 		_check(Engine.time_scale == 1.0, "down-mid-attack: Engine.time_scale=%s (TakeDamage with 0 hit-stop frames), expected 1" % Engine.time_scale)
 		var stood_after := -1
@@ -671,44 +685,18 @@ func _run() -> void:
 				break
 			await physics_frame
 		_check(stood_after >= 0, "down-mid-attack: guard still '%s' %d frames later, expected to get up" % [guard.CurrentStateName, DOWN_HOLD_FRAMES + GETUP_CAP])
-		_check(is_equal_approx(gvisual5.rotation, 0.0), "down-mid-attack: Visual.rotation=%.3f after getting up, expected 0" % gvisual5.rotation)
+		_check(gsprite5.animation != DOWN_ANIM, "down-mid-attack: sprite still on the floored '%s' frame after getting up" % DOWN_ANIM)
 		# Approach re-decides the gait on its first tick, one physics frame after Down released.
 		await _step(2)
 		_check(gap5.is_playing() and gap5.current_animation in ["walk", "idle", "attack"], "down-mid-attack: AnimationPlayer playing=%s '%s' after getting up, expected the gait (walk/idle) or a new attack" % [gap5.is_playing(), gap5.current_animation])
 		_check(guard.CurrentStateName in ["Approach", "Attack"], "down-mid-attack: guard state '%s' after getting up, expected Approach/Attack (aware, hero in reach)" % guard.CurrentStateName)
-		print("enemy_guard: down-mid-attack — Attack after %d frames, floored at Hp %s, rotation %.3f after 2 idle frames, min %.3f over %d Down frames, up after %d more frames in '%s'" % [mid_attack, guard.Hp, rot_idle, rot_min, DOWN_HOLD_FRAMES, stood_after, guard.CurrentStateName])
+		print("enemy_guard: down-mid-attack — Attack after %d frames, floored at Hp %s, pose '%s' after 2 idle frames, held over %d Down frames, up after %d more frames in '%s' ('%s')" % [mid_attack, guard.Hp, pose_idle, DOWN_HOLD_FRAMES, stood_after, guard.CurrentStateName, gsprite5.animation])
 	await _close_room(r, gs)
 
-	# 6. LitZone: standing in the zone with the lamp off makes the hero IsLit; the guard at 540 px
-	#    still does not see it (beyond PerceptionRange), moved to 340 px it notices (dark range
-	#    would be 210); back on the dark floor IsLit is false.
-	r = await _open_room(scene, gs, "zone")
-	if r.is_empty():
-		_finish()
-		return
-	player = r["player"]
-	guard = r["guard"]
-	lamp = r["lamp"]
-	noticed = []
-	guard.Noticed.connect(func(): noticed.append(true))
-	player.position = ZONE_POS
-	await _step(3)
-	_check(lamp.IsOn == false, "zone: Flashlight.IsOn=%s, expected false" % lamp.IsOn)
-	_check(player.IsLit == true, "zone: Player.IsLit=%s at %s (LitZone r=160, lamp off), expected true" % [player.IsLit, ZONE_POS])
-	await _step(NOTICE_CAP)
-	_check(noticed.is_empty(), "zone: guard at %.0f px noticed the lit hero, expected unseen beyond PerceptionRange %s" % [ZONE_POS.distance_to(GUARD_START), guard.PerceptionRange])
-	guard.position = ZONE_GUARD_POS
-	var zone_notice: int = await _wait_event(noticed, NOTICE_CAP)
-	_check(zone_notice >= 0, "zone: guard at %.0f px did not notice the hero lit by the zone within %d frames (state '%s')" % [ZONE_POS.distance_to(ZONE_GUARD_POS), NOTICE_CAP, guard.CurrentStateName])
-	player.position = OUT_POS
-	await _step(3)
-	_check(player.IsLit == false, "zone: Player.IsLit=%s at %s (outside the zone, lamp off), expected false" % [player.IsLit, OUT_POS])
-	print("enemy_guard: zone — IsLit in the zone, unseen at 540 px, noticed at 340 px after %d frames" % zone_notice)
-	await _close_room(r, gs)
-
-	# 7. KO + restart: Energy 5, the aware guard punches once -> KnockedOut, Energy MinEnergy,
-	#    restart pending; LevelBase reloads the current scene after RestartDelay (real time) —
-	#    a new TestRoom instance with Energy == MaxEnergy, Engine.time_scale == 1 and an idle hero.
+	# 6. KO + restart: Energy 5, the aware guard punches once -> KnockedOut, Energy MinEnergy,
+	#    restart pending; with no checkpoint armed LevelBase reloads the current scene after
+	#    RestartDelay (real time) — a fresh level with Energy == MaxEnergy, Engine.time_scale == 1
+	#    and an idle hero back on his authored start.
 	r = await _open_room(scene, gs, "ko")
 	if r.is_empty():
 		_finish()
@@ -718,17 +706,19 @@ func _run() -> void:
 	guard = r["guard"]
 	var ko_events: Array = []
 	player.KnockedOut.connect(func(): ko_events.append(true))
+	guard.position = GUARD_POS
 	player.position = KO_POS
 	guard.SetAware()
 	gs.Energy = 5.0
-	current_scene = room   # LevelBase reloads the tree's current scene; a test room has none by default
+	_check(room.get("ArmedCheckpoint") == null, "ko: a checkpoint is armed — the KO would cost a soft respawn instead of the reload this section checks")
+	current_scene = room   # LevelBase reloads the tree's current scene; a level added by a test has none by default
 	var ko: Dictionary = await _watch_until(func(): return not ko_events.is_empty(), KO_CAP_MS)
 	_check(ko["ok"], "ko: KnockedOut not emitted within %d ms (guard '%s' at x=%.1f, Energy %s, hero '%s')" % [KO_CAP_MS, guard.CurrentStateName, guard.position.x, gs.Energy, player.CurrentStateName])
 	var new_scene: Node = null
 	if ko["ok"]:
 		_check(is_equal_approx(gs.Energy, gs.MinEnergy), "ko: Energy=%s after the KO punch, expected MinEnergy %s" % [gs.Energy, gs.MinEnergy])
 		_check(player.IsKnockedOut and player.CurrentStateName == "KO", "ko: hero IsKnockedOut=%s state '%s', expected true / KO" % [player.IsKnockedOut, player.CurrentStateName])
-		_check(room.IsRestartPending == true, "ko: TestRoom.IsRestartPending=%s after the KO, expected true" % room.IsRestartPending)
+		_check(room.IsRestartPending == true, "ko: Level00_Sections.IsRestartPending=%s after the KO, expected true" % room.IsRestartPending)
 		var ko_msec: int = Time.get_ticks_msec()
 		while Time.get_ticks_msec() - ko_msec < RELOAD_CAP_MS:
 			await process_frame
@@ -740,16 +730,16 @@ func _run() -> void:
 		_check(new_scene != null, "ko: current scene not reloaded within %d ms of the KO (RestartDelay %s s)" % [RELOAD_CAP_MS, room.RestartDelay if is_instance_valid(room) else "?"])
 		if new_scene != null:
 			_check(reload_ms >= RELOAD_MIN_MS, "ko: scene reloaded %d ms after the KO, expected >= %d (RestartDelay 1 s)" % [reload_ms, RELOAD_MIN_MS])
-			_check(not is_instance_valid(room), "ko: the old TestRoom instance is still alive after the reload")
+			_check(not is_instance_valid(room), "ko: the old level instance is still alive after the reload")
 			_check(new_scene.scene_file_path == ROOM_PATH, "ko: reloaded scene is '%s', expected %s" % [new_scene.scene_file_path, ROOM_PATH])
-			await process_frame   # the reloaded room's load catch-up, like a fresh room
+			await process_frame   # the reloaded level's load catch-up, like a fresh one
 			await process_frame
 			await _step(2)
 			var np: Node = new_scene.get_node_or_null("Player") if is_instance_valid(new_scene) else null
 			_check(np != null, "ko: reloaded scene has no 'Player'")
 			if np != null:
 				_check(np.IsKnockedOut == false and np.CurrentStateName == "Idle", "ko: reloaded hero IsKnockedOut=%s state '%s', expected false / Idle" % [np.IsKnockedOut, np.CurrentStateName])
-				_check(np.position == Vector2(400, 450), "ko: reloaded hero at %s, expected the scene's (400, 450)" % np.position)
+				_check(np.position.is_equal_approx(RELOADED_POS), "ko: reloaded hero at %s, expected the scene's %s" % [np.position, RELOADED_POS])
 			_check(is_equal_approx(gs.Energy, gs.MaxEnergy), "ko: Energy=%s after the reload, expected MaxEnergy %s" % [gs.Energy, gs.MaxEnergy])
 			_check(Engine.time_scale == 1.0, "ko: Engine.time_scale=%s after the reload, expected 1" % Engine.time_scale)
 			_check(new_scene.get("IsRestartPending") == false, "ko: reloaded room IsRestartPending=%s, expected false" % new_scene.get("IsRestartPending"))

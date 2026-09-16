@@ -102,7 +102,7 @@ public partial class Guard : CharacterBody2D, IHittable
 
     /// <summary>
     /// Scene instanced once when the guard is knocked out — the powerbank off its belt
-    /// (<see cref="Props.EnergyPickup"/>). Added as a <b>sibling</b> at the guard's position plus
+    /// (a battery). Added as a <b>sibling</b> at the guard's position plus
     /// <see cref="DropOffset"/>, so it y-sorts with the body under the same parent. <c>null</c>
     /// (the default) drops nothing and leaves the guard exactly as it was.
     /// </summary>

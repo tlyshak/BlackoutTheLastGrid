@@ -1,24 +1,28 @@
 extends SceneTree
-# Smoke: flashlight and darkness (T-03) — `flashlight` action in the InputMap, CanvasModulate base
-# darkness in TestRoom, Flashlight node wiring (PointLight2D + Flashlight.cs, texture, exports,
-# off at start), toggle on/off by input with the Toggled signal, energy drain over 60 physics
-# frames (DrainPerSecond * N / ticks), no drain while off, energy death at MinEnergy (lamp turns
-# itself off exactly once and refuses to turn on again), beam rotation follows facing (π when
+# Smoke: flashlight and darkness (T-03) — `flashlight` action in the InputMap, the CanvasModulate
+# that dims Level00_Sections, Flashlight node wiring (PointLight2D + Flashlight.cs, texture,
+# exports, off at start), toggle on/off by input with the Toggled signal, energy drain over 60
+# physics frames (DrainPerSecond * N / ticks), no drain while off, energy death at MinEnergy (lamp
+# turns itself off exactly once and refuses to turn on again), beam rotation follows facing (π when
 # left, 0 when right), lamp Y follows the jump height, the SetOn() API, and (T-03r, optional in
 # review #1) no drain during a hit-stop freeze: the lamp stays on and Energy is unchanged while
 # Engine.time_scale == 0. Needs physics frames.
 # Run: godot --headless --path . -s tests/smoke/player_flashlight.gd
 #
 # Sections 1-6 throw no attack, so no hit-stop (Engine.time_scale stays 1) and every physics step
-# drains exactly DrainPerSecond / physics_ticks_per_second. Section 7 lands one light hit on Dummy;
-# the freeze is observed on idle frames (`process_frame`, which keep running) under a wall-clock cap.
+# drains exactly DrainPerSecond / physics_ticks_per_second. Section 7 lands one light hit on the
+# level's guard and then walks the hero out of its reach; the freeze is observed on idle frames
+# (`process_frame`, which keep running) under a wall-clock cap.
 
 const NAME := "player_flashlight"   # must equal the file basename
+const LEVEL_PATH := "res://scenes/levels/Level00_Sections.tscn"
+const LAMP_REST := Vector2(0.0, -92.0)   # Player.tscn puts the lamp at the painted hero's head
+const SAFE_POS := Vector2(300.0, 470.0)  # back on the mine face, out of the woken guard's reach
 # Safety net: quit(1) instead of hanging into the runner timeout. Counts _process calls; headless
 # runs ~2-3 process frames per physics tick, and a green run uses ~250 ticks.
 const MAX_FRAMES := 6000
 const ACTIONS := ["move_left", "move_right", "move_up", "move_down", "jump", "flashlight", "attack"]
-const DARKNESS := Color(0.0392, 0.0510, 0.0784)   # #0a0d14 (plan: CanvasModulate base darkness)
+const DARKNESS := Color(0.560784, 0.592157, 0.639216)   # the level's Darkness CanvasModulate (#8f97a3)
 const COLOR_TOL := 0.01
 const DRAIN_FRAMES := 60
 const DRAIN_TOL := 0.05
@@ -100,9 +104,9 @@ func _run() -> void:
 		return
 	gs.ResetRun()
 
-	# 1b. TestRoom: base darkness via a CanvasModulate child with #0a0d14.
-	var scene: PackedScene = load("res://scenes/levels/TestRoom.tscn")
-	_check(scene != null, "res://scenes/levels/TestRoom.tscn failed to load")
+	# 1b. The level dims its painted sections with a CanvasModulate, so a lamp reads as a lamp.
+	var scene: PackedScene = load(LEVEL_PATH)
+	_check(scene != null, "%s failed to load" % LEVEL_PATH)
 	if scene == null:
 		_finish()
 		return
@@ -114,14 +118,14 @@ func _run() -> void:
 		if child is CanvasModulate:
 			modulate = child
 			break
-	_check(modulate != null, "TestRoom root has no CanvasModulate child")
+	_check(modulate != null, "Level00_Sections has no CanvasModulate child")
 	if modulate != null:
 		_check(_color_approx(modulate.color, DARKNESS),
 			"CanvasModulate color is %s, expected ~%s (#0a0d14)" % [modulate.color, DARKNESS])
 
 	# 1c. Flashlight node wiring: PointLight2D + Flashlight.cs, texture, exports, off at start.
 	var player: Node = room.get_node_or_null("Player")
-	_check(player != null, "TestRoom has no 'Player' child")
+	_check(player != null, "Level00_Sections has no 'Player' child")
 	if player == null:
 		room.queue_free()
 		_finish()
@@ -151,7 +155,7 @@ func _run() -> void:
 		_check(lamp.texture.width == 512 and lamp.texture.height == 256, "beam texture must be 512x256 (soft half-ellipse), got %dx%d" % [lamp.texture.width, lamp.texture.height])
 		_check(lamp.texture.fill_to.is_equal_approx(Vector2(0.5, 0.5)), "beam gradient must reach alpha 0 at the texture edges (fill_to 0.5,0.5), got %s" % lamp.texture.fill_to)
 	_check(is_equal_approx(lamp.DrainPerSecond, 1.0), "DrainPerSecond default is %s, expected 1.0" % lamp.DrainPerSecond)
-	_check(is_equal_approx(lamp.HeadOffset, 60.0), "HeadOffset default is %s, expected 60" % lamp.HeadOffset)
+	_check(is_equal_approx(lamp.HeadOffset, -LAMP_REST.y), "HeadOffset is %s, expected %s (the painted hero's head)" % [lamp.HeadOffset, -LAMP_REST.y])
 	_check(is_zero_approx(lamp.BeamAngleDeg), "BeamAngleDeg default is %s, expected 0" % lamp.BeamAngleDeg)
 	_check(lamp.EnabledAtStart == false, "EnabledAtStart default is %s, expected false" % lamp.EnabledAtStart)
 
@@ -159,8 +163,8 @@ func _run() -> void:
 	await _step(2)
 	_check(lamp.enabled == false, "Flashlight.enabled is true at start, expected false")
 	_check(lamp.IsOn == false, "Flashlight.IsOn is true at start, expected false")
-	_check(lamp.position.is_equal_approx(Vector2(0, -60)),
-		"initial Flashlight.position=%s, expected (0, -60)" % lamp.position)
+	_check(lamp.position.is_equal_approx(LAMP_REST),
+		"initial Flashlight.position=%s, expected %s" % [lamp.position, LAMP_REST])
 	_check(_rot_is(lamp.rotation, 0.0), "initial Flashlight.rotation=%.4f, expected 0" % lamp.rotation)
 	_check(is_equal_approx(gs.Energy, gs.MaxEnergy),
 		"Energy=%.3f before the lamp was ever on, expected MaxEnergy=%.1f (lamp off must not drain)" % [gs.Energy, gs.MaxEnergy])
@@ -255,8 +259,8 @@ func _run() -> void:
 		await physics_frame
 	_check(landed, "still airborne %d frames after the jump (Height=%.2f)" % [LAND_CAP, player.Height])
 	await _step(1)
-	_check(lamp.position.is_equal_approx(Vector2(0, -60)),
-		"Flashlight.position=%s after landing, expected (0, -60)" % lamp.position)
+	_check(lamp.position.is_equal_approx(LAMP_REST),
+		"Flashlight.position=%s after landing, expected %s" % [lamp.position, LAMP_REST])
 
 	# 6. SetOn() API: idempotent, emits only on a change.
 	var events_api: int = _events.size()
@@ -274,26 +278,28 @@ func _run() -> void:
 	_check(_events.size() == events_api + 2, "SetOn(false) twice emitted Toggled again: %s" % _events_str())
 	await _step(1)
 
-	# 7. No drain during hit-stop: lamp on, one light hit on Dummy freezes time (Engine.time_scale
-	#    0 for HitStopFrames); Energy must not move while frozen and the lamp must stay on.
-	var dummy: Node = room.get_node_or_null("Dummy")
-	_check(dummy != null and dummy.get("Hp") != null, "TestRoom has no 'Dummy' with Dummy.cs (needed for the hit-stop drain check)")
+	# 7. No drain during hit-stop: lamp on, one light hit on the level's guard freezes time
+	#    (Engine.time_scale 0 for HitStopFrames); Energy must not move while frozen and the lamp must
+	#    stay on. The hero steps up to the guard standing at the end of the drift, punches once and
+	#    is moved back to the mine face before the woken guard can punch back.
+	var guard: Node = room.get_node_or_null("Guard")
+	_check(guard != null and guard.get("Hp") != null, "Level00_Sections has no 'Guard' with Guard.cs (needed for the hit-stop drain check)")
 	_check(InputMap.has_action("attack"), "InputMap missing action 'attack'")
-	if dummy != null and dummy.get("Hp") != null and InputMap.has_action("attack"):
+	if guard != null and guard.get("Hp") != null and InputMap.has_action("attack"):
 		gs.ResetRun()
 		Input.action_press("move_right")
 		await _step(2)
 		Input.action_release("move_right")
 		await _step(2)
-		player.position = Vector2(dummy.position.x - 40.0, dummy.position.y)
+		player.position = Vector2(guard.position.x - 40.0, guard.position.y)
 		await _step(2)
-		_check(player.Facing == 1, "hit-stop: Facing=%s, expected 1 (towards Dummy)" % player.Facing)
+		_check(player.Facing == 1, "hit-stop: Facing=%s, expected 1 (towards the guard)" % player.Facing)
 		_check(player.CurrentStateName == "Idle", "hit-stop: player state '%s' before the attack, expected 'Idle'" % player.CurrentStateName)
 		lamp.SetOn(true)
 		await _step(2)
 		_check(lamp.IsOn, "hit-stop: lamp not on before the attack")
 		var hs_e0: float = gs.Energy
-		var hs_hp0: float = dummy.Hp
+		var hs_hp0: float = guard.Hp
 		Input.action_press("attack")
 		await _step(1)
 		Input.action_release("attack")
@@ -304,7 +310,7 @@ func _run() -> void:
 			if Engine.time_scale == 0.0:
 				hs_froze = true
 				break
-		_check(hs_froze, "hit-stop: no freeze within %d ms (Dummy.Hp %s -> %s, state '%s')" % [HIT_CAP_MS, hs_hp0, dummy.Hp, player.CurrentStateName])
+		_check(hs_froze, "hit-stop: no freeze within %d ms (Guard.Hp %s -> %s, state '%s')" % [HIT_CAP_MS, hs_hp0, guard.Hp, player.CurrentStateName])
 		if hs_froze:
 			var hs_e_freeze: float = gs.Energy
 			var hs_e_min: float = hs_e_freeze
@@ -329,7 +335,8 @@ func _run() -> void:
 			_check(hs_e_freeze <= hs_e0 + FREEZE_TOL, "hit-stop: Energy rose from %.4f to %.4f before the freeze" % [hs_e0, hs_e_freeze])
 			_check(lamp.IsOn, "hit-stop: lamp off after the freeze (IsOn=%s)" % lamp.IsOn)
 			print("player_flashlight: hit-stop Energy %.4f before the attack, %.4f at the freeze, [%.4f, %.4f] during %d idle frames (%d ms), lamp on" % [hs_e0, hs_e_freeze, hs_e_min, hs_e_max, hs_idle_frames, hs_ms])
-		_check(dummy.Hp < hs_hp0, "hit-stop: Dummy.Hp=%s, expected below %s (the light hit must connect)" % [dummy.Hp, hs_hp0])
+		_check(guard.Hp < hs_hp0, "hit-stop: Guard.Hp=%s, expected below %s (the light hit must connect)" % [guard.Hp, hs_hp0])
+		player.position = SAFE_POS   # the guard is awake now; the rest of the section is about the drain
 		await _step(30)   # the rest of light_1, the drain resumes
 		_check(player.CurrentStateName == "Idle", "hit-stop: player state '%s' 30 frames after the hit, expected 'Idle'" % player.CurrentStateName)
 		_check(Engine.time_scale == 1.0, "hit-stop: Engine.time_scale=%s after the attack, expected 1" % Engine.time_scale)

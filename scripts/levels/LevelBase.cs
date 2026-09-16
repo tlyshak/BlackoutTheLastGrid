@@ -8,8 +8,8 @@ namespace BlackoutLastGrid.Levels;
 
 /// <summary>
 /// Common behaviour of a playable level: the camera follows the hero along X with a lookahead
-/// (clamped by the camera's own limits, which a <see cref="WaveSpawner"/> may tighten while a
-/// wave is locked, or which <see cref="ApplyRoomBounds"/> moves from room to room) and can be
+/// (clamped by the camera's own limits, which <see cref="ApplyRoomBounds"/> moves from room to
+/// room) and can be
 /// shaken by <see cref="ShakeCamera"/>; the prop in reach is forwarded to the <see cref="Hud"/>
 /// as a prompt (<see cref="RefreshPrompt"/>, which levels with several prompt sources override);
 /// each room's ambient FX group runs only while that room is the active one; the hero's KO
@@ -272,7 +272,7 @@ public partial class LevelBase : Node2D
     /// <summary>
     /// Shakes the camera for <paramref name="duration"/> seconds with a linearly decaying
     /// amplitude, written to <see cref="Camera2D.Offset"/> only — the limits (and therefore a
-    /// <see cref="WaveSpawner"/> lock) are never touched. A shake already running is replaced only
+    /// the room bounds) are never touched. A shake already running is replaced only
     /// by a stronger one, and the offset is set to exactly zero when the last one runs out.
     /// Driven by the scaled <c>_Process</c> delta, so a hit-stop holds it instead of skipping it.
     /// </summary>

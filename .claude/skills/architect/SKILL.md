@@ -114,7 +114,7 @@ document disagree, the document wins; when a document is ambiguous, you ask — 
    - **Playtest (manual QA)** — **mandatory** section: a numbered checklist of "how to verify
      this change by hand" in the Godot editor or a run, understandable by a human without
      reading code. Each step is a concrete action plus its expected observable result, e.g.
-     "1. Open `scenes/levels/TestRoom.tscn` and run it as the main scene (F6). 2. Hold D for
+     "1. Open `scenes/levels/Level00_Sections.tscn` and run it as the main scene (F6). 2. Hold D for
      one second. Expected: the player walks right, sprite faces right. 3. Walk up past the
      `PH_Crate`. Expected: the player is drawn behind the crate while above it and in front
      while below it. 4. Press Space. Expected: the sprite rises and lands, the shadow stays on
@@ -207,7 +207,7 @@ Rules:
 ### Cross-referencing
 
 - Link to source files and scenes using repo-relative paths:
-  `scripts/player/Player.cs`, `scenes/levels/TestRoom.tscn`, `tests/smoke/player_movement.gd`.
+  `scripts/player/Player.cs`, `scenes/levels/Level00_Sections.tscn`, `tests/smoke/player_movement.gd`.
 - Link to other plans using relative paths: `../<other-slug>/<other-slug>-plan.md`.
 - Link the design doc as `../../GAME_DESIGN.md` (with the section heading) and the backlog as
   `../../TASKS.md` (with the task id) — every plan links both.

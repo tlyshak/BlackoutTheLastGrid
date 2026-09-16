@@ -5,24 +5,28 @@
 ## Проєкт
 - 2D beat 'em up (belt-scroll) у дусі Streets of Rage 4, **Godot 4.x (.NET-збірка), C#**, Windows.
 - Референс по бою і візуалу — Streets of Rage 4: принципи (belt-scroll, комбо, hit-stop, мальована анімація), а не запозичення ассетів чи персонажів.
-- Джерела істини: `GAME_DESIGN.md` (сюжет, рівні, механіки, арт), `TASKS.md` (беклог), `AI_AGENTS_ROADMAP.md` (пайплайн агентів). Контекст попередньої роботи — останній файл у `docs/sessions/`. Якщо код і документ розходяться — правильний документ; якщо документ неоднозначний — спитай, не вигадуй.
-- Стиль графіки hand-painted 2D. **Арт-ассети не створювати і не змінювати** — тільки підключати готові з `assets/`. Для тестів використовуй кольорові плейсхолдери (`ColorRect`/`Polygon2D`) з префіксом `PH_`.
+- **Поточний стан збірки:** у грі є рівно дві мальовані секції рівня 0 (`Level00_Sections.tscn`) — вибій і вентиляційний штрек, — Рей, Ден, один охоронець у кінці другої секції, головне меню, налаштування і пауза. Сюжету, катсцен, другого рівня і решти пропсів у збірці немає; вони лишилися в історії git.
+- Джерела істини: `docs/GAME_DESIGN.md` (сетинг і задум — ширший за те, що реалізовано), `docs/TASKS.md` (беклог). Контекст попередньої роботи — останній файл у `docs/sessions/`. Якщо код і документ розходяться — правильний документ; якщо документ неоднозначний — спитай, не вигадуй.
+- Стиль графіки hand-painted 2D. **Арт-ассети не створювати і не змінювати** — тільки підключати готові з `assets/`.
+- **У мальованій кімнаті не малюється нічого, чого немає на SVG автора** (його правило від 2026-09-16). Плейсхолдери `PH_` дозволені лише поза мальованими секціями; у секціях їх або немає, або вони вимкнені. Smoke `level_sections.gd` це перевіряє.
 
 ## Структура репозиторію
 ```
 project.godot
 BlackoutLastGrid.csproj / .sln
 scenes/
-  player/        Player.tscn
-  levels/        Level00_Prologue.tscn, Level01_District.tscn, ...
-  ui/            HUD.tscn, WorldMap.tscn
-  props/         PowerPanel.tscn, Outlet.tscn, ...
-  enemies/       Guard.tscn
+  Main.tscn        точка входу: інстанціює рівень
+  actors/          Player.tscn (Рей), Companion.tscn (Ден), Guard.tscn + *Frames.tres
+  levels/          Level00_Sections.tscn — єдиний рівень: дві мальовані секції
+                   Backdrop_Face.tscn, Backdrop_Drift.tscn, SectionBackdrop.tscn, Checkpoint.tscn
+  props/           ConveyorLine.tscn, ConveyorSwitch.tscn
+  ui/              MainMenu.tscn, SettingsMenu.tscn, PauseMenu.tscn, HUD.tscn
+  fx/              ImpactFx.tscn
 scripts/         дзеркалить scenes/: scripts/player/Player.cs, scripts/core/GameState.cs ...
 assets/
   art/           (тільки читання) player/, tiles/, props/, backgrounds/
   audio/
-docs/            GAME_DESIGN.md, TASKS.md, AI_AGENTS_ROADMAP.md, plans/<slug>/<slug>-plan.md,
+docs/            GAME_DESIGN.md, TASKS.md, plans/<slug>/<slug>-plan.md,
                  reviews/ (загальні рев'ю коду), sessions/ (звіти сесій — прочитай останній перед першою дією)
 tests/smoke/     headless smoke-тести (GDScript, extends SceneTree), запускаються tools/smoke.ps1
 tools/           допоміжні скрипти (smoke.ps1, setup-godot.ps1)
