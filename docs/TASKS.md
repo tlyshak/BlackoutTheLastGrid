@@ -16,6 +16,7 @@
 | Секція 2 — вентиляційний штрек (`level0_section2_ventilation_r2.svg`) | `scenes/levels/Backdrop_Drift.tscn`, x 1280…2560 |
 | Анімації секцій: сигналізація, миготіння ламп, витяжка, конвеєр, іскри, зелена кнопка | `scripts/levels/BackdropOverlay.cs`, `SectionBackdrop.cs` |
 | Механіка: конвеєр перекриває прохід, важіль його зупиняє і червоне світло вмикається | `scripts/props/ConveyorLine.cs`, `ConveyorSwitch.cs` |
+| Небезпека: обірваний кабель б'є струмом того, хто стане в розряд біля конвеєра | `scripts/props/LiveCable.cs` |
 | Рей, Ден, один охоронець у кінці секції 2 | `scenes/actors/Player.tscn`, `Companion.tscn`, `Guard.tscn` |
 | Оболонка: головне меню, налаштування, пауза, HUD | `scenes/ui/` |
 
