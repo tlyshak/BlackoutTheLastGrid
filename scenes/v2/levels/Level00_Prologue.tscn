@@ -1,7 +1,7 @@
-[gd_scene load_steps=59 format=3 uid="uid://dkswkamsuv26r"]
+[gd_scene load_steps=61 format=3 uid="uid://dkswkamsuv26r"]
 
 [ext_resource type="Script" path="res://scripts/levels/Level00_Prologue.cs" id="1_level"]
-; v2 (T-V2-01): the level runs on the shared scripts/levels/Level00_Prologue.cs; only the scene differs from scenes/levels/Level00_Prologue.tscn: v2 actors (scenes/v2/actors), painted room backdrops under Backgrounds (scenes/v2/levels/Backdrop_*.tscn), camera zoom 1.5. The v1 PH_ dressing of the three mine rooms is gone; Room_Surface keeps its procedural v1 dressing, including the rock Parallax, which sits under the painted far layers (z -80) and is seen only on the surface. Author's playtest 2026-09-12: the first room has no crate obstacle (v1's Crate + PH_Crate_Stack) — the jump hint stays, nothing has to be jumped; the drawn floor's far edge sits on the walk band's top (SectionBackdrop.FloorFarEdgeY 300) and PH_NearLip starts where the drawn floor ends (600.8); playtest #2 («room 2, nothing happens»): DebrisPile_Timber's PH_ rubble is recoloured light (the prop's default rocks are the drawn floor's own darkness and vanished on it) and PH_HitStrip_Timber is stronger (alpha 0.4), so the gate and the strip the heavy hit must be thrown from read on the painted floor. 2026-09-16 (the author's r2 concept of the first room, T-V2-05): the camera runs at y 280 and the three mine rooms (and the wave lock) start at y -80, so the 1280x720 window (-80…640) shows the beam, the turning fan, the blinking alarm and the flickering work lamp above the wall with 40 px of floor lip under the near edge of the walk band; Room_Surface keeps its top at 0 and the camera slides down to the window 0…720 there. The three Backdrop_* instances get PowerFrom = WorkLamps: the shared level script hides that string at the blast, and each painted room follows its visibility_changed — the drawn work lamp goes dark, the fan spins down, the alarm keeps blinking on its battery.
+; v2 (T-V2-01): the level runs on the shared scripts/levels/Level00_Prologue.cs; only the scene differs from scenes/levels/Level00_Prologue.tscn: v2 actors (scenes/v2/actors), painted room backdrops under Backgrounds (scenes/v2/levels/Backdrop_*.tscn), camera zoom 1.5. The v1 PH_ dressing of the three mine rooms is gone; Room_Surface keeps its procedural v1 dressing, including the rock Parallax, which sits under the painted far layers (z -80) and is seen only on the surface. Author's playtest 2026-09-12: the first room has no crate obstacle (v1's Crate + PH_Crate_Stack) — the jump hint stays, nothing has to be jumped; the drawn floor's far edge sits on the walk band's top (SectionBackdrop.FloorFarEdgeY 300) and PH_NearLip starts where the drawn floor ends (600.8); playtest #2 («room 2, nothing happens»): DebrisPile_Timber's PH_ rubble is recoloured light (the prop's default rocks are the drawn floor's own darkness and vanished on it) and PH_HitStrip_Timber is stronger (alpha 0.4), so the gate and the strip the heavy hit must be thrown from read on the painted floor. 2026-09-16 (the author's r2 concept of the first room, T-V2-05): the camera runs at y 280 and the three mine rooms (and the wave lock) start at y -80, so the 1280x720 window (-80…640) shows the beam, the turning fan, the blinking alarm and the flickering work lamp above the wall with 40 px of floor lip under the near edge of the walk band; Room_Surface keeps its top at 0 and the camera slides down to the window 0…720 there. 2026-09-16 (T-V2-06, the belt gate of the ventilation room): WP_gas_edge moved from 4340 to 4040, onto the near side of the conveyor (its face is 4079.6) — the shared script leads Dan there the moment the timber falls, and a point behind a closed gate makes CompanionLead warp him through it (Companion.WarpDistance 900, and the stuck failsafe after that). At 4040 he walks to the belt, kills his lamp and says the gas line at the obstacle; once the lever stops the belt he crosses it with the hero. ConveyorLine.PassThrough holds him, so on the paths where the script does send him on early (the hero arriving with the lamp already out) he walks in front of the drawn belt instead of being warped through it. The three Backdrop_* instances get PowerFrom = WorkLamps: the shared level script hides that string at the blast, and each painted room follows its visibility_changed — the drawn work lamp goes dark, the fan spins down, the alarm keeps blinking on its battery.
 [ext_resource type="PackedScene" uid="uid://b7wdrbbe2dkvc" path="res://scenes/v2/actors/Player.tscn" id="2_player"]
 [ext_resource type="PackedScene" uid="uid://2adcecasbtv6" path="res://scenes/ui/HUD.tscn" id="3_hud"]
 [ext_resource type="PackedScene" uid="uid://bl4rdh3hy5v37" path="res://scenes/core/WaveSpawner.tscn" id="4_spawner"]
@@ -32,6 +32,8 @@
 [ext_resource type="PackedScene" uid="uid://dj2civlpl88b2" path="res://scenes/v2/levels/Backdrop_Face.tscn" id="30_bd_face"]
 [ext_resource type="PackedScene" uid="uid://bu8m1fn4aguw8" path="res://scenes/v2/levels/Backdrop_Drift.tscn" id="31_bd_drift"]
 [ext_resource type="PackedScene" uid="uid://bgngpp8wg67s7" path="res://scenes/v2/levels/Backdrop_Patrol.tscn" id="32_bd_patrol"]
+[ext_resource type="PackedScene" uid="uid://bqv2w5ynl3rk8" path="res://scenes/props/ConveyorLine.tscn" id="33_belt"]
+[ext_resource type="PackedScene" uid="uid://c0xb1ltdqf8vr" path="res://scenes/props/ConveyorSwitch.tscn" id="34_belt_switch"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
 size = Vector2(40, 400)
@@ -613,7 +615,7 @@ position = Vector2(2820, 470)
 position = Vector2(3220, 470)
 
 [node name="WP_gas_edge" type="Marker2D" parent="DanRoute"]
-position = Vector2(4340, 470)
+position = Vector2(4040, 470)
 
 [node name="WP_past_gas" type="Marker2D" parent="DanRoute"]
 position = Vector2(4900, 470)
@@ -778,6 +780,15 @@ Cooldown = 8.0
 position = Vector2(3300, 450)
 HeavyHitsToClear = 2
 SaveId = "timber"
+
+[node name="ConveyorLine" parent="." node_paths=PackedStringArray("PassThrough") instance=ExtResource("33_belt")]
+position = Vector2(4316.48, 450)
+PassThrough = [NodePath("../Dan")]
+
+[node name="ConveyorSwitch" parent="." node_paths=PackedStringArray("Line") instance=ExtResource("34_belt_switch")]
+position = Vector2(3969.15, 362.98)
+SaveId = "belt_switch"
+Line = NodePath("../ConveyorLine")
 
 [node name="PH_RockFar" parent="DebrisPile_Timber/PH_Rubble" index="0"]
 color = Color(0.301961, 0.345098, 0.4, 1)

@@ -1,11 +1,13 @@
-[gd_scene load_steps=7 format=3 uid="uid://bu8m1fn4aguw8"]
+[gd_scene load_steps=9 format=3 uid="uid://bu8m1fn4aguw8"]
 
 [ext_resource type="PackedScene" uid="uid://b2p2i0v3m0xeh" path="res://scenes/v2/levels/SectionBackdrop.tscn" id="1_base"]
 [ext_resource type="Texture2D" uid="uid://eycnsxywv3jf" path="res://assets/art/v2/backgrounds/level0_section1_mineface_r2_back.svg" id="2_back"]
-[ext_resource type="Texture2D" uid="uid://cg5yxc5mdkgr1" path="res://assets/art/v2/backgrounds/level0_section2_ventilation_mid.svg" id="3_mid"]
-[ext_resource type="Texture2D" uid="uid://bfkm1hlhhiilq" path="res://assets/art/v2/backgrounds/level0_section2_ventilation_floor.svg" id="4_floor"]
+[ext_resource type="Texture2D" uid="uid://by5dxafclaupl" path="res://assets/art/v2/backgrounds/level0_section2_ventilation_r2_mid.svg" id="3_mid"]
+[ext_resource type="Texture2D" uid="uid://bynenxmoqw771" path="res://assets/art/v2/backgrounds/level0_section2_ventilation_r2_floor.svg" id="4_floor"]
 [ext_resource type="Texture2D" uid="uid://brtsnguhx03xb" path="res://assets/art/v2/backgrounds/level0_section1_mineface_r2_mid_fill.svg" id="5_mid_fill"]
 [ext_resource type="Texture2D" uid="uid://k214180wok15" path="res://assets/art/v2/backgrounds/level0_section1_mineface_r2_floor_fill.svg" id="6_floor_fill"]
+[ext_resource type="Script" path="res://scripts/levels/BackdropOverlay.cs" id="7_overlay"]
+[ext_resource type="Texture2D" uid="uid://g0niwqhva718" path="res://assets/art/v2/backgrounds/level0_section2_ventilation_r2_sparks.svg" id="8_sparks"]
 
 [node name="Backdrop_Drift" instance=ExtResource("1_base")]
 BackTexture = ExtResource("2_back")
@@ -20,3 +22,18 @@ FloorFillSlice = Vector2(80, 180)
 SectionX = 842.4
 FillFrom = -163.4
 FillTo = 2807
+
+[node name="Sparks" type="Sprite2D" parent="."]
+z_index = -19
+texture = ExtResource("8_sparks")
+centered = false
+script = ExtResource("7_overlay")
+CropOrigin = Vector2(190, 256)
+Pivot = Vector2(190, 256)
+Motion = 2
+NeedsPower = false
+FlickerRate = 22.0
+FlickerDepth = 0.75
+DropoutAbove = 0.6
+DropoutAlpha = 0.08
+Seed = 23

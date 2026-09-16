@@ -39,7 +39,19 @@ const V2_OMITTED := ["Crate", "Crate/CollisionShape2D"]   # v2 deliberately with
 # Deliberate v2-only differences, listed with both values so a stale entry fails instead of hiding
 # a drift (T-V2-05, the author's r2 concept of the first room, 2026-09-16): the mine rooms' camera
 # limits start 80 px higher so the painted beam, fan and lamps sit in the window.
-const V2_ACCEPTED_TREE := {"Camera2D": ["Camera2D | limits 0 0 2880 1080", "Camera2D | limits 0 -80 2880 1080"]}
+const V2_ACCEPTED_TREE := {
+	"Camera2D": ["Camera2D | limits 0 0 2880 1080", "Camera2D | limits 0 -80 2880 1080"],
+	# T-V2-06: the guide's gas-edge point moved onto the near side of the v2 belt gate (its face is
+	# 4079.6). The shared script leads him there the moment the timber falls, and a point behind a
+	# closed gate makes CompanionLead warp him through it.
+	"DanRoute/WP_gas_edge": ["Marker2D | visible true | at 4340.0,470.0", "Marker2D | visible true | at 4040.0,470.0"],
+}
+# Gameplay nodes the v2 prologue has and v1 does not: the belt gate of the ventilation room and its
+# lever (T-V2-06, the author's r2 concept of section 2). Listed by path so a node that appears by
+# accident still fails; every one of them must be absent from v1 and present in v2.
+const V2_ADDED := ["ConveyorLine", "ConveyorLine/CollisionShape2D", "ConveyorLine/Belt",
+	"ConveyorLine/RunLights", "ConveyorLine/StopLights",
+	"ConveyorSwitch", "ConveyorSwitch/CollisionShape2D", "ConveyorSwitch/Lever"]
 const MAX_REPORTED := 8                 # differences listed before the message is cut
 const POS_DECIMALS := 2
 
@@ -185,6 +197,8 @@ func _diff(label: String, a: Dictionary, b: Dictionary, omitted: Array = []) -> 
 		elif a[key] != b[key]:
 			diffs.append("%s: v1 %s / v2 %s" % [key, a[key], b[key]])
 	for key in b:
+		if key in omitted:
+			continue
 		if not a.has(key):
 			diffs.append("%s only in v2" % key)
 	if diffs.is_empty():
@@ -232,6 +246,9 @@ func _run() -> void:
 	for path in V2_OMITTED:
 		_check(s1.tree.has(path), "v1 has no gameplay node '%s' — the V2_OMITTED exception is stale" % path)
 		_check(not s2.tree.has(path), "v2 still carries '%s', listed in V2_OMITTED as deliberately absent" % path)
-	_diff("gameplay tree", s1.tree, s2.tree, V2_OMITTED + _accept("gameplay tree", s1.tree, s2.tree, V2_ACCEPTED_TREE))
+	for path in V2_ADDED:
+		_check(not s1.tree.has(path), "v1 already has '%s' — the V2_ADDED exception is stale" % path)
+		_check(s2.tree.has(path), "v2 has no gameplay node '%s', listed in V2_ADDED as deliberately added" % path)
+	_diff("gameplay tree", s1.tree, s2.tree, V2_OMITTED + V2_ADDED + _accept("gameplay tree", s1.tree, s2.tree, V2_ACCEPTED_TREE))
 	print("v2_level_skeleton: %d exports and %d gameplay nodes compared" % [s2.exports.size(), s2.tree.size()])
 	_finish()

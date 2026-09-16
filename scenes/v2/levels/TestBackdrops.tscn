@@ -1,8 +1,10 @@
-[gd_scene load_steps=6 format=3 uid="uid://bpx5dot6juaye"]
+[gd_scene load_steps=8 format=3 uid="uid://bpx5dot6juaye"]
 
 [ext_resource type="PackedScene" uid="uid://dj2civlpl88b2" path="res://scenes/v2/levels/Backdrop_Face.tscn" id="1_face"]
 [ext_resource type="PackedScene" uid="uid://bu8m1fn4aguw8" path="res://scenes/v2/levels/Backdrop_Drift.tscn" id="2_drift"]
 [ext_resource type="PackedScene" uid="uid://bgngpp8wg67s7" path="res://scenes/v2/levels/Backdrop_Patrol.tscn" id="3_patrol"]
+[ext_resource type="PackedScene" uid="uid://bqv2w5ynl3rk8" path="res://scenes/props/ConveyorLine.tscn" id="4_belt"]
+[ext_resource type="PackedScene" uid="uid://c0xb1ltdqf8vr" path="res://scenes/props/ConveyorSwitch.tscn" id="5_belt_switch"]
 
 [sub_resource type="Animation" id="Anim_pan"]
 resource_name = "pan"
@@ -35,6 +37,13 @@ position = Vector2(2880, 0)
 
 [node name="Backdrop_Patrol" parent="." instance=ExtResource("3_patrol")]
 position = Vector2(5760, 0)
+
+[node name="ConveyorLine" parent="." instance=ExtResource("4_belt")]
+position = Vector2(4316.48, 450)
+
+[node name="ConveyorSwitch" parent="." node_paths=PackedStringArray("Line") instance=ExtResource("5_belt_switch")]
+position = Vector2(3969.15, 362.98)
+Line = NodePath("../ConveyorLine")
 
 [node name="PH_WalkBand" type="ColorRect" parent="."]
 offset_top = 300.0

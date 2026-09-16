@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="60" height="48" viewBox="190 256 60 48"><title>section 2 r2 — live cable discharge</title><defs><radialGradient id="spark" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#f2c451" stop-opacity="0.45" /><stop offset="1" stop-color="#f2c451" stop-opacity="0" /></radialGradient>
+</defs><g id="spark-zone" transform="translate(-156,-16)">
+<ellipse cx="376" cy="303" rx="24" ry="7" fill="url(#spark)" />
+<g fill="none" stroke="#e8b23a" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.5"><ellipse cx="376" cy="303" rx="26" ry="8" /></g>
+<g fill="#0b0c10" opacity="0.7"><ellipse cx="380" cy="300" rx="8" ry="2" /></g>
+<g fill="none" stroke="#f2c451" stroke-width="2"><path d="M379 300 L388 290 L382 288 L390 278" /><path d="M375 302 L364 294" /><path d="M383 304 L394 308" /><path d="M372 306 L366 312" /></g>
+<g fill="none" stroke="#fff3c0" stroke-width="0.8" opacity="0.8"><path d="M379 300 L388 290" /><path d="M375 302 L364 294" /></g>
+<circle cx="379" cy="300" r="14" fill="#f2c451" opacity="0.2" /><circle cx="379" cy="300" r="4.5" fill="#f2c451" opacity="0.5" />
+<g fill="#f2c451" opacity="0.7"><circle cx="360" cy="298" r="0.8" /><circle cx="396" cy="288" r="0.9" /><circle cx="398" cy="310" r="0.8" /></g>
+</g>
+</svg>

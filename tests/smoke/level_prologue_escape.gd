@@ -95,6 +95,11 @@ func _prologue_path() -> String:
 func _limit_top() -> int:
 	return 0
 
+# Gates the v2 drift has and v1 does not (the belt line of T-V2-06): the v2 script overrides this
+# and plays them out before the run reaches the gas. The default only burns a frame.
+func _drift_extra(_level: Node, _player: Node) -> void:
+	await _step(1)
+
 var _started := false
 var _frames := 0
 var _failures: Array[String] = []
@@ -330,6 +335,8 @@ func _run() -> void:
 	_check(lines.has(level.DanClearedLine), "Dan did not say the cleared line (%s)" % [lines])
 	_check(dan.LeadTarget == _wp(level, "gas_edge"), "with the timber down Dan's point is %s, expected WP_gas_edge" % dan.LeadTarget)
 	await _check_gate_open(player, timber, "DebrisPile_Timber")
+
+	await _drift_extra(level, player)
 
 	# 2. The edge of the gas: lamp out first, then the line; he waits for the hero's lamp.
 	await _place(player, GAS_APPROACH)

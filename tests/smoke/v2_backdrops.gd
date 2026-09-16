@@ -39,6 +39,7 @@ const ART := "res://assets/art/v2/backgrounds/"
 const SECTIONS := ["level0_section1_mineface", "level0_section2_ventilation", "level0_section3_exit"]
 const LAYERS := ["", "_back", "_mid", "_floor"]
 const R2 := "level0_section1_mineface_r2"   # revised section 1 (tools/derive_section1_r2.py)
+const R2_S2 := "level0_section2_ventilation_r2"   # revised section 2 (tools/derive_section2_r2.py)
 const IMPORT_SCALE := 3            # svg/scale in the .import sidecars
 const TEXTURE_SIZE := Vector2i(2040, 1320)   # 680x440 mockup x IMPORT_SCALE
 # The r2 derivatives: frame-sized layers and the animated crops (crop size in mockup px x IMPORT_SCALE).
@@ -46,6 +47,11 @@ const R2_LAYERS := {"_back": TEXTURE_SIZE, "_mid": TEXTURE_SIZE, "_floor": TEXTU
 	"_mid_fill": TEXTURE_SIZE, "_floor_fill": TEXTURE_SIZE,
 	"_alarm": Vector2i(1950, 378), "_worklamp_wall": Vector2i(900, 564),
 	"_worklamp_floor": Vector2i(720, 204), "_fan_blades": Vector2i(204, 204)}
+# The r2 section 2 derivatives: two frame-sized layers, the belt's one-period tile and the crops the
+# game animates (T-V2-06). This room keeps section 1's far layer and fill columns, so it derives none.
+const R2_S2_LAYERS := {"_mid": TEXTURE_SIZE, "_floor": TEXTURE_SIZE,
+	"_belt_tile": Vector2i(66, 147), "_run_green": Vector2i(978, 120),
+	"_run_red": Vector2i(978, 120), "_lever": Vector2i(72, 84), "_sparks": Vector2i(180, 144)}
 const SHARED_BACK := ART + R2 + "_back.svg"   # the one far layer every mine room tiles
 const BACK_SLICE := Vector2(240, 680)   # SectionBackdrop.BackSlice default: the tiled column of the far layer
 const BACK_SEAM_ROWS := 160             # mockup rows of the far layer (the wall covers it from 160)
@@ -55,7 +61,7 @@ const SCENE_DIR := "res://scenes/v2/levels/"
 const TEST_SCENE := SCENE_DIR + "TestBackdrops.tscn"
 # Room order, world x of the v3 prologue map (scenes/levels/Level00_Prologue.tscn, Rooms/*) and
 # the section each room's Mid/Floor are cut from.
-const ROOMS := [["Face", 0.0, R2], ["Drift", 2880.0, "level0_section2_ventilation"], ["Patrol", 5760.0, "level0_section3_exit"]]
+const ROOMS := [["Face", 0.0, R2], ["Drift", 2880.0, R2_S2], ["Patrol", 5760.0, "level0_section3_exit"]]
 const ROOM_WIDTH := 2880.0
 const MINE_END := 8640.0           # Room_Surface starts here; the painted rooms end here
 const BAND_TOP := 300.0            # RoomBounds.FloorTop of the mine rooms
@@ -79,7 +85,9 @@ const CAMERA_ZOOM := Vector2(1.5, 1.5)
 # frame ends 73.5, first power bank starts 79.25); 100 for r2 (through the power bank shelf, whose
 # shadow ends at row 258: the wires pass rows 122…127 there, the wall ends exactly at 280 — the
 # terminal's ground shadow reaches row 285 at columns 4…56 and the dividers' at 193…209).
-const PROBE_COLUMNS := {"level0_section1_mineface": 78, "level0_section2_ventilation": 78, "level0_section3_exit": 78, R2: 100}
+# 360 for the r2 section 2 (between the fan housing's right louver and the gauge cabinet: the mid
+# layer ends exactly at the wall base there and the floor starts at 280).
+const PROBE_COLUMNS := {"level0_section1_mineface": 78, "level0_section2_ventilation": 78, "level0_section3_exit": 78, R2: 100, R2_S2: 360}
 const SKY_ROW := 120               # mockup row between the beam (to 113) and the pipes (from 124): mid transparent, back shows through
 const WALL_ROW := 170              # mockup row inside the wall band 160…280
 const WALL_BASE_ROW := 279         # last wall row
@@ -228,6 +236,8 @@ func _run() -> void:
 			expected[section + layer] = TEXTURE_SIZE
 	for layer in R2_LAYERS:
 		expected[R2 + layer] = R2_LAYERS[layer]
+	for layer in R2_S2_LAYERS:
+		expected[R2_S2 + layer] = R2_S2_LAYERS[layer]
 	for name in expected:
 		var path: String = ART + name + ".svg"
 		var tex: Texture2D = load(path)

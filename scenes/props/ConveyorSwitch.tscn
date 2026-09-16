@@ -1,0 +1,33 @@
+[gd_scene load_steps=4 format=3 uid="uid://c0xb1ltdqf8vr"]
+
+; The lever of the belt line (T-V2-06). The node's origin is the foot of the drawn switch post
+; (mockup 131.25, 313.5 of level0_section2_ventilation_r2); the reach rectangle covers the walk
+; band in front of it — the whole band (world y 300…600) out to the face of the belt gate
+; (world x 4079.6), so a hero stopped against the running belt still has the prompt — and the Lever
+; sprite offset puts the drawn hinge (mockup 131.25, 306) on the origin, so RotationDegrees turns
+; the handle about that hinge.
+[ext_resource type="Script" path="res://scripts/props/ConveyorSwitch.cs" id="1_switch"]
+[ext_resource type="Texture2D" uid="uid://c46qq783h8f8l" path="res://assets/art/v2/backgrounds/level0_section2_ventilation_r2_lever.svg" id="2_lever"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_reach"]
+size = Vector2(200, 300)
+
+[node name="ConveyorSwitch" type="Area2D" node_paths=PackedStringArray("Lever")]
+collision_layer = 32
+collision_mask = 0
+monitoring = false
+script = ExtResource("1_switch")
+PromptText = "Stop the belt"
+Lever = NodePath("Lever")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(10.65, 87.02)
+shape = SubResource("RectangleShape2D_reach")
+
+[node name="Lever" type="Sprite2D" parent="."]
+z_index = -19
+position = Vector2(0, -14.1)
+scale = Vector2(0.626667, 0.626667)
+texture = ExtResource("2_lever")
+centered = false
+offset = Vector2(-15.75, -66)
