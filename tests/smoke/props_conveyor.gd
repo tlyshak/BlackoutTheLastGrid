@@ -274,6 +274,19 @@ func _run() -> void:
 		_check(not crossed,
 			"the hero forced his way off the far edge (x %.1f) of a running belt" % far_edge)
 
+	# 5b2. Draw order: the handle is above the line's indicator sprites. The level y-sorts its
+	#      children and the line's origin (y 450) is below the switch's (y 363), so without a higher
+	#      z_index on the handle the green run bar covers it — which is what the author saw, and the
+	#      opposite of his SVG, where the handle is drawn after the green screen slot.
+	var lever_art: Sprite2D = sw.Lever
+	_check(lever_art != null, "ConveyorSwitch has no Lever sprite")
+	if lever_art != null and green != null:
+		_check(lever_art.z_index > green.z_index,
+			"the handle draws at z %d and the run indicator at z %d — the indicator covers the handle" % [lever_art.z_index, green.z_index])
+	if lever_art != null and red != null:
+		_check(lever_art.z_index > red.z_index,
+			"the handle draws at z %d and the stop indicator at z %d — the indicator covers the handle once the belt is off" % [lever_art.z_index, red.z_index])
+
 	# 5c. The rails: the band is closed on both sides of the drawn belt, always. The author's rule is
 	#     that a stopped belt is the one way past the conveyor, not an open room.
 	var rail_far: StaticBody2D = line.RailFar
