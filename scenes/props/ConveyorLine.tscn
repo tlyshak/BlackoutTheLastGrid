@@ -7,7 +7,8 @@
 ; node's origin at the middle of the drawn conveyor on the walk band. tests/smoke/props_conveyor.gd
 ; recomputes every one of them from the mockup coordinates.
 ; The root is an Area2D, not a wall: the hero can step onto the belt, and while it runs it carries
-; him back out (CarrySpeed against his own MoveSpeed). Mask 2 is the Player layer.
+; him back out (CarrySpeed against his own MoveSpeed). Mask 2 is the Player layer. RailFar and
+; RailNear close the walk band above and below the drawn belt, so the belt is the only way past.
 [ext_resource type="Script" path="res://scripts/props/ConveyorLine.cs" id="1_line"]
 [ext_resource type="Texture2D" uid="uid://n1f2je4cwfx3" path="res://assets/art/v2/backgrounds/level0_section2_ventilation_r2_belt_tile.svg" id="2_belt"]
 [ext_resource type="Texture2D" uid="uid://mc08wcj03n1p" path="res://assets/art/v2/backgrounds/level0_section2_ventilation_r2_run_green.svg" id="3_green"]
@@ -17,18 +18,45 @@
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_belt"]
 size = Vector2(474.35, 300)
 
-[node name="ConveyorLine" type="Area2D" node_paths=PackedStringArray("BlockerShape", "Belt", "RunIndicators", "StopIndicators")]
+; The band on either side of the drawn belt: machinery on the far side (world y 300…350.82), the
+; cart train on the near side (443.06…600). Both are walls whenever the prop exists, so the strip
+; the belt is drawn on is the only way past it.
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_rail_far"]
+size = Vector2(474.35, 50.82)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_rail_near"]
+size = Vector2(474.35, 156.94)
+
+[node name="ConveyorLine" type="Area2D" node_paths=PackedStringArray("BlockerShape", "Belt", "RunIndicators", "StopIndicators", "RailFar", "RailNear")]
 collision_layer = 0
 collision_mask = 2
 monitorable = false
 script = ExtResource("1_line")
 BlockerShape = NodePath("CollisionShape2D")
+RailFar = NodePath("RailFar")
+RailNear = NodePath("RailNear")
 Belt = NodePath("Belt")
 RunIndicators = NodePath("RunLights")
 StopIndicators = NodePath("StopLights")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_belt")
+
+[node name="RailFar" type="StaticBody2D" parent="."]
+position = Vector2(0, -124.59)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="RailFar"]
+shape = SubResource("RectangleShape2D_rail_far")
+
+[node name="RailNear" type="StaticBody2D" parent="."]
+position = Vector2(0, 71.53)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="RailNear"]
+shape = SubResource("RectangleShape2D_rail_near")
 
 [node name="Belt" type="Sprite2D" parent="."]
 texture_repeat = 2

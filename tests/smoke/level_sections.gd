@@ -122,6 +122,9 @@ func _process(_delta: float) -> bool:
 			"the conveyor sits at x %.2f, outside section 2" % belt.global_position.x)
 		_check(lever.global_position.x < belt.global_position.x,
 			"the lever is behind the belt; the hero could never reach it")
+		# The stopped belt is the one way past the conveyor: the band is walled above and below it.
+		_check(belt.RailFar != null and belt.RailNear != null,
+			"the conveyor has no side rails; with the belt stopped the hero would walk round it instead of along it")
 		# The author's complaint of 2026-09-16 was a gate he could not get past. The lever's reach
 		# rectangle must therefore run right up to the face of the belt: a hero walked into the
 		# stopped-dead belt is still inside it and still sees the prompt.

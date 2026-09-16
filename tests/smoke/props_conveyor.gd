@@ -29,7 +29,7 @@ extends SceneTree
 # Run: godot --headless --path . -s tests/smoke/props_conveyor.gd
 
 const NAME := "props_conveyor"   # must equal the file basename
-const MAX_FRAMES := 900
+const MAX_FRAMES := 6000
 const LEVEL := "res://scenes/levels/Level00_Sections.tscn"
 const ART := "res://assets/art/v2/backgrounds/level0_section2_ventilation_r2_"
 const OVERLAY_SCRIPT := "res://scripts/levels/BackdropOverlay.cs"
@@ -56,7 +56,9 @@ const PLAYER_LAYER := 2            # project.godot 2d_physics/layer_2="Player": 
 const HERO_SPEED := 220.0          # Player.MoveSpeed: the carry has to beat it
 const CARRY_FRAMES := 90           # physics frames the hero is given to force his way across a running belt
 const CROSS_FRAMES := 240          # frames to walk the stopped belt end to end (474 px at 220 px/s)
-const BELT_WALK_Y := 450.0         # middle of the walk band, where the hero meets the belt
+const BELT_WALK_Y := 396.94        # middle of the drawn belt: the one lane through the conveyor
+const OFF_LANE_Y := [320.0, 470.0, 560.0]   # depths the rails close, far side and cart side
+const OFF_LANE_FRAMES := 170       # enough to walk the belt end to end (474 px + the run-up at 220 px/s)
 const ON_BELT_MARGIN := 40.0       # px past the face that prove he walks onto the belt instead of bumping a wall
 const MAX_ONTO_BELT := 200.0       # px onto the belt he must never beat; free walking would make ~330 in CARRY_FRAMES
 const BAND_TOP := 300.0
@@ -272,6 +274,41 @@ func _run() -> void:
 		_check(not crossed,
 			"the hero forced his way off the far edge (x %.1f) of a running belt" % far_edge)
 
+	# 5c. The rails: the band is closed on both sides of the drawn belt, always. The author's rule is
+	#     that a stopped belt is the one way past the conveyor, not an open room.
+	var rail_far: StaticBody2D = line.RailFar
+	var rail_near: StaticBody2D = line.RailNear
+	_check(rail_far != null and rail_near != null, "ConveyorLine is missing RailFar/RailNear — with the belt stopped the hero walks round it")
+	if rail_far != null and rail_near != null and belt != null and foot != null and foot.shape is RectangleShape2D:
+		var belt_top: float = belt.global_position.y
+		var belt_bottom: float = belt_top + belt.region_rect.size.y * belt.scale.y
+		var fbox3: RectangleShape2D = foot.shape
+		for rail in [rail_far, rail_near]:
+			_check(rail.collision_layer == 1 and rail.collision_mask == 0,
+				"%s is layer %d mask %d, expected the World wall contract (1 / 0)" % [rail.name, rail.collision_layer, rail.collision_mask])
+			var rshape: CollisionShape2D = rail.get_node_or_null("CollisionShape2D")
+			_check(rshape != null and rshape.shape is RectangleShape2D, "%s has no rectangular shape" % rail.name)
+			if rshape != null and rshape.shape is RectangleShape2D:
+				var rbox2: RectangleShape2D = rshape.shape
+				_check(_approx(rbox2.size.x, fbox3.size.x, 0.05),
+					"%s is %.2f px wide, expected the belt's own %.2f — a gap at either end is a way round" % [rail.name, rbox2.size.x, fbox3.size.x])
+
+		var far_shape: CollisionShape2D = rail_far.get_node_or_null("CollisionShape2D")
+		var near_shape: CollisionShape2D = rail_near.get_node_or_null("CollisionShape2D")
+		if far_shape != null and near_shape != null and far_shape.shape is RectangleShape2D and near_shape.shape is RectangleShape2D:
+			var far_top: float = far_shape.global_position.y - far_shape.shape.size.y * 0.5
+			var far_bottom: float = far_shape.global_position.y + far_shape.shape.size.y * 0.5
+			var near_top: float = near_shape.global_position.y - near_shape.shape.size.y * 0.5
+			var near_bottom: float = near_shape.global_position.y + near_shape.shape.size.y * 0.5
+			_check(_approx(far_top, BAND_TOP, 0.05),
+				"RailFar starts at y %.2f, expected the top of the walk band %.0f — the hero would slip past behind the belt" % [far_top, BAND_TOP])
+			_check(_approx(near_bottom, BAND_BOTTOM, 0.05),
+				"RailNear ends at y %.2f, expected the bottom of the walk band %.0f — the hero would slip past in front of the carts" % [near_bottom, BAND_BOTTOM])
+			_check(_approx(far_bottom, belt_top, 0.05),
+				"RailFar ends at y %.2f but the drawn belt starts at %.2f — the gap is not the belt" % [far_bottom, belt_top])
+			_check(_approx(near_top, belt_bottom, 0.05),
+				"RailNear starts at y %.2f but the drawn belt ends at %.2f — the gap is not the belt" % [near_top, belt_bottom])
+
 	# 6. The lever stops the belt: indicators swap, the handle turns, the gate opens, one-way after.
 	var prompt_before: String = sw.CurrentPrompt
 	_check(sw.CanInteract, "the lever refuses to be used while the belt runs")
@@ -316,6 +353,20 @@ func _run() -> void:
 		await _step(2)
 		_check(player.global_position.x > far_edge2,
 			"with the belt stopped the hero only got to x %.1f in %d frames, short of the far edge %.1f — the way through is still shut" % [player.global_position.x, CROSS_FRAMES, far_edge2])
+
+		# ...and only along the belt. Every other depth of the band is walled off for good.
+		for off_y in OFF_LANE_Y:
+			player.global_position = Vector2(face2 - 50.0, off_y)
+			await _step(3)
+			Input.action_press("move_right")
+			for i in OFF_LANE_FRAMES:
+				await physics_frame
+				if player.global_position.x > far_edge2:
+					break
+			Input.action_release("move_right")
+			await _step(2)
+			_check(player.global_position.x <= far_edge2,
+				"with the belt stopped the hero walked past it at depth y %.0f (reached x %.1f) — the belt must be the only way through" % [off_y, player.global_position.x])
 
 	# 7. The sparks of the live cable: a flickering overlay of the painted room, on its own crop.
 	var sparks: Sprite2D = level.get_node_or_null("Backgrounds/Backdrop_Drift/Sparks")

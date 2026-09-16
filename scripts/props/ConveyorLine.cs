@@ -12,8 +12,13 @@ namespace BlackoutLastGrid.Props;
 /// speed. Step on, get taken, land back in the drift; there is no forcing a way across, because the
 /// grace resets every time he leaves. The lever is the only way through. The
 /// carried area is as wide as the drawn conveyor and as deep as the walk band, so a running belt
-/// cannot be walked around either; stopping it ends the carry for good in that run. Bodies in
-/// <see cref="PassThrough"/> (the guide) are never carried.
+/// cannot be walked around either; stopping it ends the carry for good in that run.
+///
+/// The band on either side of the drawn belt is closed for good by <see cref="RailFar"/> and
+/// <see cref="RailNear"/> — the machinery behind the conveyor and the cart train in front of it —
+/// so the strip the belt is drawn on is the only gap in the drift: a stopped belt is not an open
+/// room, it is the one lane through. Bodies in <see cref="PassThrough"/> (the guide) are neither
+/// carried nor stopped by the rails.
 /// <see cref="ConveyorSwitch"/> is what stops it.
 /// </summary>
 /// <remarks>
@@ -64,6 +69,12 @@ public partial class ConveyorLine : Area2D
 
     /// <summary>The belt's footprint: what stands inside it is carried while the belt runs. Disabled once it is stopped.</summary>
     [Export] public CollisionShape2D BlockerShape { get; set; } = null!;
+
+    /// <summary>Wall closing the walk band behind the drawn belt (the machinery side). Always solid.</summary>
+    [Export] public StaticBody2D? RailFar { get; set; }
+
+    /// <summary>Wall closing the walk band in front of the drawn belt (the cart train). Always solid.</summary>
+    [Export] public StaticBody2D? RailNear { get; set; }
 
     /// <summary>
     /// Px per second the running band sweeps a body back down the drift (towards the lever, the way
@@ -120,6 +131,17 @@ public partial class ConveyorLine : Area2D
     public override void _Ready()
     {
         _period = Belt?.Texture is { } texture ? texture.GetWidth() : 0f;
+        foreach (Node2D body in PassThrough)
+        {
+            if (body is not PhysicsBody2D physics)
+            {
+                continue;
+            }
+
+            RailFar?.AddCollisionExceptionWith(physics);
+            RailNear?.AddCollisionExceptionWith(physics);
+        }
+
         ApplyBlockerDepth();
         Apply();
     }
