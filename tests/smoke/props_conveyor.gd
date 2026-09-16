@@ -12,7 +12,7 @@ extends SceneTree
 #     chevron tile over the drawn belt surface (mockup 202,307 … 430,356), the running/stopped
 #     indicator crops at their crop origin, the lever's hinge on the switch node's origin, and the
 #     sparks overlay of Backdrop_Drift on the live cable's discharge;
-#   * the gate — the blocker is as wide as the drawn conveyor (mockup x 190…442) and spans the whole
+#   * the belt — the carried footprint is as wide as the drawn conveyor (mockup x 190…442) and spans the whole
 #     walk band (300…600, RoomBounds), so a running belt cannot be walked around in depth; it is
 #     enabled while the belt runs and disabled once it is stopped; the guide is in PassThrough, so
 #     the gate is the hero's alone and nothing ever warps through it;
@@ -52,6 +52,13 @@ const LEVER_CROP := Vector2(126, 284)
 const LEVER_HINGE := Vector2(131.25, 306)
 const SWITCH_FOOT := Vector2(131.25, 313.5)
 const SPARKS_CROP := Vector2(190, 256)
+const PLAYER_LAYER := 2            # project.godot 2d_physics/layer_2="Player": what the belt watches for
+const HERO_SPEED := 220.0          # Player.MoveSpeed: the carry has to beat it
+const CARRY_FRAMES := 90           # physics frames the hero is given to force his way across a running belt
+const CROSS_FRAMES := 240          # frames to walk the stopped belt end to end (474 px at 220 px/s)
+const BELT_WALK_Y := 450.0         # middle of the walk band, where the hero meets the belt
+const ON_BELT_MARGIN := 40.0       # px past the face that prove he walks onto the belt instead of bumping a wall
+const MAX_ONTO_BELT := 200.0       # px onto the belt he must never beat; free walking would make ~330 in CARRY_FRAMES
 const BAND_TOP := 300.0
 const BAND_BOTTOM := 600.0
 const Z_FX := -19                 # just above the painted floor layer (-20)
@@ -140,8 +147,10 @@ func _run() -> void:
 			"the belt gate spans x %.2f…%.2f, expected the drawn conveyor %.2f…%.2f" % [left, right, _world(Vector2(FRAME_FROM, 0)).x, _world(Vector2(FRAME_TO, 0)).x])
 		_check(top <= BAND_TOP and bottom >= BAND_BOTTOM,
 			"the belt gate blocks Y %.0f…%.0f, expected the whole walk band %.0f…%.0f — a running belt could be walked around" % [top, bottom, BAND_TOP, BAND_BOTTOM])
-		_check(line.collision_layer == 1 and line.collision_mask == 0,
-			"ConveyorLine is on layer %d mask %d, expected layer 1 (World) mask 0" % [line.collision_layer, line.collision_mask])
+		_check(line.collision_layer == 0 and line.collision_mask == PLAYER_LAYER,
+			"ConveyorLine is on layer %d mask %d, expected layer 0 mask %d (Player) — it carries the hero, it does not block him" % [line.collision_layer, line.collision_mask, PLAYER_LAYER])
+		_check(line.CarrySpeed > HERO_SPEED,
+			"the belt carries at %.0f px/s but the hero walks at %.0f — he would simply walk across a running belt and the lever would mean nothing" % [line.CarrySpeed, HERO_SPEED])
 		_check(not shape.disabled, "the belt gate is disabled while the belt still runs")
 	var companion: Node = level.get("Companion")
 	_check(line.PassThrough.size() == 1 and companion != null and line.PassThrough[0] == companion,
@@ -222,6 +231,47 @@ func _run() -> void:
 		_check(not _approx(before, after, 0.001), "the belt's chevrons did not move in %d frames (region x stayed %.3f)" % [SCROLL_FRAMES, before])
 		_check(after >= 0.0 and after < line.Period, "the belt scrolled to region x %.2f, expected it wrapped inside one period 0…%.2f" % [after, line.Period])
 
+	# 5b. The running belt: the hero gets onto it and it carries him back out. The author asked for
+	#     exactly this instead of a wall — he wants to be able to step on, and to be thrown back.
+	var foot: CollisionShape2D = line.BlockerShape
+	if foot != null and foot.shape is RectangleShape2D and player != null:
+		var fbox: RectangleShape2D = foot.shape
+		var face: float = foot.global_position.x - fbox.size.x * 0.5
+		var far_edge: float = foot.global_position.x + fbox.size.x * 0.5
+
+		# He can step on: walking into the belt from the drift, his x passes the face.
+		player.global_position = Vector2(face - 40.0, BELT_WALK_Y)
+		await _step(2)
+		Input.action_press("move_right")
+		var reached: float = player.global_position.x
+		for i in CARRY_FRAMES:
+			await physics_frame
+			reached = maxf(reached, player.global_position.x)
+		Input.action_release("move_right")
+		await _step(2)
+		_check(reached > face + ON_BELT_MARGIN,
+			"the hero only reached x %.1f against a belt face at %.1f — he cannot get onto the belt at all, and the author asked to be able to" % [reached, face])
+
+		# And it takes him back: he bobs on the near stretch of the belt and never gets near where the
+		# same walk on open floor would have put him (CARRY_FRAMES at the hero's speed is ~330 px).
+		_check(reached < face + MAX_ONTO_BELT,
+			"walking into the running belt the hero reached %.1f px onto it; the band must sweep him back inside %.0f px or the lever means nothing" % [reached - face, MAX_ONTO_BELT])
+
+		player.global_position = Vector2(foot.global_position.x, BELT_WALK_Y)
+		await _step(2)
+		var from_middle: float = player.global_position.x
+		Input.action_press("move_right")
+		var crossed := false
+		for i in CARRY_FRAMES:
+			await physics_frame
+			crossed = crossed or player.global_position.x > far_edge
+		Input.action_release("move_right")
+		await _step(2)
+		_check(player.global_position.x < from_middle,
+			"standing on the running belt and walking right, the hero went from x %.1f to %.1f — the belt must beat his own speed or the lever means nothing" % [from_middle, player.global_position.x])
+		_check(not crossed,
+			"the hero forced his way off the far edge (x %.1f) of a running belt" % far_edge)
+
 	# 6. The lever stops the belt: indicators swap, the handle turns, the gate opens, one-way after.
 	var prompt_before: String = sw.CurrentPrompt
 	_check(sw.CanInteract, "the lever refuses to be used while the belt runs")
@@ -243,6 +293,29 @@ func _run() -> void:
 	_check(not sw.CanInteract, "the lever can be thrown again — a hero respawning past the belt could be shut in")
 	_check(sw.CurrentPrompt != prompt_before and sw.CurrentPrompt == sw.StoppedPromptText,
 		"the prompt is '%s' after the belt stopped, expected StoppedPromptText '%s'" % [sw.CurrentPrompt, sw.StoppedPromptText])
+
+	# 6b. Stopped, the belt is just floor: the hero walks the whole way across it.
+	if foot != null and foot.shape is RectangleShape2D and player != null:
+		# The guard stands a perception range past the belt and would wake mid-walk; this test is
+		# about the floor, not about him.
+		var guard: Node = level.get_node_or_null("Guard")
+		if guard != null:
+			guard.queue_free()
+			await _step(1)
+		var fbox2: RectangleShape2D = foot.shape
+		var face2: float = foot.global_position.x - fbox2.size.x * 0.5
+		var far_edge2: float = foot.global_position.x + fbox2.size.x * 0.5
+		player.global_position = Vector2(face2 - 40.0, BELT_WALK_Y)
+		await _step(2)
+		Input.action_press("move_right")
+		for i in CROSS_FRAMES:
+			await physics_frame
+			if player.global_position.x > far_edge2:
+				break
+		Input.action_release("move_right")
+		await _step(2)
+		_check(player.global_position.x > far_edge2,
+			"with the belt stopped the hero only got to x %.1f in %d frames, short of the far edge %.1f — the way through is still shut" % [player.global_position.x, CROSS_FRAMES, far_edge2])
 
 	# 7. The sparks of the live cable: a flickering overlay of the painted room, on its own crop.
 	var sparks: Sprite2D = level.get_node_or_null("Backgrounds/Backdrop_Drift/Sparks")

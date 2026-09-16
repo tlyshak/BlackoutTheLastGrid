@@ -72,8 +72,11 @@ const ROOM_WIDTH := MOCKUP_SIZE.x * WORLD_SCALE   # 1280: the painting is the wh
 const MINE_END := 2.0 * ROOM_WIDTH                # 2560: the right edge of the second room
 const BAND_TOP := 300.0            # RoomBounds.FloorTop of the mine rooms
 const BAND_BOTTOM := 600.0         # RoomBounds.FloorBottom
-const ROOM_RECT_TOP := -80.0       # RoomBounds.Rect of both rooms: y -80, 1160 tall
-const ROOM_RECT_HEIGHT := 1160.0
+# RoomBounds.Rect of the corridor. The top is the camera's LimitTop, and it has to sit above the
+# camera centre minus half a view (241.18 - 360 = -118.82) or the limit pushes the camera back
+# down and a grey strip opens under the paintings (the author's playtest of 2026-09-16).
+const ROOM_RECT_TOP := -120.0
+const ROOM_RECT_HEIGHT := 1200.0
 const DRAWN_FLOOR_ROW := 280.0     # mockup row the drawn floor starts at (SectionBackdrop.DrawnFloorTop)
 const DRAWN_FLOOR_TOP := BAND_TOP  # world y of the drawn floor's far edge == the band's top
 const EXPECTED_SCALE := WORLD_SCALE / IMPORT_SCALE                    # 0.6275: world px per texture px

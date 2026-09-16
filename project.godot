@@ -95,4 +95,8 @@ toggle_fullscreen={
 
 [rendering]
 
+; The near floor of the painted mine (#171414): anything the paintings do not cover — a window
+; aspect wider or taller than the 16:9 they were cut for — reads as floor instead of mid grey.
+environment/defaults/default_clear_color=Color(0.090196, 0.078431, 0.078431, 1)
+
 textures/canvas_textures/default_texture_filter=1

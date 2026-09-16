@@ -4,8 +4,10 @@
 ; painted conveyor the game moves, cut out of level0_section2_ventilation_r2_floor.svg by
 ; tools/derive_section2_r2.py; their positions here are the room's own placement (backdrop at
 ; level x 1280, SectionX 0, OffsetY -227.06, WorldScale 1280/680, ImportScale 3), relative to this
-; node's origin at the middle of the drawn conveyor on the walk band. tests/smoke/v2_conveyor.gd
+; node's origin at the middle of the drawn conveyor on the walk band. tests/smoke/props_conveyor.gd
 ; recomputes every one of them from the mockup coordinates.
+; The root is an Area2D, not a wall: the hero can step onto the belt, and while it runs it carries
+; him back out (CarrySpeed against his own MoveSpeed). Mask 2 is the Player layer.
 [ext_resource type="Script" path="res://scripts/props/ConveyorLine.cs" id="1_line"]
 [ext_resource type="Texture2D" uid="uid://n1f2je4cwfx3" path="res://assets/art/v2/backgrounds/level0_section2_ventilation_r2_belt_tile.svg" id="2_belt"]
 [ext_resource type="Texture2D" uid="uid://mc08wcj03n1p" path="res://assets/art/v2/backgrounds/level0_section2_ventilation_r2_run_green.svg" id="3_green"]
@@ -15,9 +17,10 @@
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_belt"]
 size = Vector2(474.35, 300)
 
-[node name="ConveyorLine" type="StaticBody2D" node_paths=PackedStringArray("BlockerShape", "Belt", "RunIndicators", "StopIndicators")]
-collision_layer = 1
-collision_mask = 0
+[node name="ConveyorLine" type="Area2D" node_paths=PackedStringArray("BlockerShape", "Belt", "RunIndicators", "StopIndicators")]
+collision_layer = 0
+collision_mask = 2
+monitorable = false
 script = ExtResource("1_line")
 BlockerShape = NodePath("CollisionShape2D")
 Belt = NodePath("Belt")

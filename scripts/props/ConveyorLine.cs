@@ -1,39 +1,47 @@
+using System.Collections.Generic;
 using Godot;
 
 namespace BlackoutLastGrid.Props;
 
 /// <summary>
 /// The belt line of the ventilation room (T-V2-06, the author's r2 concept of section 2): while it
-/// runs nobody walks across it, and the chevrons of its drawn belt keep moving. The line is a wall
-/// as wide as the drawn conveyor and as deep as the walk band, so a running belt is a gate and not
-/// a lane the hero can slip around; stopping it disables the wall for good in that run. Bodies in
-/// <see cref="PassThrough"/> (the guide) are never stopped by it.
+/// runs it carries whoever steps on it back down the drift, and the chevrons of its drawn belt keep
+/// moving. The hero can walk onto the belt — the author asked for that explicitly: a body rides
+/// <see cref="GrabDelay"/> seconds before the band takes hold, which is a step and a half onto the
+/// drawn conveyor, and is then swept back out at <see cref="CarrySpeed"/>, far above his own walking
+/// speed. Step on, get taken, land back in the drift; there is no forcing a way across, because the
+/// grace resets every time he leaves. The lever is the only way through. The
+/// carried area is as wide as the drawn conveyor and as deep as the walk band, so a running belt
+/// cannot be walked around either; stopping it ends the carry for good in that run. Bodies in
+/// <see cref="PassThrough"/> (the guide) are never carried.
 /// <see cref="ConveyorSwitch"/> is what stops it.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Scene contract: root <c>StaticBody2D</c> on layer 1 (World) with mask 0, the blocking
-/// <see cref="BlockerShape"/> (a <c>RectangleShape2D</c> stretched to <see cref="BlockerDepth"/>
-/// across the band), the <see cref="Belt"/> sprite that tiles the
+/// Scene contract: root <c>Area2D</c> on layer 0 with mask 2 (Player), the
+/// <see cref="BlockerShape"/> footprint (a <c>RectangleShape2D</c> stretched to
+/// <see cref="BlockerDepth"/> across the band), the <see cref="Belt"/> sprite that tiles the
 /// one-period chevron crop of the mockup, and the two indicator sprites. The sprites are placed by
 /// the owning level on the very pixels the painted room draws them at — the smoke test recomputes
 /// those from the mockup coordinates and fails on a drift.
 /// </para>
 /// <para>
-/// The scroll lives in <c>_Process</c>: it freezes with the pause menu (process mode inherit) and
-/// slows with a hit-stop (the delta is scaled). Nothing here polls the hero or looks outside the
-/// scene; the level wires the switch to the line with an <c>[Export]</c>.
+/// The scroll lives in <c>_Process</c> and the carry in <c>_PhysicsProcess</c>: both freeze with
+/// the pause menu (process mode inherit) and slow with a hit-stop (the delta is scaled). The carry
+/// reads only the bodies the area already reports overlapping and moves them with
+/// <c>MoveAndCollide</c>, so a wall or another body still stops them; no combat or player class is
+/// touched. The level wires the switch to the line with an <c>[Export]</c>.
 /// </para>
 /// </remarks>
-public partial class ConveyorLine : StaticBody2D
+public partial class ConveyorLine : Area2D
 {
     /// <summary>Emitted whenever <see cref="Running"/> changes.</summary>
     [Signal]
     public delegate void RunningChangedEventHandler(bool running);
 
     /// <summary>
-    /// <c>true</c> while the belt runs: the wall blocks the band, the chevrons move, the green
-    /// indicators show. Set by <see cref="ConveyorSwitch"/>.
+    /// <c>true</c> while the belt runs: the band carries what stands on it, the chevrons move, the
+    /// green indicators show. Set by <see cref="ConveyorSwitch"/>.
     /// </summary>
     [Export]
     public bool Running
@@ -54,8 +62,23 @@ public partial class ConveyorLine : StaticBody2D
         }
     }
 
-    /// <summary>The wall that stops the hero while the belt runs; disabled once it is stopped.</summary>
+    /// <summary>The belt's footprint: what stands inside it is carried while the belt runs. Disabled once it is stopped.</summary>
     [Export] public CollisionShape2D BlockerShape { get; set; } = null!;
+
+    /// <summary>
+    /// Px per second the running band sweeps a body back down the drift (towards the lever, the way
+    /// the drawn chevrons travel). Must stay well above the hero's own speed, or he walks across a
+    /// running belt and the lever stops meaning anything.
+    /// </summary>
+    [Export] public float CarrySpeed { get; set; } = 460f;
+
+    /// <summary>
+    /// Seconds a body rides the running band before it takes hold. Without it the sweep wins from
+    /// the first frame of contact and the belt reads as a wall the hero bumps into; with it he walks
+    /// properly onto the conveyor first. Long enough to see, short enough that it never adds up to a
+    /// crossing: the grace starts again every time a body leaves the belt.
+    /// </summary>
+    [Export] public float GrabDelay { get; set; } = 0.5f;
 
     /// <summary>
     /// Depth (Y extent) of <see cref="BlockerShape"/> in px, applied in <c>_Ready</c>. The default
@@ -97,13 +120,6 @@ public partial class ConveyorLine : StaticBody2D
     public override void _Ready()
     {
         _period = Belt?.Texture is { } texture ? texture.GetWidth() : 0f;
-        foreach (Node2D body in PassThrough)
-        {
-            if (body is PhysicsBody2D physics)
-            {
-                AddCollisionExceptionWith(physics);
-            }
-        }
         ApplyBlockerDepth();
         Apply();
     }
@@ -121,9 +137,85 @@ public partial class ConveyorLine : StaticBody2D
         Belt.RegionRect = region;
     }
 
+    /// <inheritdoc/>
+    public override void _PhysicsProcess(double delta)
+    {
+        if (!_running || CarrySpeed <= 0f || delta <= 0d)
+        {
+            return;
+        }
+
+        _onBeltNow.Clear();
+        float step = -CarrySpeed * (float)delta;   // negative: back the way the chevrons travel
+        foreach (Node2D body in GetOverlappingBodies())
+        {
+            if (body is not CharacterBody2D character || IsPassThrough(character))
+            {
+                continue;
+            }
+
+            ulong id = character.GetInstanceId();
+            _onBeltNow.Add(id);
+            float ridden = (_ridden.TryGetValue(id, out float was) ? was : 0f) + (float)delta;
+            _ridden[id] = ridden;
+            if (ridden >= GrabDelay)
+            {
+                character.MoveAndCollide(new Vector2(step, 0f));
+            }
+        }
+
+        ForgetBodiesOffTheBelt();
+    }
+
+    /// <summary>Drops the ride time of everyone no longer on the band, so stepping on again gets the same grace.</summary>
+    private void ForgetBodiesOffTheBelt()
+    {
+        if (_ridden.Count == _onBeltNow.Count)
+        {
+            return;
+        }
+
+        _left.Clear();
+        foreach (ulong id in _ridden.Keys)
+        {
+            if (!_onBeltNow.Contains(id))
+            {
+                _left.Add(id);
+            }
+        }
+
+        foreach (ulong id in _left)
+        {
+            _ridden.Remove(id);
+        }
+    }
+
+    /// <summary>The guide and anyone else the level exempts stand on a running belt untouched.</summary>
+    private bool IsPassThrough(Node2D body)
+    {
+        foreach (Node2D exempt in PassThrough)
+        {
+            if (ReferenceEquals(exempt, body))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private readonly Dictionary<ulong, float> _ridden = new();   // body -> seconds on the running band
+    private readonly HashSet<ulong> _onBeltNow = new();
+    private readonly List<ulong> _left = new();
+
     private void Apply()
     {
-        SetProcess(_running);   // a stopped belt has nothing left to move
+        SetProcess(_running);            // a stopped belt has nothing left to move
+        SetPhysicsProcess(_running);     // and nothing left to carry
+        if (!_running)
+        {
+            _ridden.Clear();
+        }
         BlockerShape.SetDeferred(CollisionShape2D.PropertyName.Disabled, !_running);
         if (RunIndicators is not null)
         {
@@ -141,7 +233,8 @@ public partial class ConveyorLine : StaticBody2D
 
     /// <summary>
     /// Stretches <see cref="BlockerShape"/> to <see cref="BlockerDepth"/> across the walk band, on
-    /// a copy of the shape so a shared resource is never edited.
+    /// a copy of the shape so a shared resource is never edited. The band is carried over its whole
+    /// depth, so a running belt cannot be walked around at the near or the far rail.
     /// </summary>
     private void ApplyBlockerDepth()
     {

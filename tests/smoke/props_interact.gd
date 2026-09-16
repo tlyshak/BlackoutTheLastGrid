@@ -139,7 +139,9 @@ func _run() -> void:
 	_check(sw_proto is Area2D, "%s root is a %s, expected Area2D (the Interactable contract)" % [SWITCH_SCENE, sw_proto.get_class()])
 	_check(sw_proto.get_script() != null and str(sw_proto.get_script().resource_path).ends_with("ConveyorSwitch.cs"),
 		"%s has no ConveyorSwitch.cs attached" % SWITCH_SCENE)
-	_check(line_proto is StaticBody2D, "%s root is a %s, expected StaticBody2D" % [LINE_SCENE, line_proto.get_class()])
+	# The line is an Area2D, not a wall: the hero may step onto the belt and the running band carries
+	# him back out (the author's playtest of 2026-09-16).
+	_check(line_proto is Area2D, "%s root is a %s, expected Area2D" % [LINE_SCENE, line_proto.get_class()])
 	_check(line_proto.get_script() != null and str(line_proto.get_script().resource_path).ends_with("ConveyorLine.cs"),
 		"%s has no ConveyorLine.cs attached" % LINE_SCENE)
 	_check(sw_proto.PromptText == EXPECTED_PROMPT, "ConveyorSwitch.PromptText is '%s', expected '%s'" % [sw_proto.PromptText, EXPECTED_PROMPT])
