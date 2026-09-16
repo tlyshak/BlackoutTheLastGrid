@@ -35,9 +35,9 @@ extends SceneTree
 #     overlap the room, so a room the camera has left stops drawing its sky;
 #   * depth — z of Back/Mid/Floor per docs/plans/t07i-visual-kit/visual-brief.md;
 #   * the level — Level00_Sections.tscn instantiates the two backdrops at level x 0 and 1280 under
-#     Backgrounds, its two RoomBounds carry the same x span and the walk band the paintings were cut
-#     for (300…600), its camera is at the v2 zoom and starts limited to the first room, and each
-#     room's far layer follows those limits.
+#     Backgrounds, its single RoomBounds spans both paintings with the walk band they were cut for
+#     (300…600), its camera is at the painted zoom and limited to that whole corridor so it pans
+#     across the seam, and each room's far layer follows the camera limits.
 # Run: godot --headless --path . -s tests/smoke/level_backdrops.gd
 
 const NAME := "level_backdrops"   # must equal the file basename
@@ -407,21 +407,22 @@ func _run() -> void:
 			var node: Node2D = level.get_node_or_null("Backgrounds/Backdrop_%s" % entry[0])
 			_check(node != null and _approx(node.position.x, entry[1], POS_EPS),
 				"the level: Backgrounds/Backdrop_%s missing or not at x=%s" % [entry[0], entry[1]])
-			var bounds: Node2D = level.get_node_or_null("Rooms/Room_%s" % entry[0])
-			_check(bounds != null, "the level: Rooms/Room_%s is missing" % entry[0])
-			if bounds == null:
-				continue
+		# One RoomBounds over both paintings: the camera pans across the seam instead of stopping at
+		# the end of the first one. The per-painting span now lives on the backdrops, checked above.
+		var bounds: Node2D = level.get_node_or_null("Rooms/Room_Mine")
+		_check(bounds != null, "the level: Rooms/Room_Mine is missing")
+		if bounds != null:
 			var rect: Rect2 = bounds.Rect
-			_check(_approx(rect.position.x, entry[1], POS_EPS) and _approx(rect.size.x, ROOM_WIDTH, POS_EPS),
-				"the level: Room_%s spans x %.2f…%.2f, expected the painting's %.0f…%.0f" % [entry[0], rect.position.x, rect.end.x, entry[1], entry[1] + ROOM_WIDTH])
+			_check(_approx(rect.position.x, 0.0, POS_EPS) and _approx(rect.size.x, MINE_END, POS_EPS),
+				"the level: Room_Mine spans x %.2f…%.2f, expected both paintings 0…%.0f" % [rect.position.x, rect.end.x, MINE_END])
 			_check(_approx(rect.position.y, ROOM_RECT_TOP, POS_EPS) and _approx(rect.size.y, ROOM_RECT_HEIGHT, POS_EPS),
-				"the level: Room_%s rect is %s, expected y %.0f and height %.0f" % [entry[0], rect, ROOM_RECT_TOP, ROOM_RECT_HEIGHT])
+				"the level: Room_Mine rect is %s, expected y %.0f and height %.0f" % [rect, ROOM_RECT_TOP, ROOM_RECT_HEIGHT])
 			_check(_approx(bounds.FloorTop, BAND_TOP, POS_EPS) and _approx(bounds.FloorBottom, BAND_BOTTOM, POS_EPS),
-				"the level: Room_%s walk band %.0f…%.0f, expected the band the paintings were cut for %.0f…%.0f" % [entry[0], bounds.FloorTop, bounds.FloorBottom, BAND_TOP, BAND_BOTTOM])
+				"the level: Room_Mine walk band %.0f…%.0f, expected the band the paintings were cut for %.0f…%.0f" % [bounds.FloorTop, bounds.FloorBottom, BAND_TOP, BAND_BOTTOM])
 		var cam: Camera2D = level.get_node_or_null("Camera2D")
 		_check(cam != null and cam.zoom == CAMERA_ZOOM, "the level: Camera2D missing or zoom != %s" % CAMERA_ZOOM)
-		_check(cam != null and _approx(cam.limit_left, 0.0, LIMIT_SLACK) and _approx(cam.limit_right, ROOM_WIDTH, LIMIT_SLACK),
-			"the level: Camera2D limits %d…%d after _Ready, expected the starting room 0…%.0f" % [cam.limit_left if cam != null else 0, cam.limit_right if cam != null else 0, ROOM_WIDTH])
+		_check(cam != null and _approx(cam.limit_left, 0.0, LIMIT_SLACK) and _approx(cam.limit_right, MINE_END, LIMIT_SLACK),
+			"the level: Camera2D limits %d…%d after _Ready, expected the whole corridor 0…%.0f — a narrower limit stops the camera at the seam" % [cam.limit_left if cam != null else 0, cam.limit_right if cam != null else 0, MINE_END])
 		# The far layer follows the camera limits: on while the limits overlap the room, off otherwise.
 		if cam != null:
 			var backs := {}

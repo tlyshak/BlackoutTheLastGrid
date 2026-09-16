@@ -22,7 +22,7 @@ size = Vector2(40, 400)
 [node name="Level00_Sections" type="Node2D" node_paths=PackedStringArray("StartRoom", "Director", "StandingGuard", "Player", "Camera", "Pause", "Hud", "Companion", "Checkpoints")]
 y_sort_enabled = true
 script = ExtResource("1_level")
-StartRoom = NodePath("Rooms/Room_Face")
+StartRoom = NodePath("Rooms/Room_Mine")
 Director = NodePath("EnemyDirector")
 StandingGuard = NodePath("Guard")
 Player = NodePath("Player")
@@ -47,15 +47,9 @@ color = Color(0.560784, 0.592157, 0.639216, 1)
 
 [node name="Rooms" type="Node2D" parent="."]
 
-[node name="Room_Face" type="Node2D" parent="Rooms"]
+[node name="Room_Mine" type="Node2D" parent="Rooms"]
 script = ExtResource("2_room")
-Rect = Rect2(0, -80, 1280, 1160)
-FloorTop = 300.0
-FloorBottom = 600.0
-
-[node name="Room_Drift" type="Node2D" parent="Rooms"]
-script = ExtResource("2_room")
-Rect = Rect2(1280, -80, 1280, 1160)
+Rect = Rect2(0, -80, 2560, 1160)
 FloorTop = 300.0
 FloorBottom = 600.0
 
@@ -82,12 +76,12 @@ script = ExtResource("3_director")
 
 [node name="Checkpoint_Face" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("6_checkpoint")]
 position = Vector2(88.89, 450)
-Room = NodePath("../../Rooms/Room_Face")
+Room = NodePath("../../Rooms/Room_Mine")
 Label = "face"
 
 [node name="Checkpoint_Drift" parent="Checkpoints" node_paths=PackedStringArray("Room") instance=ExtResource("6_checkpoint")]
 position = Vector2(1297.78, 450)
-Room = NodePath("../../Rooms/Room_Drift")
+Room = NodePath("../../Rooms/Room_Mine")
 Label = "drift"
 
 [node name="ConveyorLine" parent="." node_paths=PackedStringArray("PassThrough") instance=ExtResource("7_belt")]
@@ -115,7 +109,7 @@ position = Vector2(640, 280)
 zoom = Vector2(1.5, 1.5)
 limit_left = 0
 limit_top = -80
-limit_right = 1280
+limit_right = 2560
 limit_bottom = 1080
 limit_smoothed = true
 position_smoothing_enabled = true
