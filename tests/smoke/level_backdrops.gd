@@ -49,6 +49,7 @@ const MOCKUP_SIZE := Vector2(680.0, 440.0)   # the sections' viewBox, in mockup 
 const TEXTURE_SIZE := Vector2i(2040, 1320)   # MOCKUP_SIZE x IMPORT_SCALE
 const R2 := "level0_section1_mineface_r2"         # the mine face room (tools/derive_section1_r2.py)
 const R2_S2 := "level0_section2_ventilation_r2"   # the ventilation drift (tools/derive_section2_r2.py)
+const R2_S3 := "level0_section3_exit_r2"   # the exit hall and the lift
 # The mine face derivatives the room draws: two frame-sized layers, the shared far layer and the
 # four animated crops (crop size in mockup px x IMPORT_SCALE).
 const R2_LAYERS := {"_back": TEXTURE_SIZE, "_mid": TEXTURE_SIZE, "_floor": TEXTURE_SIZE,
@@ -59,6 +60,13 @@ const R2_LAYERS := {"_back": TEXTURE_SIZE, "_mid": TEXTURE_SIZE, "_floor": TEXTU
 const R2_S2_LAYERS := {"_mid": TEXTURE_SIZE, "_floor": TEXTURE_SIZE,
 	"_belt_tile": Vector2i(66, 147), "_run_green": Vector2i(978, 120),
 	"_run_red": Vector2i(978, 120), "_lever": Vector2i(72, 84), "_sparks": Vector2i(180, 144)}
+# The exit hall's derivatives (T-V3-04): its own three layers plus the crops the game animates —
+# the camera's LED, the three locker cells and the two loose power banks, all blinking, and the
+# cage grate the ambush hides.
+const R2_S3_LAYERS := {"_mid": TEXTURE_SIZE, "_floor": TEXTURE_SIZE,
+	"_camera_lamp": Vector2i(36, 36), "_cell_a": Vector2i(18, 18), "_cell_b": Vector2i(18, 18),
+	"_cell_c": Vector2i(18, 18), "_bank_a": Vector2i(36, 30), "_bank_b": Vector2i(48, 36),
+	"_cage_gate": Vector2i(672, 552)}
 const SHARED_BACK := ART + R2 + "_back.svg"   # the one far layer both mine rooms tile
 const BACK_SLICE := Vector2(240, 680)   # SectionBackdrop.BackSlice default: the tiled column of the far layer
 const BACK_SEAM_ROWS := 160             # mockup rows of the far layer (the wall covers it from 160)
@@ -69,7 +77,7 @@ const LEVEL_SCENE := SCENE_DIR + "Level00_Sections.tscn"
 # ---- the one-painting geometry, every constant derived from WORLD_SCALE -------------------------
 const WORLD_SCALE := 1280.0 / 680.0   # SectionBackdrop.WorldScale of every Backdrop_*: one mockup = one camera window
 const ROOM_WIDTH := MOCKUP_SIZE.x * WORLD_SCALE   # 1280: the painting is the whole room
-const MINE_END := 2.0 * ROOM_WIDTH                # 2560: the right edge of the second room
+const MINE_END := 3.0 * ROOM_WIDTH                # 3840: the right edge of the last painted room
 const BAND_TOP := 300.0            # RoomBounds.FloorTop of the mine rooms
 const BAND_BOTTOM := 600.0         # RoomBounds.FloorBottom
 # RoomBounds.Rect of the corridor. The top is the camera's LimitTop, and it has to sit above the
@@ -96,13 +104,13 @@ const VIEWPORT_PX := 1920.0        # display/window/size/viewport_width: Paralla
 const CAMERA_ZOOM := Vector2(1.5, 1.5)
 # Room order, world x in the level (scenes/levels/Level00_Sections.tscn, Rooms/* and
 # Backgrounds/Backdrop_*) and the section each room's Mid/Floor are cut from.
-const ROOMS := [["Face", 0.0, R2], ["Drift", ROOM_WIDTH, R2_S2]]
+const ROOMS := [["Face", 0.0, R2], ["Drift", ROOM_WIDTH, R2_S2], ["Exit", 2.0 * ROOM_WIDTH, R2_S3]]
 # Mockup column clear of props in a section's mid/floor layers: 100 for r2 (through the power bank
 # shelf, whose shadow ends at row 258: the wires pass rows 122…127 there, the wall ends exactly at
 # 280 — the terminal's ground shadow reaches row 285 at columns 4…56 and the dividers' at 193…209).
 # 360 for the r2 section 2 (between the fan housing's right louver and the gauge cabinet: the mid
 # layer ends exactly at the wall base there and the floor starts at 280).
-const PROBE_COLUMNS := {R2: 100, R2_S2: 360}
+const PROBE_COLUMNS := {R2: 100, R2_S2: 360, R2_S3: 100}
 const SKY_ROW := 120               # mockup row between the beam (to 113) and the pipes (from 124): mid transparent, back shows through
 const WALL_ROW := 170              # mockup row inside the wall band 160…280
 const WALL_BASE_ROW := 279         # last wall row
@@ -211,6 +219,8 @@ func _run() -> void:
 		expected[R2 + layer] = R2_LAYERS[layer]
 	for layer in R2_S2_LAYERS:
 		expected[R2_S2 + layer] = R2_S2_LAYERS[layer]
+	for layer in R2_S3_LAYERS:
+		expected[R2_S3 + layer] = R2_S3_LAYERS[layer]
 	for name in expected:
 		var path: String = ART + name + ".svg"
 		var tex: Texture2D = load(path)

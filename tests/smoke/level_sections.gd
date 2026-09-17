@@ -1,5 +1,5 @@
 extends SceneTree
-# Smoke: the level — the two painted sections of level 0 and nothing else. The author's rule is
+# Smoke: the level — the three painted sections of level 0 and nothing else. The author's rule is
 # that the second painting starts exactly where the first one ends, so the two backdrops have to
 # be adjacent to the pixel. The two of them are one corridor, not two arenas: a single RoomBounds
 # spans both, so the camera pans across the seam instead of stopping at the end of the first
@@ -13,12 +13,17 @@ const NAME := "level_sections"
 const LEVEL_PATH := "res://scenes/levels/Level00_Sections.tscn"
 const MAIN_PATH := "res://scenes/Main.tscn"
 const SECTION_WIDTH := 1280.0        # one painting, in world px
-const CORRIDOR_WIDTH := 2560.0       # both paintings: the playable span and the camera span
+const SECTIONS := 3                  # mine face, ventilation drift, exit and lift
+const CORRIDOR_WIDTH := SECTION_WIDTH * SECTIONS   # the playable span and the camera span
 const WALK_TOP := 300.0
 const WALK_BOTTOM := 600.0
 const EPS := 0.01
 # Subtrees that are not level dressing: their own scenes own whatever they draw.
-const ACTOR_AND_UI_BRANCHES := ["Player", "Dan", "Guard", "HUD", "PauseMenu"]
+const ACTOR_AND_UI_BRANCHES := ["Player", "Dan", "Guard", "CageGuardA", "CageGuardB", "HUD", "PauseMenu"]
+# The painted backdrops, left to right, and the level x each one starts at.
+const BACKDROPS := [["Backdrop_Face", 0.0], ["Backdrop_Drift", 1280.0], ["Backdrop_Exit", 2560.0]]
+# Every guard in the level: the one at the end of section 2, and the pair the cage holds.
+const GUARDS := ["Guard", "CageGuardA", "CageGuardB"]
 
 var _done := false
 var _failures: Array[String] = []
@@ -59,27 +64,30 @@ func _process(_delta: float) -> bool:
 	var rooms: Node = _node(level, "Rooms")
 	if rooms != null:
 		_check(rooms.get_child_count() == 1,
-			"the level has %d RoomBounds; the two paintings are one corridor and need exactly one, or the camera stops at the seam" % rooms.get_child_count())
+			"the level has %d RoomBounds; the paintings are one corridor and need exactly one, or the camera stops at a seam" % rooms.get_child_count())
 	var mine: Node = _node(level, "Rooms/Room_Mine")
 	if mine != null:
 		var r: Rect2 = mine.Rect
 		_check(is_zero_approx(r.position.x), "the corridor starts at x %.2f, expected 0" % r.position.x)
 		_check(is_equal_approx(r.size.x, CORRIDOR_WIDTH),
-			"the corridor is %.2f px wide, expected both paintings (%.0f)" % [r.size.x, CORRIDOR_WIDTH])
+			"the corridor is %.2f px wide, expected all %d paintings (%.0f)" % [r.size.x, SECTIONS, CORRIDOR_WIDTH])
 		_check(is_equal_approx(mine.FloorTop, WALK_TOP) and is_equal_approx(mine.FloorBottom, WALK_BOTTOM),
 			"walk band %.1f..%.1f, expected %.1f..%.1f" % [mine.FloorTop, mine.FloorBottom, WALK_TOP, WALK_BOTTOM])
 
 	# The two paintings, adjacent to the pixel: the second begins exactly where the first ends.
 	var backdrops: Node = _node(level, "Backgrounds")
 	if backdrops != null:
-		_check(backdrops.get_child_count() == 2,
-			"Backgrounds holds %d backdrops, expected exactly the two painted sections" % backdrops.get_child_count())
-	var bd_face: Node2D = level.get_node_or_null("Backgrounds/Backdrop_Face")
-	var bd_drift: Node2D = level.get_node_or_null("Backgrounds/Backdrop_Drift")
-	_check(bd_face != null and is_zero_approx(bd_face.position.x), "Backdrop_Face is not at x 0")
-	if bd_face != null and bd_drift != null:
-		_check(absf(bd_drift.position.x - (bd_face.position.x + SECTION_WIDTH)) <= EPS,
-			"section 2 is painted from x %.2f but section 1 ends at x %.2f — the paintings must be adjacent" % [bd_drift.position.x, bd_face.position.x + SECTION_WIDTH])
+		_check(backdrops.get_child_count() == SECTIONS,
+			"Backgrounds holds %d backdrops, expected exactly the %d painted sections" % [backdrops.get_child_count(), SECTIONS])
+	# Every painting starts exactly where the one before it ends.
+	for i in BACKDROPS.size():
+		var entry: Array = BACKDROPS[i]
+		var bd: Node2D = level.get_node_or_null("Backgrounds/" + entry[0])
+		_check(bd != null, "Backgrounds/%s is missing" % entry[0])
+		if bd == null:
+			continue
+		_check(absf(bd.position.x - float(entry[1])) <= EPS,
+			"%s is painted from x %.2f, expected x %.0f — the paintings must be adjacent" % [entry[0], bd.position.x, entry[1]])
 
 	# The camera may pan the whole corridor, not just the painting the hero started on.
 	var cam: Camera2D = level.get_node_or_null("Camera2D")
@@ -98,8 +106,16 @@ func _process(_delta: float) -> bool:
 	if dan != null and player != null:
 		_check(dan.Target == player, "Dan does not follow Ray")
 	if guard != null:
-		_check(guard.global_position.x > SECTION_WIDTH * 1.5 and guard.global_position.x < CORRIDOR_WIDTH,
-			"the guard stands at x %.2f, expected the far half of section 2 (%.0f..%.0f)" % [guard.global_position.x, SECTION_WIDTH * 1.5, CORRIDOR_WIDTH])
+		_check(guard.global_position.x > SECTION_WIDTH * 1.5 and guard.global_position.x < SECTION_WIDTH * 2.0,
+			"the guard stands at x %.2f, expected the far half of section 2 (%.0f..%.0f)" % [guard.global_position.x, SECTION_WIDTH * 1.5, SECTION_WIDTH * 2.0])
+	# The pair the lift cage holds, both inside section 3 and inside the walk band.
+	for cage_guard_name in ["CageGuardA", "CageGuardB"]:
+		var caged: Node2D = level.get_node_or_null(cage_guard_name)
+		_check(caged != null, "%s is missing from the level" % cage_guard_name)
+		if caged == null:
+			continue
+		_check(caged.global_position.x > SECTION_WIDTH * 2.0 and caged.global_position.x < CORRIDOR_WIDTH,
+			"%s stands at x %.2f, expected section 3 (%.0f..%.0f)" % [cage_guard_name, caged.global_position.x, SECTION_WIDTH * 2.0, CORRIDOR_WIDTH])
 	# The level wakes the guard on ready, so he has the hero as a target and a director.
 	_check(level.StandingGuard == guard, "the level's StandingGuard is not the guard in the scene")
 	_check(level.Director != null, "the level has no EnemyDirector")
@@ -110,7 +126,8 @@ func _process(_delta: float) -> bool:
 	for n in _walk(level):
 		if n.get_script() != null and str(n.get_script().resource_path).ends_with("/Guard.cs"):
 			guards += 1
-	_check(guards == 1, "the level holds %d guards, expected exactly one" % guards)
+	_check(guards == GUARDS.size(),
+		"the level holds %d guards, expected %d: one at the end of section 2 and the pair in the lift cage" % [guards, GUARDS.size()])
 
 	# The belt gate: it runs at start and its face blocks the drift until the lever is thrown.
 	var belt: Node2D = _node(level, "ConveyorLine")
@@ -118,7 +135,7 @@ func _process(_delta: float) -> bool:
 	if belt != null and lever != null:
 		_check(belt.Running, "the conveyor is not running at the start, so nothing blocks the drift")
 		_check(lever.Line == belt, "the lever is not wired to the conveyor")
-		_check(belt.global_position.x > SECTION_WIDTH and belt.global_position.x < CORRIDOR_WIDTH,
+		_check(belt.global_position.x > SECTION_WIDTH and belt.global_position.x < SECTION_WIDTH * 2.0,
 			"the conveyor sits at x %.2f, outside section 2" % belt.global_position.x)
 		_check(lever.global_position.x < belt.global_position.x,
 			"the lever is behind the belt; the hero could never reach it")
@@ -143,9 +160,9 @@ func _process(_delta: float) -> bool:
 	# Both rooms have a checkpoint, each bound to its own room.
 	var checkpoints: Node = _node(level, "Checkpoints")
 	if checkpoints != null:
-		_check(checkpoints.get_child_count() == 2,
-			"there are %d checkpoints, expected one per section" % checkpoints.get_child_count())
-		for cp_name in ["Checkpoint_Face", "Checkpoint_Drift"]:
+		_check(checkpoints.get_child_count() == SECTIONS,
+			"there are %d checkpoints, expected one per section (%d)" % [checkpoints.get_child_count(), SECTIONS])
+		for cp_name in ["Checkpoint_Face", "Checkpoint_Drift", "Checkpoint_Exit"]:
 			var cp: Node2D = level.get_node_or_null("Checkpoints/" + cp_name)
 			_check(cp != null and cp.Room == mine,
 				"%s does not carry the corridor bounds; a respawn there would trap the camera in one painting" % cp_name)
@@ -156,7 +173,7 @@ func _process(_delta: float) -> bool:
 	if left != null and right != null:
 		_check(left.global_position.x < SECTION_WIDTH * 0.5, "WallLeft is not at the start of section 1")
 		_check(right.global_position.x > CORRIDOR_WIDTH - 100.0 and right.global_position.x <= CORRIDOR_WIDTH,
-			"WallRight is at x %.2f, expected the end of section 2 (%.0f)" % [right.global_position.x, CORRIDOR_WIDTH])
+			"WallRight is at x %.2f, expected the end of the last section (%.0f)" % [right.global_position.x, CORRIDOR_WIDTH])
 
 	# Nothing placeholder is drawn in the world. The actors and the menus carry PH_ nodes of their
 	# own (Dan's lamp cone, the pause dimmer) and are not part of the painted rooms, so the scan

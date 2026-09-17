@@ -1,0 +1,27 @@
+[gd_scene load_steps=3 format=3 uid="uid://dq7x3vn5ka2mb"]
+
+; The lift cage of the v2 third section (assets/art/v2/level0_r2/level0_section3_exit_r2.svg). The
+; area is the trip wire of the ambush, not a wall: it covers the last stretch of floor before the
+; cage — world x 3040…3440 across the whole walk band (y 300…600) — with the section placed at
+; level x 2560 (WorldScale 1280/680, OffsetY -227.06). That is the 240 px of floor in front of the
+; painted cage opening (mockup x 382…602, y 100…280 = world x 3279.1…3693.6, y -38.8…300.0), so the
+; grate goes and the guards come out as the hero gets near the cage, not the moment he steps into
+; the section (world x 2560…3840); spanning the full depth of the band leaves no way to sneak past
+; along its far or near edge. Place this node at world (3240, 450).
+; The root is an Area2D that blocks nothing: layer 0, mask 2 (the Player layer), monitoring.
+; The level fills in Caged, Exits, Gate, Player and Director; the two caged guards stand with their
+; feet at world (3399.5, 315.1) and (3584.0, 315.1) and walk out to their Exits markers, which
+; belong inside the band. tests/smoke/props_guard_cage.gd rebuilds all of it from these numbers.
+[ext_resource type="Script" path="res://scripts/props/GuardCage.cs" id="1_cage"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_trip"]
+size = Vector2(400, 300)
+
+[node name="GuardCage" type="Area2D"]
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+script = ExtResource("1_cage")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_trip")
